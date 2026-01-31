@@ -71,6 +71,19 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
               </Field>
               {/* Hiển thị error nếu có */}
               {error && <div className="error-message">{error}</div>}
+              <FieldDescription className="mt-2 rounded-md border border-border bg-muted/50 p-3 text-left text-xs text-muted-foreground">
+                <span className="font-medium">Tài khoản test:</span>
+                <br />
+                admin@example.com / admin123
+                <br />
+                franchise@example.com / franchise123
+                <br />
+                manager@example.com / manager123
+                <br />
+                supplier@example.com / supplier123
+                <br />
+                central@example.com / central123
+              </FieldDescription>
             </FieldGroup>
           </form>
         </CardContent>

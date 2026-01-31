@@ -2,9 +2,11 @@ import LoginPage from './pages/auth/LoginPage.tsx';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import ProtectedRoute from './routes/ProtectedRoute.tsx';
 import RoleRoute from './routes/RoleRoute.tsx';
-import BranchManagementPage from './pages/admin/BranchManagementPage.tsx';
+import AdminDashboard from './pages/admin/AdminDashboard.tsx';
 import ManagerDashboard from './pages/manager/ManagerDashboard.tsx';
 import FranchiseStoreDashboard from './pages/franchise-store/FranchiseStoreDashboard.tsx';
+import SupplyDashboard from './pages/supply/SupplyDashboard.tsx';
+import CentralKitchenDashboard from './pages/central-kitchen/CentralKitchenDashboard.tsx';
 
 function App() {
   return (
@@ -19,9 +21,11 @@ function App() {
               path="/"
               element={
                 <RoleRoute
-                  admin={<BranchManagementPage />}
+                  admin={<AdminDashboard />}
                   franchise={<FranchiseStoreDashboard />}
                   manager={<ManagerDashboard />}
+                  supplier={<SupplyDashboard />}
+                  centralKitchen={<CentralKitchenDashboard />}
                 />
               }
             ></Route>
