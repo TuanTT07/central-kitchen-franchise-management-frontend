@@ -40,50 +40,69 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
 
   return (
     <div className={cn('flex flex-col gap-6', className)} {...props}>
-      <Card>
+      <Card className="border border-border/80 shadow-md">
         <CardHeader>
-          <CardTitle>Login to your account</CardTitle>
-          <CardDescription>Enter your email below to login to your account</CardDescription>
+          <CardTitle className="text-xl font-semibold tracking-tight">
+            Đăng nhập Kitchen Hub
+          </CardTitle>
+          <CardDescription>Nhập email và mật khẩu để tiếp tục.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit}>
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input id="email" type="email" name="username" placeholder="m@example.com" required />
+                <Input
+                  id="email"
+                  type="email"
+                  name="username"
+                  placeholder="admin@example.com"
+                  autoComplete="email"
+                  required
+                />
               </Field>
               <Field>
                 <div className="flex items-center">
                   <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <a href="#" className="ml-auto inline-block text-sm underline-offset-4 hover:underline">
+                  <a
+                    href="#"
+                    className="ml-auto inline-block text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                  >
                     Forgot your password?
                   </a>
                 </div>
-                <Input id="password" type="password" name="password" required />
+                <Input
+                  id="password"
+                  type="password"
+                  name="password"
+                  autoComplete="current-password"
+                  required
+                />
               </Field>
               <Field>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? 'Đang đăng nhập...' : 'Login'}
+                <Button type="submit" className="w-full bg-amber-500 hover:bg-amber-600" disabled={isLoading}>
+                  {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
                 </Button>
-                <FieldDescription className="text-center">
-                  {/* Don&apos;t have an account? <a href="#">Sign up</a> */}
+                <FieldDescription className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                  <span className="font-medium">Tài khoản thử theo từng vai trò:</span>
+                  <br />
+                  ADMIN: <span className="font-medium">admin@example.com / admin123</span>
+                  <br />
+                  FRANCHISE: <span className="font-medium">franchise@example.com / franchise123</span>
+                  <br />
+                  MANAGER: <span className="font-medium">manager@example.com / manager123</span>
+                  <br />
+                  SUPPLIER: <span className="font-medium">supplier@example.com / supplier123</span>
+                  <br />
+                  CENTRAL_KITCHEN: <span className="font-medium">central@example.com / central123</span>
                 </FieldDescription>
               </Field>
               {/* Hiển thị error nếu có */}
-              {error && <div className="error-message">{error}</div>}
-              <FieldDescription className="mt-2 rounded-md border border-border bg-muted/50 p-3 text-left text-xs text-muted-foreground">
-                <span className="font-medium">Tài khoản test:</span>
-                <br />
-                admin@example.com / admin123
-                <br />
-                franchise@example.com / franchise123
-                <br />
-                manager@example.com / manager123
-                <br />
-                supplier@example.com / supplier123
-                <br />
-                central@example.com / central123
-              </FieldDescription>
+              {error && (
+                <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {error}
+                </div>
+              )}
             </FieldGroup>
           </form>
         </CardContent>

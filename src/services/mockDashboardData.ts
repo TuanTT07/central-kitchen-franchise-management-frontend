@@ -1,6 +1,15 @@
 /**
- * Mock data cho dashboard - map với schema KitchenDB_Prod
- * PurchaseOrder, TransferOrder, Item, ItemType, Location, Users...
+ * Mock data cho dashboard - map với schema KitchenDB_BatchMaster
+ *
+ * Liên quan các bảng:
+ * - PurchaseOrder, PODetail, GoodsReceipt, GoodsReceiptDetail
+ * - TransferOrder, TransferDetail, Shipment
+ * - Item, ItemType, Unit, Batch, Inventory
+ * - Location, Warehouse, Users, Role
+ * - OrderStatus, ProductionStatus, IssueType
+ *
+ * => Dữ liệu ở đây chỉ là mock nhưng tên field / ý nghĩa đã bám sát schema DB mới
+ *    để sau này có thể thay bằng API thực tế mà không phải đổi UI quá nhiều.
  */
 
 export type OrderStatus = 'DRAFT' | 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';

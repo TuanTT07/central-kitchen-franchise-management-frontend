@@ -87,8 +87,8 @@ const CentralKitchenDashboard = () => {
         <div className="grid gap-6 lg:grid-cols-3">
           <Card className="border-border bg-white">
             <CardHeader>
-              <CardTitle className="text-base">Đơn theo ngày</CardTitle>
-              <CardDescription>ProductionOrder tuần này</CardDescription>
+              <CardTitle className="text-base">Đơn sản xuất theo ngày</CardTitle>
+              <CardDescription>ProductionOrder (ProdID) trong tuần này</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex h-40 items-end gap-2">
@@ -110,8 +110,8 @@ const CentralKitchenDashboard = () => {
 
           <Card className="border-border bg-white lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-base">Đơn hàng gần đây</CardTitle>
-              <CardDescription>TransferOrder từ cửa hàng</CardDescription>
+              <CardTitle className="text-base">Đơn từ cửa hàng</CardTitle>
+              <CardDescription>ProductionOrder nhận từ FranchiseStore & trạng thái sản xuất</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
