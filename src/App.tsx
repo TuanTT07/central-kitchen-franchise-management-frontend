@@ -7,13 +7,7 @@ import {
   SystemConfigPage,
   UserManagementPage,
 } from './pages/admin/index.ts';
-import {
-  ManagerDashboard,
-  InventoryOverviewPage,
-  ProductManagementPage,
-  RecipePage,
-  ReportsPage,
-} from './pages/manager/index.ts';
+import { ManagerDashboard } from './pages/manager/index.ts';
 import FranchiseStoreDashboard from './pages/franchise-store/FranchiseStoreDashboard.tsx';
 import SupplyDashboard from './pages/supply/SupplyDashboard.tsx';
 import CentralKitchenDashboard from './pages/central-kitchen/CentralKitchenDashboard.tsx';
