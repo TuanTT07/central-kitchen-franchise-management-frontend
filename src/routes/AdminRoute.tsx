@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from 'react-router';
+import { Outlet } from 'react-router';
 
 export default function AdminRoute() {
   const role = localStorage.getItem('userRole');
