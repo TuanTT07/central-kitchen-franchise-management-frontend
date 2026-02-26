@@ -1,7 +1,9 @@
 import { mockAuthService } from './mockAuthService';
 import type { LoginResponse } from '@/Types/LoginResponse';
 
-const USE_MOCK = import.meta.env.MODE === 'development';
+const USE_MOCK =
+  import.meta.env.VITE_USE_MOCK_AUTH === 'true' || // Nếu set trong .env
+  import.meta.env.MODE === 'development'; // Hoặc đang development
 export const authService = {
   signIn: async (username: string, password: string): Promise<LoginResponse> => {
     if (USE_MOCK) {
