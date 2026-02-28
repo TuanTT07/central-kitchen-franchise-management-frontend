@@ -43,7 +43,7 @@ const mockLoginResponse: Record<string, { user: User; password: string }> = {
     },
     password: 'franchise123',
   },
-  'franchise@example.com': {
+  'franchise2@example.com': {
     user: {
       userId: '2b',
       userFullName: 'Nhân viên cửa hàng',
