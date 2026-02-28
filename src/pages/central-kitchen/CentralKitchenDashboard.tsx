@@ -1,24 +1,9 @@
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  LayoutDashboard,
-  ChefHat,
-  Package,
-  ClipboardList,
-  Boxes,
-} from 'lucide-react';
-import {
-  mockOrdersByDay,
-  mockRecentOrders,
-  mockActivity,
-} from '@/services/mockDashboardData';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { LayoutDashboard, ChefHat, Package, ClipboardList, Boxes } from 'lucide-react';
+import { mockOrdersByDay, mockRecentOrders, mockActivity } from '@/services/mockDashboardData';
 
 const centralNavItems = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },

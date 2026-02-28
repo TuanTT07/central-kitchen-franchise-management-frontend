@@ -1,11 +1,14 @@
 import { Outlet } from 'react-router';
-import DashboardLayout from './DashboardLayout';
-import { ADMIN_SIDEBAR_ITEMS } from './sidebarConfig';
+import { DashboardLayout } from '@/components/layout';
+import { ADMIN_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 
-export default function AdminShell() {
+const AdminShell = () => {
   return (
     <DashboardLayout navItems={ADMIN_SIDEBAR_ITEMS} roleLabel="ADMIN">
-      <Outlet></Outlet>
+      <Outlet />
     </DashboardLayout>
   );
-}
+};
+
+export default AdminShell;
+

@@ -12,11 +12,14 @@ import FranchiseStoreDashboard from './pages/franchise-store/FranchiseStoreDashb
 import SupplyDashboard from './pages/supply/SupplyDashboard.tsx';
 import CentralKitchenDashboard from './pages/central-kitchen/CentralKitchenDashboard.tsx';
 import { AdminRoute, RoleRoute, ProtectedRoute } from './routes/index.ts';
+import AdminShell from '@/components/layout/AdminShell';
+import { AuthProvider } from '@/contexts/AuthContext';
 function App() {
   return (
     <>
       <BrowserRouter>
-        <Routes>
+        <AuthProvider>
+          <Routes>
           {/* Login cho các role */}
           <Route path="/login" element={<LoginPage />}></Route>
 
@@ -37,10 +40,12 @@ function App() {
 
             {/* Routing riêng của admin */}
             <Route element={<AdminRoute />}>
-              <Route path="/admin/stores" element={<BranchManagementPage />}></Route>
-              <Route path="/admin/users" element={<UserManagementPage />}></Route>
-              <Route path="/admin/roles" element={<RolePermissionPage />}></Route>
-              <Route path="/admin/configs" element={<SystemConfigPage />}></Route>
+              <Route element={<AdminShell />}>
+                <Route path="/admin/stores" element={<BranchManagementPage />}></Route>
+                <Route path="/admin/users" element={<UserManagementPage />}></Route>
+                <Route path="/admin/roles" element={<RolePermissionPage />}></Route>
+                <Route path="/admin/configs" element={<SystemConfigPage />}></Route>
+              </Route>
             </Route>
 
             {/* Routing riêng của manager */}
@@ -49,6 +54,7 @@ function App() {
             {/* Routing riêng của supplier */}
           </Route>
         </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </>
   );

@@ -1,27 +1,10 @@
 import { useState } from 'react';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { DashboardLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  LayoutDashboard,
-  ShoppingCart,
-  Package,
-  Boxes,
-  UtensilsCrossed,
-  Users,
-  Settings,
-  TrendingUp,
-  Users as UsersIcon,
-  DollarSign,
-  Receipt,
-} from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Package, TrendingUp, Users as UsersIcon, DollarSign, Receipt } from 'lucide-react';
+import { ADMIN_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 import {
   mockKpis,
   mockRevenueData,
@@ -33,16 +16,6 @@ import {
   mockActivity,
 } from '@/services/mockDashboardData';
 import { cn } from '@/lib/utils';
-
-const adminNavItems = [
-  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { label: 'Đơn hàng', href: '#', icon: ShoppingCart },
-  { label: 'Tồn kho', href: '#', icon: Boxes },
-  { label: 'Sản phẩm', href: '#', icon: UtensilsCrossed },
-  { label: 'Chi nhánh', href: '#', icon: Package },
-  { label: 'Người dùng', href: '#', icon: Users },
-  { label: 'Cấu hình', href: '#', icon: Settings },
-];
 
 const statusLabel: Record<string, string> = {
   DRAFT: 'Nháp',
@@ -69,7 +42,7 @@ const AdminDashboard = () => {
   const maxRevenue = Math.max(...mockRevenueData.flatMap((d) => [d.income, d.expense]));
 
   return (
-    <DashboardLayout navItems={adminNavItems} roleLabel="ADMIN">
+    <DashboardLayout navItems={ADMIN_SIDEBAR_ITEMS} roleLabel="ADMIN">
       <div className="space-y-6">
         {/* KPI Cards */}
         <div className="grid gap-4 sm:grid-cols-3">
@@ -80,12 +53,9 @@ const AdminDashboard = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Tổng đơn hàng</p>
-                <p className="text-2xl font-bold">
-                  {mockKpis.totalOrders.value.toLocaleString()}
-                </p>
+                <p className="text-2xl font-bold">{mockKpis.totalOrders.value.toLocaleString()}</p>
                 <span className="flex items-center gap-1 text-sm text-emerald-600">
-                  <TrendingUp className="size-4" />
-                  +{mockKpis.totalOrders.trend}%
+                  <TrendingUp className="size-4" />+{mockKpis.totalOrders.trend}%
                 </span>
               </div>
             </CardContent>
@@ -97,12 +67,8 @@ const AdminDashboard = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Chi nhánh</p>
-                <p className="text-2xl font-bold">
-                  {mockKpis.totalLocations.value}
-                </p>
-                <span className="flex items-center gap-1 text-sm text-stone-500">
-                  — so với tháng trước
-                </span>
+                <p className="text-2xl font-bold">{mockKpis.totalLocations.value}</p>
+                <span className="flex items-center gap-1 text-sm text-stone-500">— so với tháng trước</span>
               </div>
             </CardContent>
           </Card>
@@ -113,12 +79,9 @@ const AdminDashboard = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Tổng doanh thu</p>
-                <p className="text-2xl font-bold">
-                  ${mockKpis.totalRevenue.value.toLocaleString()}
-                </p>
+                <p className="text-2xl font-bold">${mockKpis.totalRevenue.value.toLocaleString()}</p>
                 <span className="flex items-center gap-1 text-sm text-emerald-600">
-                  <TrendingUp className="size-4" />
-                  +{mockKpis.totalRevenue.trend}%
+                  <TrendingUp className="size-4" />+{mockKpis.totalRevenue.trend}%
                 </span>
               </div>
             </CardContent>
@@ -266,9 +229,7 @@ const AdminDashboard = () => {
                   </span>
                   <div className="text-right">
                     <span className="font-medium">{ot.percent}%</span>
-                    <span className="ml-1 text-xs text-muted-foreground">
-                      {ot.count} đơn
-                    </span>
+                    <span className="ml-1 text-xs text-muted-foreground">{ot.count} đơn</span>
                   </div>
                 </div>
               ))}
@@ -333,9 +294,7 @@ const AdminDashboard = () => {
                         <td className="py-3 font-medium">{o.orderId}</td>
                         <td className="py-3">{o.itemName}</td>
                         <td className="py-3">{o.quantity}</td>
-                        <td className="py-3">
-                          {(o.amount / 1000).toFixed(0)}K
-                        </td>
+                        <td className="py-3">{(o.amount / 1000).toFixed(0)}K</td>
                         <td className="py-3">{o.customer}</td>
                         <td className="py-3">
                           <span
@@ -362,10 +321,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               {mockTrendingItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex gap-3 rounded-lg border border-border p-2"
-                >
+                <div key={item.id} className="flex gap-3 rounded-lg border border-border p-2">
                   <div className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-2xl">
                     🍽️
                   </div>
@@ -375,9 +331,7 @@ const AdminDashboard = () => {
                     <p className="mt-1 flex items-center gap-1 text-xs">
                       <span className="text-amber-500">★</span> {item.rating} ({item.reviewCount})
                     </p>
-                    <p className="font-medium text-amber-600">
-                      {(item.price / 1000).toFixed(0)}K
-                    </p>
+                    <p className="font-medium text-amber-600">{(item.price / 1000).toFixed(0)}K</p>
                   </div>
                 </div>
               ))}
