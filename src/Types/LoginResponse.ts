@@ -84,4 +84,5 @@ const mockLoginResponse: Record<string, { user: User; password: string }> = {
     password: 'central123',
   },
 };
+
 export default mockLoginResponse;
