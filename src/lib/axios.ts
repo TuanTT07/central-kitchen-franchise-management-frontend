@@ -1,16 +1,16 @@
-import axios from 'axios';
+import axios, { type AxiosInstance } from 'axios';
 
-const api = axios.create({
-  baseURL: import.meta.env.MODE === 'development' ? 'http://localhost:3000/api' : '/api',
-  withCredentials: true,
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token && config.headers) {
-    config.headers['Authorization'] = `Bearer ${token}`;
+class Http {
+  instance: AxiosInstance;
+  constructor() {
+    this.instance = axios.create({
+      baseURL: import.meta.env.VITE_API_BASE_URL,
+      timeout: 10000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
-  return config;
-});
-
-export default api;
+}
+const http = new Http().instance;
+export default http;

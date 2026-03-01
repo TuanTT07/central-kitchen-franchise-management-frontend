@@ -42,13 +42,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
     <div className={cn('flex flex-col gap-6', className)} {...props}>
       <Card className="border border-border/80 shadow-md">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold tracking-tight">
-            Đăng nhập Kitchen Hub
-          </CardTitle>
+          <CardTitle className="text-xl font-semibold tracking-tight">Đăng nhập Kitchen Hub</CardTitle>
           <CardDescription>Nhập email và mật khẩu để tiếp tục.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -71,13 +69,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                     Forgot your password?
                   </a>
                 </div>
-                <Input
-                  id="password"
-                  type="password"
-                  name="password"
-                  autoComplete="current-password"
-                  required
-                />
+                <Input id="password" type="password" name="password" autoComplete="current-password" required />
               </Field>
               <Field>
                 <Button type="submit" className="w-full bg-amber-500 hover:bg-amber-600" disabled={isLoading}>
@@ -99,19 +91,6 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
               </Field>
               {/* Hiển thị error nếu có */}
               {error && <div className="error-message">{error}</div>}
-              <FieldDescription className="mt-2 rounded-md border border-border bg-muted/50 p-3 text-left text-xs text-muted-foreground">
-                <span className="font-medium">Tài khoản test:</span>
-                <br />
-                admin@example.com / admin123
-                <br />
-                franchise@example.com / franchise123
-                <br />
-                manager@example.com / manager123
-                <br />
-                supplier@example.com / supplier123
-                <br />
-                central@example.com / central123
-              </FieldDescription>
             </FieldGroup>
           </form>
         </CardContent>
