@@ -1,34 +1,9 @@
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { DashboardLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  LayoutDashboard,
-  Boxes,
-  UtensilsCrossed,
-  BookOpen,
-  BarChart3,
-  Package,
-} from 'lucide-react';
-import {
-  mockOrdersByDay,
-  mockCategories,
-  mockRecentOrders,
-  mockActivity,
-} from '@/services/mockDashboardData';
-
-const managerNavItems = [
-  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { label: 'Tổng quan kho', href: '#', icon: Boxes },
-  { label: 'Sản phẩm', href: '#', icon: UtensilsCrossed },
-  { label: 'Công thức', href: '#', icon: BookOpen },
-  { label: 'Báo cáo', href: '#', icon: BarChart3 },
-];
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Boxes, UtensilsCrossed, BookOpen, BarChart3, Package } from 'lucide-react';
+import { mockOrdersByDay, mockCategories, mockRecentOrders, mockActivity } from '@/services/mockDashboardData';
+import { MANAGER_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 
 const statusLabel: Record<string, string> = {
   PENDING: 'Chờ xử lý',
@@ -48,7 +23,7 @@ const ManagerDashboard = () => {
   const maxOrders = Math.max(...mockOrdersByDay.map((d) => d.count));
 
   return (
-    <DashboardLayout navItems={managerNavItems} roleLabel="MANAGER">
+    <DashboardLayout navItems={MANAGER_SIDEBAR_ITEMS} roleLabel="MANAGER">
       <div className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-3">
           <Card className="border-border bg-white">
@@ -172,9 +147,7 @@ const ManagerDashboard = () => {
                       <p className="font-medium">{o.orderId}</p>
                       <p className="text-xs text-muted-foreground">{o.itemName}</p>
                     </div>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${statusColor[o.status] ?? 'bg-stone-200'}`}
-                    >
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${statusColor[o.status] ?? 'bg-stone-200'}`}>
                       {statusLabel[o.status] ?? o.status}
                     </span>
                   </div>

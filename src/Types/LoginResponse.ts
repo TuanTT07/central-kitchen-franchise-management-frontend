@@ -43,18 +43,6 @@ const mockLoginResponse: Record<string, { user: User; password: string }> = {
     },
     password: 'franchise123',
   },
-  'franchise@example.com': {
-    user: {
-      userId: '2b',
-      userFullName: 'Nhân viên cửa hàng',
-      userRoleId: { roleID: '2b', roleName: 'FRANCHISE' } as Role,
-      userLocationID: { locationID: '2', locationName: 'Cửa hàng Q1' } as Location,
-      userEmail: 'franchise@example.com',
-      createdAt: new Date(),
-      isActive: true,
-    },
-    password: 'franchise123',
-  },
   'manager@example.com': {
     user: {
       userId: '3',
@@ -92,4 +80,5 @@ const mockLoginResponse: Record<string, { user: User; password: string }> = {
     password: 'central123',
   },
 };
+
 export default mockLoginResponse;
