@@ -6,22 +6,28 @@ import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { authService } from '@/services/authService';
 import { useNavigate } from 'react-router';
+import { useForm } from 'react-hook-form';
+
+type FormData = {
+  username: string;
+  password: string;
+};
 
 export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) {
   const [error, setError] = useState<string | null>(null); // Hook để quản lí lỗi
   const [isLoading, setIsLoading] = useState(false); // Hook để quản lí trạng thái đang loading
   const navigate = useNavigate(); // hook để điều hướng
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormData>();
+  const onSubmit = async (data: FormData) => {
+    const { username, password } = data;
     // Handle form submission logic
     setError(null); // Reset lỗi trước khi submit
     setIsLoading(true); // Bắt đầu trạng thái loading
     try {
-      const formData = new FormData(event.currentTarget);
-      const username = formData.get('username') as string;
-      const password = formData.get('password') as string;
-
       const response = await authService.signIn(username, password);
 
       localStorage.setItem('authToken', response.token);
@@ -33,7 +39,6 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Đăng nhập thất bại. Vui lòng thử lại.');
     } finally {
-      // Bước 3.8: Luôn chạy dù thành công hay thất bại
       setIsLoading(false);
     }
   };
@@ -46,18 +51,25 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
           <CardDescription>Nhập email và mật khẩu để tiếp tục.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} noValidate>
+          <form onSubmit={handleSubmit(onSubmit)} noValidate>
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
                   id="email"
                   type="email"
-                  name="username"
-                  placeholder="admin@example.com"
+                  {...register('username', {
+                    required: 'Email không được để trống',
+                    pattern: {
+                      value: /^\S+@\S+$/i,
+                      message: 'Email không hợp lệ',
+                    },
+                  })}
                   autoComplete="email"
-                  required
                 />
+                {errors.username && (
+                  <FieldDescription className="mt-1 text-xs text-red-500">{errors.username.message}</FieldDescription>
+                )}
               </Field>
               <Field>
                 <div className="flex items-center">
@@ -69,7 +81,25 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                     Forgot your password?
                   </a>
                 </div>
-                <Input id="password" type="password" name="password" autoComplete="current-password" required />
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  {...register('password', {
+                    required: 'Mật khẩu không được để trống',
+                    minLength: {
+                      value: 6,
+                      message: 'Mật khẩu phải có ít nhất 6 ký tự',
+                    },
+                    maxLength: {
+                      value: 120,
+                      message: 'Mật khẩu không được vượt quá 120 ký tự',
+                    },
+                  })}
+                />
+                {errors.password && (
+                  <FieldDescription className="mt-1 text-xs text-red-500">{errors.password.message}</FieldDescription>
+                )}
               </Field>
               <Field>
                 <Button type="submit" className="w-full bg-amber-500 hover:bg-amber-600" disabled={isLoading}>
