@@ -23,23 +23,11 @@ const mockLoginResponse: Record<string, { user: User; password: string }> = {
     },
     password: 'admin123',
   },
-  'user@example.com': {
-    user: {
-      userId: '2',
-      userFullName: 'Regular User',
-      userRoleId: { roleID: '2', roleName: 'USER' } as Role,
-      userLocationID: { locationID: '2', locationName: 'Branch Office' } as Location,
-      userEmail: 'user@example.com',
-      createdAt: new Date(),
-      isActive: true,
-    },
-    password: 'user123',
-  },
   'franchise@example.com': {
     user: {
-      userId: '2b',
+      userId: '2',
       userFullName: 'Nhân viên cửa hàng',
-      userRoleId: { roleID: '2b', roleName: 'FRANCHISE' } as Role,
+      userRoleId: { roleID: '2', roleName: 'FRANCHISE' } as Role,
       userLocationID: { locationID: '2', locationName: 'Cửa hàng Q1' } as Location,
       userEmail: 'franchise@example.com',
       createdAt: new Date(),
