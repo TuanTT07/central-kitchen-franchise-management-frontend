@@ -8,7 +8,15 @@ export type LoginResponse = {
   token: string;
 };
 
-// danh sách các response trả về khi login
+// danh sách các response trả về khi login (MOCK)
+// LƯU Ý: roleID & roleName ở đây phải khớp 1-1 với bảng Role trong DB KitchenDB_BatchMaster
+// Gợi ý seed DB:
+// 1 - ADMIN
+// 2 - FRANCHISE
+// 3 - MANAGER
+// 4 - SUPPLIER
+// 5 - CENTRAL_KITCHEN
+//
 // Record<key, value> : key: email, value: { user: User, password: string }
 const mockLoginResponse: Record<string, { user: User; password: string }> = {
   'admin@example.com': {
