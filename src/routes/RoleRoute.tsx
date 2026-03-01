@@ -1,4 +1,3 @@
-import React from 'react';
 type Props = {
   admin: React.ReactNode;
   franchise: React.ReactNode;
@@ -7,7 +6,7 @@ type Props = {
   centralKitchen: React.ReactNode;
 };
 
-const RoleRoute = ({ admin, franchise, manager, supplier, centralKitchen }: Props) => {
+export default function RoleRoute({ admin, franchise, manager, supplier, centralKitchen }: Props) {
   const role = localStorage.getItem('userRole');
 
   if (role === 'ADMIN') return admin;
@@ -16,6 +15,4 @@ const RoleRoute = ({ admin, franchise, manager, supplier, centralKitchen }: Prop
   if (role === 'SUPPLIER') return supplier;
   if (role === 'CENTRAL_KITCHEN') return centralKitchen;
   return <div>Không có quyền truy cập. Role: {role ?? '(chưa đăng nhập)'}</div>;
-};
-
-export default RoleRoute;
+}
