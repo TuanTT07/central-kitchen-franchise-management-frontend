@@ -30,9 +30,9 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
     try {
       const response = await authService.signIn(username, password);
 
-      localStorage.setItem('authToken', response.token);
-      localStorage.setItem('userRole', response.role.roleName);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.setItem('authToken', response.data.access_token);
+      localStorage.setItem('userRole', response.data.user.roles[0]); // Lưu role đầu tiên của user
+      localStorage.setItem('user', JSON.stringify(response.data.user)); // Lưu thông tin người dùng dưới dạng JSON
 
       navigate('/', { replace: true });
       console.log('Đăng nhập thành công:', response);
@@ -48,24 +48,28 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
       <Card className="border border-border/80 shadow-md">
         <CardHeader>
           <CardTitle className="text-xl font-semibold tracking-tight">Đăng nhập Kitchen Hub</CardTitle>
-          <CardDescription>Nhập email và mật khẩu để tiếp tục.</CardDescription>
+          <CardDescription>Nhập Username và mật khẩu để tiếp tục.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} noValidate>
             <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <FieldLabel htmlFor="username">Username</FieldLabel>
                 <Input
-                  id="email"
-                  type="email"
+                  id="username"
+                  type="text"
                   {...register('username', {
-                    required: 'Email không được để trống',
-                    pattern: {
-                      value: /^\S+@\S+$/i,
-                      message: 'Email không hợp lệ',
+                    required: 'Username không được để trống',
+                    maxLength: {
+                      value: 255,
+                      message: 'Username không được vượt quá 255 ký tự',
+                    },
+                    minLength: {
+                      value: 3,
+                      message: 'Username phải có ít nhất 3 ký tự',
                     },
                   })}
-                  autoComplete="email"
+                  autoComplete="username"
                 />
                 {errors.username && (
                   <FieldDescription className="mt-1 text-xs text-red-500">{errors.username.message}</FieldDescription>
@@ -105,19 +109,6 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                 <Button type="submit" className="w-full bg-amber-500 hover:bg-amber-600" disabled={isLoading}>
                   {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
                 </Button>
-                <FieldDescription className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-                  <span className="font-medium">Tài khoản thử theo từng vai trò:</span>
-                  <br />
-                  ADMIN: <span className="font-medium">admin@example.com / admin123</span>
-                  <br />
-                  FRANCHISE: <span className="font-medium">franchise@example.com / franchise123</span>
-                  <br />
-                  MANAGER: <span className="font-medium">manager@example.com / manager123</span>
-                  <br />
-                  SUPPLIER: <span className="font-medium">supplier@example.com / supplier123</span>
-                  <br />
-                  CENTRAL_KITCHEN: <span className="font-medium">central@example.com / central123</span>
-                </FieldDescription>
               </Field>
               {/* Hiển thị error nếu có */}
               {error && <div className="error-message">{error}</div>}

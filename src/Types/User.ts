@@ -1,12 +1,6 @@
-import type { Location } from './Location';
-import type { Role } from './Role';
-
+type Role = 'ADMIN' | 'FRANCHISE' | 'MANAGER' | 'SUPPLIER' | 'CENTRAL_KITCHEN';
 export interface User {
-  userId: string;
-  userFullName: string;
-  userRoleId: Role;
-  userLocationID: Location;
-  userEmail: string;
-  createdAt: Date;
-  isActive: boolean;
+  id: number;
+  username: string;
+  roles: Role[];
 }
