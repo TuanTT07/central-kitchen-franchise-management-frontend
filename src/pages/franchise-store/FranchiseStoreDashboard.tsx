@@ -1,21 +1,8 @@
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  LayoutDashboard,
-  ShoppingCart,
-  Package,
-  Boxes,
-  UtensilsCrossed,
-  Receipt,
-  Truck,
-} from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { LayoutDashboard, ShoppingCart, Package, Boxes, UtensilsCrossed, Receipt, Truck } from 'lucide-react';
 import { mockRecentOrders, mockActivity } from '@/services/mockDashboardData';
 
 const franchiseNavItems = [
@@ -95,9 +82,7 @@ const FranchiseStoreDashboard = () => {
           <Card className="border-border bg-white lg:col-span-2">
             <CardHeader>
               <CardTitle className="text-base">Đơn hàng gần đây</CardTitle>
-              <CardDescription>
-                ProductionOrder cửa hàng gửi lên Bếp trung tâm (ProdID / ProdCode)
-              </CardDescription>
+              <CardDescription>Các đơn đã tạo từ cửa hàng</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">

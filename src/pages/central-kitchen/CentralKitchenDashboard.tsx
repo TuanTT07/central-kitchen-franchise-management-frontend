@@ -1,24 +1,9 @@
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  LayoutDashboard,
-  ChefHat,
-  Package,
-  ClipboardList,
-  Boxes,
-} from 'lucide-react';
-import {
-  mockOrdersByDay,
-  mockRecentOrders,
-  mockActivity,
-} from '@/services/mockDashboardData';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { LayoutDashboard, ChefHat, Package, ClipboardList, Boxes } from 'lucide-react';
+import { mockOrdersByDay, mockRecentOrders, mockActivity } from '@/services/mockDashboardData';
 
 const centralNavItems = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -87,8 +72,8 @@ const CentralKitchenDashboard = () => {
         <div className="grid gap-6 lg:grid-cols-3">
           <Card className="border-border bg-white">
             <CardHeader>
-              <CardTitle className="text-base">Đơn sản xuất theo ngày</CardTitle>
-              <CardDescription>ProductionOrder (ProdID) trong tuần này</CardDescription>
+              <CardTitle className="text-base">Đơn theo ngày</CardTitle>
+              <CardDescription>ProductionOrder tuần này</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex h-40 items-end gap-2">
@@ -110,8 +95,8 @@ const CentralKitchenDashboard = () => {
 
           <Card className="border-border bg-white lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-base">Đơn từ cửa hàng</CardTitle>
-              <CardDescription>ProductionOrder nhận từ FranchiseStore & trạng thái sản xuất</CardDescription>
+              <CardTitle className="text-base">Đơn hàng gần đây</CardTitle>
+              <CardDescription>TransferOrder từ cửa hàng</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">

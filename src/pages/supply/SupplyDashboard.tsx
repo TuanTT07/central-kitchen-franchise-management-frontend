@@ -1,19 +1,8 @@
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  LayoutDashboard,
-  Truck,
-  Calendar,
-  Package,
-  AlertTriangle,
-} from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { LayoutDashboard, Truck, Calendar, Package, AlertTriangle } from 'lucide-react';
 import { mockRecentOrders, mockActivity } from '@/services/mockDashboardData';
 
 const supplyNavItems = [
@@ -68,9 +57,7 @@ const SupplyDashboard = () => {
           <Card className="border-border bg-white lg:col-span-2">
             <CardHeader>
               <CardTitle className="text-base">Đơn cần giao</CardTitle>
-              <CardDescription>
-                TransferOrder (OrderID) gắn với Shipment & Warehouse đích
-              </CardDescription>
+              <CardDescription>TransferOrder chờ phân phối</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
