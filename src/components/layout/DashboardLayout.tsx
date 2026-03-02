@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useState } from 'react';
 import { useLocation } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';

@@ -6,22 +6,28 @@ import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { authService } from '@/services/authService';
 import { useNavigate } from 'react-router';
+import { useForm } from 'react-hook-form';
+
+type FormData = {
+  username: string;
+  password: string;
+};
 
 export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) {
   const [error, setError] = useState<string | null>(null); // Hook để quản lí lỗi
   const [isLoading, setIsLoading] = useState(false); // Hook để quản lí trạng thái đang loading
   const navigate = useNavigate(); // hook để điều hướng
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormData>();
+  const onSubmit = async (data: FormData) => {
+    const { username, password } = data;
     // Handle form submission logic
     setError(null); // Reset lỗi trước khi submit
     setIsLoading(true); // Bắt đầu trạng thái loading
     try {
-      const formData = new FormData(event.currentTarget);
-      const username = formData.get('username') as string;
-      const password = formData.get('password') as string;
-
       const response = await authService.signIn(username, password);
 
       localStorage.setItem('authToken', response.token);
@@ -33,7 +39,6 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Đăng nhập thất bại. Vui lòng thử lại.');
     } finally {
-      // Bước 3.8: Luôn chạy dù thành công hay thất bại
       setIsLoading(false);
     }
   };
@@ -48,7 +53,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
           <CardDescription>Nhập email và mật khẩu để tiếp tục.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit(onSubmit)} noValidate>
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -99,19 +104,6 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
               </Field>
               {/* Hiển thị error nếu có */}
               {error && <div className="error-message">{error}</div>}
-              <FieldDescription className="mt-2 rounded-md border border-border bg-muted/50 p-3 text-left text-xs text-muted-foreground">
-                <span className="font-medium">Tài khoản test:</span>
-                <br />
-                admin@example.com / admin123
-                <br />
-                franchise@example.com / franchise123
-                <br />
-                manager@example.com / manager123
-                <br />
-                supplier@example.com / supplier123
-                <br />
-                central@example.com / central123
-              </FieldDescription>
             </FieldGroup>
           </form>
         </CardContent>
