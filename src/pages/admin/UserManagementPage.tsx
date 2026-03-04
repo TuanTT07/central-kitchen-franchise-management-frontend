@@ -16,10 +16,12 @@ import {
   UserCheck,
   UserX,
   MoreVertical,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type User, type Role } from '@/Types';
-import { adminService } from '@/services/adminServices';
+import { adminService, type UserResponse } from '@/services/adminServices';
 import { useForm } from 'react-hook-form';
 import { Field, FieldLabel, FieldError, FieldContent } from '@/components/ui/field';
 
@@ -41,40 +43,61 @@ interface UserFormData {
 }
 
 const UserManagementPage = () => {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserResponse[]>([]);
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
+  // --- STATE QUẢN LÝ PHÂN TRANG (PAGINATION) ---
+  const [currentPage, setCurrentPage] = useState(0); // Trang hiện tại (bắt đầu từ 0)
+  const [pageSize] = useState(10); // Số lượng phần tử mỗi trang
+  const [pageInfo, setPageInfo] = useState({
+    totalPages: 0,
+    totalElements: 0,
+    isFirst: true,
+    isLast: true,
+  });
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await adminService.getAllUsers();
-      if (response.status === 200) {
-        // Ánh xạ dữ liệu từ API (snake_case) sang Frontend (camelCase) nếu cần
-        const mappedUsers = response.data.map((u: any) => ({
-          id: u.id,
-          username: u.username,
-          fullName: u.fullName || u.full_name, // Chấp nhận cả 2 định dạng
-          email: u.email,
-          isActive: u.isActive !== undefined ? u.isActive : u.is_active,
-          roles: u.roles || [],
-        }));
-        setUsers(mappedUsers);
+  /**
+   * Hàm lấy danh sách người dùng từ Server
+   * Có thực hiện mapping dữ liệu để tương thích với logic Frontend cũ
+   */
+  const fetchUsers = useCallback(
+    async (page: number = 0) => {
+      setLoading(true);
+      try {
+        const response = (await adminService.getAllUsers(page, pageSize)).data;
+        if (response) {
+          const mappedUsers = response.content.map((u: UserResponse) => ({
+            userId: u.userId,
+            username: u.username,
+            fullName: u.fullName,
+            email: u.email,
+            isActive: u.isActive,
+            role: u.role,
+          }));
+          setUsers(mappedUsers);
+          setPageInfo({
+            totalPages: response.totalPages,
+            totalElements: response.totalElements,
+            isFirst: response.first,
+            isLast: response.last,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [pageSize]
+  );
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    fetchUsers(currentPage);
+  }, [fetchUsers, currentPage]);
 
   const {
     register,
@@ -105,29 +128,52 @@ const UserManagementPage = () => {
     setDialogOpen(true);
   };
 
-  const openEdit = (user: User) => {
-    setEditingUser(user);
+  /**
+   * Mở Dialog chỉnh sửa người dùng
+   * Chú ý: Cấu trúc UserResponse từ BE khác với interface User cũ (role string vs roles array)
+   */
+  const openEdit = (user: UserResponse) => {
+    // Chuyển đổi dữ liệu tạm thời sang interface User để dùng cho state editingUser
+    const tempUser: any = {
+      id: user.userId, // Map userId sang id để các API update/delete cũ vẫn chạy được
+      username: user.username,
+      fullName: user.fullName,
+      email: user.email,
+      isActive: user.isActive,
+      roles: [user.role], // Chuyển "ADMIN" sang ["ADMIN"]
+    };
+
+    setEditingUser(tempUser);
     reset({
       username: user.username,
       password: '',
       full_name: user.fullName,
       email: user.email,
-      role_id: user.roles[0] ? ROLES.find((r) => r.role_name === user.roles[0])?.role_id || 1 : 1,
+      role_id: ROLES.find((r) => r.role_name === user.role)?.role_id || 1,
       is_active: user.isActive,
     });
     setDialogOpen(true);
   };
 
-  const openDelete = (user: User) => {
-    setUserToDelete(user);
+  /**
+   * Mở Dialog xác nhận xóa
+   */
+  const openDelete = (user: UserResponse) => {
+    // Tương tự, map userId -> id để logic handleDelete phía dưới tìm được ID
+    const tempUser: any = {
+      id: user.userId,
+      username: user.username,
+      fullName: user.fullName,
+    };
+    setUserToDelete(tempUser);
     setDeleteConfirmOpen(true);
   };
 
   const handleSave = async (data: UserFormData) => {
     try {
       setLoading(true);
-      const selectedRole = ROLES.find(r => r.role_id === data.role_id)?.role_name || 'ADMIN';
-      
+      const selectedRole = ROLES.find((r) => r.role_id === data.role_id)?.role_name || 'ADMIN';
+
       const payload = {
         fullName: data.full_name,
         email: data.email,
@@ -203,7 +249,7 @@ const UserManagementPage = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={fetchUsers}
+                onClick={() => fetchUsers(currentPage)}
                 disabled={loading}
                 className="border-amber-200 text-amber-700 hover:bg-amber-100 h-10 px-4"
               >
@@ -255,12 +301,12 @@ const UserManagementPage = () => {
                 </thead>
                 <tbody className="divide-y divide-amber-100/50">
                   {filteredUsers.map((user, index) => (
-                    <tr key={user.id} className="transition-all hover:bg-amber-50/40 group">
+                    <tr key={user.userId} className="transition-all hover:bg-amber-50/40 group">
                       <td className="px-6 py-4 font-mono text-amber-600/70 text-xs">{index + 1}</td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className="font-bold text-amber-900 text-sm">{user.username}</span>
-                          <span className="text-[10px] text-stone-400 font-mono">ID: #{user.id}</span>
+                          <span className="text-[10px] text-stone-400 font-mono">ID: #{user.userId}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -275,9 +321,7 @@ const UserManagementPage = () => {
                       <td className="px-6 py-4">
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-600 font-bold text-[10px] uppercase border border-amber-200 shadow-sm">
                           <Shield className="size-3" />
-                          {user.roles && user.roles.length > 0
-                            ? ROLES.find((r) => r.role_name === user.roles[0])?.label || user.roles[0]
-                            : 'N/A'}
+                          {user.role}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -299,7 +343,7 @@ const UserManagementPage = () => {
                             variant="ghost"
                             size="icon"
                             className="size-9 rounded-full text-amber-600 hover:bg-amber-100 hover:text-amber-700 transition-colors"
-                            onClick={() => openEdit(user)}
+                            onClick={() => openEdit(user)} // Đã khôi phục hàm mở form sửa
                             title="Chỉnh sửa"
                           >
                             <Pencil className="size-4" />
@@ -308,7 +352,7 @@ const UserManagementPage = () => {
                             variant="ghost"
                             size="icon"
                             className="size-9 rounded-full text-rose-500 hover:bg-rose-100 hover:text-rose-600 transition-colors"
-                            onClick={() => openDelete(user)}
+                            onClick={() => openDelete(user)} // Đã khôi phục hàm mở form xóa
                             title="Xóa tài khoản"
                           >
                             <Trash2 className="size-4" />
@@ -322,6 +366,58 @@ const UserManagementPage = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* --- GIAO DIỆN ĐIỀU KHIỂN PHÂN TRANG --- */}
+            <div className="mt-6 flex items-center justify-between px-2">
+              <div className="text-sm text-amber-900/60 font-medium">
+                Hiển thị <span className="text-amber-600">{currentPage * pageSize + 1}</span> -{' '}
+                <span className="text-amber-600">{Math.min((currentPage + 1) * pageSize, pageInfo.totalElements)}</span>{' '}
+                trên tổng số <span className="text-amber-600">{pageInfo.totalElements}</span> người dùng
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
+                  disabled={pageInfo.isFirst || loading}
+                  className="border-amber-200 text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                >
+                  <ChevronLeft className="size-4 mr-1" />
+                  Trang trước
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {[...Array(pageInfo.totalPages)].map((_, i) => (
+                    <Button
+                      key={i}
+                      variant={currentPage === i ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setCurrentPage(i)}
+                      className={cn(
+                        'size-9 p-0',
+                        currentPage === i
+                          ? 'bg-amber-500 text-white hover:bg-amber-600'
+                          : 'border-amber-200 text-amber-700 hover:bg-amber-100'
+                      )}
+                      disabled={loading}
+                    >
+                      {i + 1}
+                    </Button>
+                  ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.min(pageInfo.totalPages - 1, prev + 1))}
+                  disabled={pageInfo.isLast || loading}
+                  className="border-amber-200 text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                >
+                  Trang sau
+                  <ChevronRight className="size-4 ml-1" />
+                </Button>
+              </div>
             </div>
 
             {!loading && filteredUsers.length === 0 && (
