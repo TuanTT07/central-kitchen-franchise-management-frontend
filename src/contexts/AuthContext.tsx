@@ -1,3 +1,4 @@
+import { authService } from '@/services/authService';
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
@@ -7,6 +8,7 @@ type AuthContextValue = {
   userName: string;
   roleName: string | null;
   token: string | null;
+  refreshToken: string | null;
   logout: () => void;
 };
 
@@ -20,6 +22,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const navigate = useNavigate();
 
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('authToken'));
+  const [refreshToken, setRefreshToken] = useState<string | null>(() => localStorage.getItem('refreshToken'));
   const [roleName, setRoleName] = useState<string | null>(() => localStorage.getItem('userRole'));
   const [user, setUser] = useState<any | null>(() => {
     const userJson = localStorage.getItem('user');
@@ -29,10 +32,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const userName = user?.userFullName ?? 'User';
 
   const logout = useCallback(() => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('user');
-
+    try {
+      authService.logout(refreshToken);
+    } catch (error) {
+    } finally {
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('user');
+    }
+    setRefreshToken(null);
     setToken(null);
     setRoleName(null);
     setUser(null);
@@ -46,6 +55,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       userName,
       roleName,
       token,
+      refreshToken,
       logout,
     }),
     [user, userName, roleName, token, logout]
