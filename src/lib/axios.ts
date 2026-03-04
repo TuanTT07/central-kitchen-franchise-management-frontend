@@ -4,7 +4,7 @@ class Http {
   instance: AxiosInstance;
   constructor() {
     this.instance = axios.create({
-      baseURL: import.meta.env.VITE_API_BASE_URL,
+      baseURL: import.meta.env.VITE_API_BASE_URL?.trim(),
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
@@ -16,7 +16,8 @@ class Http {
       (config) => {
         const token = localStorage.getItem('authToken');
         if (token && config.headers) {
-          config.headers.Authorization = `${token}`;
+          const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+          config.headers.set('Authorization', authHeader);
         }
         return config;
       },

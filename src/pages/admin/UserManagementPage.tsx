@@ -1,9 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Search, User as UserIcon, Mail, Lock, Shield } from 'lucide-react';
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  User as UserIcon,
+  Mail,
+  Lock,
+  Shield,
+  Loader2,
+  UserCheck,
+  UserX,
+  MoreVertical,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type User, type Role } from '@/Types';
 import { adminService } from '@/services/adminServices';
@@ -34,6 +47,34 @@ const UserManagementPage = () => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await adminService.getAllUsers();
+      if (response.status === 200) {
+        // Ánh xạ dữ liệu từ API (snake_case) sang Frontend (camelCase) nếu cần
+        const mappedUsers = response.data.map((u: any) => ({
+          id: u.id,
+          username: u.username,
+          fullName: u.fullName || u.full_name, // Chấp nhận cả 2 định dạng
+          email: u.email,
+          isActive: u.isActive !== undefined ? u.isActive : u.is_active,
+          roles: u.roles || [],
+        }));
+        setUsers(mappedUsers);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const {
     register,
@@ -84,45 +125,34 @@ const UserManagementPage = () => {
 
   const handleSave = async (data: UserFormData) => {
     try {
+      setLoading(true);
+      const selectedRole = ROLES.find(r => r.role_id === data.role_id)?.role_name || 'ADMIN';
+      
+      const payload = {
+        fullName: data.full_name,
+        email: data.email,
+        role: selectedRole,
+        isActive: data.is_active,
+        password: data.password || undefined,
+      };
+
       if (editingUser) {
-        // Tạm thời update local cho những phần không phải Add
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.id === editingUser.id
-              ? {
-                  ...u,
-                  username: data.username,
-                  fullName: data.full_name,
-                  email: data.email,
-                  isActive: data.is_active,
-                }
-              : u
-          )
-        );
+        const response = await adminService.updateAccount(editingUser.id, payload);
+
+        if (response.status === 200) {
+          await fetchUsers();
+          alert('Cập nhật người dùng thành công');
+        }
       } else {
-        // GỌI API THÊM TÀI KHOẢN
         const response = await adminService.registerAccount({
+          ...payload,
           username: data.username,
           password: data.password || '',
-          full_name: data.full_name,
-          email: data.email,
-          role_id: data.role_id,
+          isActive: data.is_active, // registerAccount yêu cầu isActive rõ ràng
         });
 
         if (response.status === 200 || response.status === 201) {
-          // Sau khi add thành công, thêm vào list tạm thời
-          const newId = response.data?.id || Math.max(0, ...users.map((u) => u.id)) + 1;
-          setUsers((prev) => [
-            ...prev,
-            {
-              id: newId,
-              username: data.username,
-              fullName: data.full_name,
-              email: data.email,
-              roles: ROLES.filter((r) => r.role_id === data.role_id).map((r) => r.role_name),
-              isActive: data.is_active,
-            } as User,
-          ]);
+          await fetchUsers();
           alert('Thêm người dùng thành công');
         }
       }
@@ -130,14 +160,28 @@ const UserManagementPage = () => {
     } catch (error: any) {
       console.error('Error saving user:', error);
       alert(error.response?.data?.message || 'Có lỗi xảy ra khi lưu người dùng');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (userToDelete) {
-      setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
-      setDeleteConfirmOpen(false);
-      setUserToDelete(null);
+      try {
+        setLoading(true);
+        const response = await adminService.deleteAccount(userToDelete.id);
+        if (response.status === 200 || response.status === 204) {
+          await fetchUsers();
+          alert('Xóa người dùng thành công');
+        }
+      } catch (error: any) {
+        console.error('Error deleting user:', error);
+        alert(error.response?.data?.message || 'Có lỗi xảy ra khi xóa người dùng');
+      } finally {
+        setLoading(false);
+        setDeleteConfirmOpen(false);
+        setUserToDelete(null);
+      }
     }
   };
 
@@ -146,11 +190,34 @@ const UserManagementPage = () => {
       <div className="h-full w-full">
         <Card className="border-amber-200/60 bg-white shadow-md">
           <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
-            <CardTitle className="text-xl font-bold text-amber-900">Quản lý Người dùng (User)</CardTitle>
-            <Button onClick={openAdd} className="gap-2 bg-amber-500 text-white hover:bg-amber-600">
-              <Plus className="size-4" />
-              Thêm người dùng
-            </Button>
+            <div className="flex flex-col">
+              <CardTitle className="text-xl font-bold text-amber-900 flex items-center gap-2">
+                <Shield className="size-6 text-amber-500" />
+                Quản lý Người dùng
+              </CardTitle>
+              <p className="text-xs text-amber-600/70 font-medium mt-0.5">
+                Quản lý danh sách và phân quyền tài khoản hệ thống
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchUsers}
+                disabled={loading}
+                className="border-amber-200 text-amber-700 hover:bg-amber-100 h-10 px-4"
+              >
+                <Loader2 className={cn('size-4 mr-2', loading && 'animate-spin')} />
+                Làm mới
+              </Button>
+              <Button
+                onClick={openAdd}
+                className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-md h-10 px-5"
+              >
+                <Plus className="size-4" />
+                Thêm người dùng
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="p-6">
             <div className="mb-4 flex items-center gap-2">
@@ -165,59 +232,90 @@ const UserManagementPage = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-amber-200/60 shadow-sm">
+            <div className="overflow-x-auto rounded-xl border border-amber-200/60 shadow-sm bg-white relative">
+              {loading && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
+                  <Loader2 className="size-8 animate-spin text-amber-500" />
+                </div>
+              )}
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-amber-200 bg-amber-100/80 text-left">
-                    <th className="px-5 py-4 font-semibold text-amber-900">ID</th>
-                    <th className="px-5 py-4 font-semibold text-amber-900">Username</th>
-                    <th className="px-5 py-4 font-semibold text-amber-900">Họ tên</th>
-                    <th className="px-5 py-4 font-semibold text-amber-900">Email</th>
-                    <th className="px-5 py-4 font-semibold text-amber-900">Vai trò</th>
-                    <th className="px-5 py-4 font-semibold text-amber-900">Trạng thái</th>
-                    <th className="px-5 py-4 text-right font-semibold text-amber-900">Thao tác</th>
+                  <tr className="border-b border-amber-200 bg-amber-50/50 text-left">
+                    <th className="px-6 py-4 font-bold text-amber-900 uppercase tracking-wider text-xs">STT</th>
+                    <th className="px-6 py-4 font-bold text-amber-900 uppercase tracking-wider text-xs">Username</th>
+                    <th className="px-6 py-4 font-bold text-amber-900 uppercase tracking-wider text-xs">
+                      Thông tin cá nhân
+                    </th>
+                    <th className="px-6 py-4 font-bold text-amber-900 uppercase tracking-wider text-xs">Vai trò</th>
+                    <th className="px-6 py-4 font-bold text-amber-900 uppercase tracking-wider text-xs">Trạng thái</th>
+                    <th className="px-6 py-4 text-right font-bold text-amber-900 uppercase tracking-wider text-xs">
+                      Thao tác
+                    </th>
                   </tr>
                 </thead>
-                <tbody>
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id} className="border-b border-amber-100/80 transition-colors hover:bg-amber-50/70">
-                      <td className="px-5 py-4 font-mono text-amber-700">{user.id}</td>
-                      <td className="px-5 py-4 font-medium text-amber-900">{user.username}</td>
-                      <td className="px-5 py-4 text-stone-700">{user.fullName}</td>
-                      <td className="px-5 py-4 text-stone-700">{user.email}</td>
-                      <td className="px-5 py-4">
-                        <span className="rounded bg-amber-200/80 px-2 py-1 text-xs font-semibold text-amber-800">
-                          {user.roles && user.roles.length > 0 ? user.roles[0] : 'N/A'}
-                        </span>
+                <tbody className="divide-y divide-amber-100/50">
+                  {filteredUsers.map((user, index) => (
+                    <tr key={user.id} className="transition-all hover:bg-amber-50/40 group">
+                      <td className="px-6 py-4 font-mono text-amber-600/70 text-xs">{index + 1}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-amber-900 text-sm">{user.username}</span>
+                          <span className="text-[10px] text-stone-400 font-mono">ID: #{user.id}</span>
+                        </div>
                       </td>
-                      <td className="px-5 py-4">
-                        <span
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5 font-semibold text-stone-800">{user.fullName}</div>
+                          <div className="flex items-center gap-1.5 text-xs text-stone-500">
+                            <Mail className="size-3 text-amber-400" />
+                            {user.email}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-600 font-bold text-[10px] uppercase border border-amber-200 shadow-sm">
+                          <Shield className="size-3" />
+                          {user.roles && user.roles.length > 0
+                            ? ROLES.find((r) => r.role_name === user.roles[0])?.label || user.roles[0]
+                            : 'N/A'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div
                           className={cn(
-                            'rounded-full px-2.5 py-1 text-xs font-medium',
-                            user.isActive ? 'bg-emerald-200 text-emerald-800' : 'bg-stone-300 text-stone-600'
+                            'inline-flex items-center gap-1 py-1 px-3 rounded-full text-[11px] font-bold shadow-sm border transition-all',
+                            user.isActive
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-rose-50 text-rose-700 border-rose-200'
                           )}
                         >
-                          {user.isActive ? 'Hoạt động' : 'Khóa'}
-                        </span>
+                          {user.isActive ? <UserCheck className="size-3" /> : <UserX className="size-3" />}
+                          {user.isActive ? 'Hoạt động' : 'Đã khóa'}
+                        </div>
                       </td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex justify-end gap-2">
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="icon"
-                            className="size-8 border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+                            className="size-9 rounded-full text-amber-600 hover:bg-amber-100 hover:text-amber-700 transition-colors"
                             onClick={() => openEdit(user)}
+                            title="Chỉnh sửa"
                           >
                             <Pencil className="size-4" />
                           </Button>
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="icon"
-                            className="size-8 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                            className="size-9 rounded-full text-rose-500 hover:bg-rose-100 hover:text-rose-600 transition-colors"
                             onClick={() => openDelete(user)}
+                            title="Xóa tài khoản"
                           >
                             <Trash2 className="size-4" />
                           </Button>
+                        </div>
+                        <div className="group-hover:hidden text-stone-300">
+                          <MoreVertical className="size-4 ml-auto" />
                         </div>
                       </td>
                     </tr>
@@ -226,13 +324,21 @@ const UserManagementPage = () => {
               </table>
             </div>
 
-            {filteredUsers.length === 0 && <p className="py-12 text-center text-amber-600">Không có người dùng nào</p>}
+            {!loading && filteredUsers.length === 0 && (
+              <div className="py-20 flex flex-col items-center justify-center text-amber-600/60 bg-white rounded-b-xl border border-t-0 border-amber-200/60">
+                <Search className="size-12 mb-3 opacity-20" />
+                <p className="font-medium">Không tìm thấy người dùng nào phù hợp</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent onClose={() => setDialogOpen(false)} className="max-w-2xl min-w-[28rem] p-0 overflow-hidden border-none shadow-2xl">
+        <DialogContent
+          onClose={() => setDialogOpen(false)}
+          className="max-w-2xl min-w-[28rem] p-0 overflow-hidden border-none shadow-2xl"
+        >
           <form noValidate onSubmit={handleSubmit(handleSave)} className="flex flex-col">
             <DialogHeader className="px-8 pt-8 pb-6 bg-gradient-to-r from-amber-500 to-orange-500 text-white">
               <DialogTitle className="text-2xl font-bold flex items-center gap-2">
@@ -240,7 +346,9 @@ const UserManagementPage = () => {
                 {editingUser ? 'Chỉnh sửa tài khoản' : 'Tạo tài khoản mới'}
               </DialogTitle>
               <p className="text-amber-50/80 text-sm mt-1">
-                {editingUser ? 'Cập nhật thông tin chi tiết cho người dùng này' : 'Điền thông tin bên dưới để tạo một tài khoản mới'}
+                {editingUser
+                  ? 'Cập nhật thông tin chi tiết cho người dùng này'
+                  : 'Điền thông tin bên dưới để tạo một tài khoản mới'}
               </p>
             </DialogHeader>
 
@@ -248,7 +356,10 @@ const UserManagementPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Username */}
                 <Field>
-                  <FieldLabel htmlFor="username" className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2">
+                  <FieldLabel
+                    htmlFor="username"
+                    className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2"
+                  >
                     <UserIcon className="size-4 text-amber-500" />
                     Tên đăng nhập
                   </FieldLabel>
@@ -259,8 +370,8 @@ const UserManagementPage = () => {
                         disabled={!!editingUser}
                         placeholder="Ví dụ: nva2024"
                         className={cn(
-                          "h-12 border-amber-200 bg-amber-50/30 pl-4 pr-4 transition-all focus:bg-white focus:border-amber-500 focus:ring-amber-200",
-                          !!editingUser && "opacity-70 bg-stone-100 border-stone-200 cursor-not-allowed"
+                          'h-12 border-amber-200 bg-amber-50/30 pl-4 pr-4 transition-all focus:bg-white focus:border-amber-500 focus:ring-amber-200',
+                          !!editingUser && 'opacity-70 bg-stone-100 border-stone-200 cursor-not-allowed'
                         )}
                         {...register('username', {
                           required: 'Tên đăng nhập là bắt buộc',
@@ -298,15 +409,22 @@ const UserManagementPage = () => {
 
               {/* Password */}
               <Field>
-                <FieldLabel htmlFor="password" title="" className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2">
+                <FieldLabel
+                  htmlFor="password"
+                  title=""
+                  className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2"
+                >
                   <Lock className="size-4 text-amber-500" />
-                  Mật khẩu {editingUser && <span className="text-xs font-normal text-amber-600/70 italic">(để trống nếu không đổi)</span>}
+                  Mật khẩu{' '}
+                  {editingUser && (
+                    <span className="text-xs font-normal text-amber-600/70 italic">(để trống nếu không đổi)</span>
+                  )}
                 </FieldLabel>
                 <FieldContent>
                   <Input
                     id="password"
                     type="password"
-                    placeholder={editingUser ? "••••••••" : "Nhập mật khẩu ít nhất 6 ký tự"}
+                    placeholder={editingUser ? '••••••••' : 'Nhập mật khẩu ít nhất 6 ký tự'}
                     className="h-12 border-amber-200 bg-amber-50/30 transition-all focus:bg-white focus:border-amber-500 focus:ring-amber-200"
                     {...register('password', {
                       required: { value: !editingUser, message: 'Mật khẩu là bắt buộc' },
@@ -320,7 +438,10 @@ const UserManagementPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Full Name */}
                 <Field>
-                  <FieldLabel htmlFor="full_name" className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2">
+                  <FieldLabel
+                    htmlFor="full_name"
+                    className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2"
+                  >
                     <UserIcon className="size-4 text-amber-500" />
                     Họ và tên
                   </FieldLabel>
@@ -367,28 +488,31 @@ const UserManagementPage = () => {
               <div className="pt-2">
                 <label className="flex items-center gap-3 cursor-pointer group w-fit">
                   <div className="relative">
-                    <input
-                      type="checkbox"
-                      id="is_active"
-                      className="sr-only"
-                      {...register('is_active')}
-                    />
-                    <div className={cn(
-                      "w-12 h-6 rounded-full transition-colors border-2",
-                      "bg-stone-200 border-stone-200 group-hover:bg-stone-300",
-                      "peer-checked:bg-emerald-500 peer-checked:border-emerald-500",
-                    )}></div>
-                    <div className={cn(
-                      "absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm",
-                      "peer-checked:translate-x-6"
-                    )}></div>
+                    <input type="checkbox" id="is_active" className="sr-only" {...register('is_active')} />
+                    <div
+                      className={cn(
+                        'w-12 h-6 rounded-full transition-colors border-2',
+                        'bg-stone-200 border-stone-200 group-hover:bg-stone-300',
+                        'peer-checked:bg-emerald-500 peer-checked:border-emerald-500'
+                      )}
+                    ></div>
+                    <div
+                      className={cn(
+                        'absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm',
+                        'peer-checked:translate-x-6'
+                      )}
+                    ></div>
                   </div>
                   <span className="text-base font-semibold text-amber-900">
-                    Trạng thái tài khoản: 
-                    <span className={cn(
-                      "ml-2 text-sm font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 transition-colors",
-                      isActive ? "bg-emerald-100 text-emerald-700" : "bg-stone-100 text-stone-600"
-                    )}>
+                    Trạng thái tài khoản:
+                    <span
+                      className={cn(
+                        'ml-2 text-sm font-medium px-3 py-1 rounded-full inline-flex items-center shadow-sm border transition-all',
+                        isActive
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-rose-50 text-rose-700 border-rose-200'
+                      )}
+                    >
                       {isActive ? 'Hoạt động' : 'Tạm khóa'}
                     </span>
                   </span>
@@ -397,16 +521,16 @@ const UserManagementPage = () => {
             </div>
 
             <DialogFooter className="px-8 py-6 bg-stone-50 border-t border-stone-100 gap-3">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 type="button"
-                className="px-6 h-11 border-stone-300 text-stone-700 hover:bg-white hover:text-stone-900" 
+                className="px-6 h-11 border-stone-300 text-stone-700 hover:bg-white hover:text-stone-900"
                 onClick={() => setDialogOpen(false)}
               >
                 Hủy bỏ
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="px-8 h-11 bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg hover:shadow-orange-200 hover:from-amber-600 hover:to-orange-600 transition-all"
               >
                 {editingUser ? 'Lưu thay đổi' : 'Tạo người dùng'}
