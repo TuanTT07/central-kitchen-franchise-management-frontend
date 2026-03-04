@@ -1,9 +1,26 @@
 import http from '@/lib/axios';
+import type { PaginatedResponse } from '@/Types/utils.type';
+
+export interface UserResponse {
+  userId: number;
+  username: string;
+  fullName: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+}
 
 export const adminService = {
-  // Lấy danh sách người dùng
-  getAllUsers: async () => {
-    return await http.get('/admin/users');
+  /**
+   * Lấy danh sách người dùng có phân trang
+   * @param page Trang hiện tại (bắt đầu từ 0)
+   * @param size Số lượng item trên mỗi trang
+   * @returns PaginatedResponse chứa danh sách UserResponse
+   */
+  getAllUsers: async (page: number = 0, size: number = 10) => {
+    return await http.get<PaginatedResponse<UserResponse[]>>('/admin/users', {
+      params: { page, size },
+    });
   },
 
   // Đăng ký tài khoản mới
