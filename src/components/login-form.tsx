@@ -31,6 +31,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
       const response = await authService.signIn(username, password);
 
       localStorage.setItem('authToken', response.data.access_token);
+      localStorage.setItem('refreshToken', response.data.refresh_token);
       localStorage.setItem('userRole', response.data.user.roles[0]); // Lưu role đầu tiên của user
       localStorage.setItem('user', JSON.stringify(response.data.user)); // Lưu thông tin người dùng dưới dạng JSON
 
