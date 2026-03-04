@@ -1,6 +1,10 @@
-type Role = 'ADMIN' | 'FRANCHISE' | 'MANAGER' | 'SUPPLIER' | 'CENTRAL_KITCHEN';
+import { type Role } from './Role';
 export interface User {
   id: number;
   username: string;
+  password: string;
+  fullName: string;
+  email: string;
+  isActive: boolean;
   roles: Role[];
 }
