@@ -7,7 +7,13 @@ import {
   SystemConfigPage,
   UserManagementPage,
 } from './pages/admin/index.ts';
-import { InventoryOverviewPage, ManagerDashboard, ProductManagementPage, ReportsPage } from './pages/manager/index.ts';
+import {
+  InventoryOverviewPage,
+  ManagerDashboard,
+  ProductManagementPage,
+  ReportsPage,
+  CategoryManager,
+} from './pages/manager/index.ts';
 import FranchiseStoreDashboard from './pages/franchise-store/FranchiseStoreDashboard.tsx';
 import SupplyDashboard from './pages/supply/SupplyDashboard.tsx';
 import CentralKitchenDashboard from './pages/central-kitchen/CentralKitchenDashboard.tsx';
@@ -17,7 +23,6 @@ import ProtectRoleRoute from './routes/ProtectRoleRoute.tsx';
 import { ADMIN_SIDEBAR_ITEMS } from './components/layout/index.ts';
 import RoleShell from './components/layout/RoleShell.tsx';
 import { MANAGER_SIDEBAR_ITEMS } from './components/layout/sidebarConfig.ts';
-import CategoryManager from './pages/manager/categoryManager.tsx';
 function App() {
   return (
     <>

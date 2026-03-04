@@ -1,3 +1,5 @@
-export default function CategoryManager() {
+function CategoryManager() {
   return <div>Category Manager</div>;
 }
+
+export default CategoryManager;
