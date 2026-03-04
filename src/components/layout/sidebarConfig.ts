@@ -22,9 +22,9 @@ export const ADMIN_SIDEBAR_ITEMS = [
 
 export const MANAGER_SIDEBAR_ITEMS = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { label: 'Tổng quan kho', href: '#', icon: Boxes },
-  { label: 'Sản phẩm', href: '#', icon: UtensilsCrossed },
-  { label: 'Công thức', href: '#', icon: BookOpen },
-  { label: 'Báo cáo', href: '#', icon: BarChart3 },
+  { label: 'Tổng quan kho', href: '/manager/inventory-overview', icon: Boxes },
+  { label: 'Sản phẩm', href: '/manager/products', icon: UtensilsCrossed },
+  // { label: 'Công thức', href: '#', icon: BookOpen },
+  { label: 'Danh mục', href: '/manager/categories', icon: BookOpen },
+  { label: 'Báo cáo', href: '/manager/reports', icon: BarChart3 },
 ] as const;
-

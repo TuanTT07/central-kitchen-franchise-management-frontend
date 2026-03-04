@@ -7,13 +7,17 @@ import {
   SystemConfigPage,
   UserManagementPage,
 } from './pages/admin/index.ts';
-import { ManagerDashboard } from './pages/manager/index.ts';
+import { InventoryOverviewPage, ManagerDashboard, ProductManagementPage, ReportsPage } from './pages/manager/index.ts';
 import FranchiseStoreDashboard from './pages/franchise-store/FranchiseStoreDashboard.tsx';
 import SupplyDashboard from './pages/supply/SupplyDashboard.tsx';
 import CentralKitchenDashboard from './pages/central-kitchen/CentralKitchenDashboard.tsx';
-import { AdminRoute, RoleRoute, ProtectedRoute } from './routes/index.ts';
-import AdminShell from '@/components/layout/AdminShell';
+import { RoleRoute, ProtectedRoute } from './routes/index.ts';
 import { AuthProvider } from '@/contexts/AuthContext';
+import ProtectRoleRoute from './routes/ProtectRoleRoute.tsx';
+import { ADMIN_SIDEBAR_ITEMS } from './components/layout/index.ts';
+import RoleShell from './components/layout/RoleShell.tsx';
+import { MANAGER_SIDEBAR_ITEMS } from './components/layout/sidebarConfig.ts';
+import CategoryManager from './pages/manager/categoryManager.tsx';
 function App() {
   return (
     <>
@@ -39,8 +43,8 @@ function App() {
               ></Route>
 
               {/* Routing riêng của admin */}
-              <Route element={<AdminRoute />}>
-                <Route element={<AdminShell />}>
+              <Route element={<ProtectRoleRoute roleProtect="ADMIN" />}>
+                <Route element={<RoleShell sidebarItems={ADMIN_SIDEBAR_ITEMS} roleLabel="ADMIN" />}>
                   <Route path="/admin/stores" element={<BranchManagementPage />}></Route>
                   <Route path="/admin/users" element={<UserManagementPage />}></Route>
                   <Route path="/admin/roles" element={<RolePermissionPage />}></Route>
@@ -49,6 +53,15 @@ function App() {
               </Route>
 
               {/* Routing riêng của manager */}
+              <Route element={<ProtectRoleRoute roleProtect="MANAGER" />}>
+                <Route element={<RoleShell sidebarItems={MANAGER_SIDEBAR_ITEMS} roleLabel="MANAGER" />}>
+                  <Route path="/manager/inventory-overview" element={<InventoryOverviewPage />}></Route>
+                  <Route path="/manager/products" element={<ProductManagementPage />}></Route>
+                  <Route path="/manager/categories" element={<CategoryManager />}></Route>
+                  <Route path="/manager/reports" element={<ReportsPage />}></Route>
+                </Route>
+              </Route>
+
               {/* Routing riêng của central kitchen */}
               {/* Routing riêng của franchise store */}
               {/* Routing riêng của supplier */}
