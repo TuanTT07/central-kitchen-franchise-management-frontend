@@ -109,9 +109,9 @@ const UserManagementPage = () => {
   const isActive = watch('is_active');
   const filteredUsers = users.filter(
     (u) =>
-      u.username.toLowerCase().includes(search.toLowerCase()) ||
-      u.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
+      (u.username?.toLowerCase() || '').includes(search.toLowerCase()) ||
+      (u.fullName?.toLowerCase() || '').includes(search.toLowerCase()) ||
+      (u.email?.toLowerCase() || '').includes(search.toLowerCase())
   );
 
   const openAdd = () => {
