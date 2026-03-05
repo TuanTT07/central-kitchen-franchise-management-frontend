@@ -1,22 +1,23 @@
 import { useMemo } from 'react';
 import { DashboardLayout } from '@/components/layout';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Boxes,
   UtensilsCrossed,
-  BookOpen,
-  BarChart3,
   Package,
   Store,
   TrendingUp,
   Sparkles,
+  CalendarClock,
+  AlertTriangle,
 } from 'lucide-react';
 import { MANAGER_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 import { cn } from '@/lib/utils';
 
-// --- Mock bám đúng schema DB (store_orders, product_batches, products, categories) ---
+// --- Mock bám đúng schema DB: products, categories, product_batches, store_orders, stores ---
 
+type ProductStatus = 'ACTIVE' | 'INACTIVE' | null;
+type ProductBatchStatus = 'WAITING_FOR_STOCK' | 'AVAILABLE' | 'OUT_OF_STOCK' | 'EXPIRED';
 type StoreOrderStatus = 'PENDING' | 'APPROVED' | 'CANCELLED';
 
 interface Store {
@@ -28,26 +29,37 @@ interface StoreOrder {
   order_id: number;
   order_code: string;
   store_store_id: number;
-  order_date: string;
-  delivery_date: string | null;
+  order_date: string; // timestamp
+  delivery_date: string | null; // date
   status: StoreOrderStatus;
-}
-
-interface ProductBatch {
-  batch_id: number;
-  product_id: number;
-  current_quantity: number;
-}
-
-interface Product {
-  product_id: number;
-  product_name: string;
-  category_id: number | null;
 }
 
 interface Category {
   category_id: number;
   category_name: string;
+  status: ProductStatus;
+}
+
+interface Product {
+  product_id: number;
+  product_name: string;
+  unit: string;
+  description: string | null;
+  image_url: string | null;
+  status: ProductStatus;
+  category_id: number | null;
+}
+
+interface ProductBatch {
+  batch_id: number;
+  batch_code: string;
+  product_id: number;
+  manu_order_id: number | null;
+  initial_quantity: number;
+  current_quantity: number;
+  manufacturing_date: string; // date
+  expiry_date: string; // date
+  status: ProductBatchStatus;
 }
 
 const MOCK_STORES: Store[] = [
@@ -57,35 +69,151 @@ const MOCK_STORES: Store[] = [
 ];
 
 const MOCK_STORE_ORDERS: StoreOrder[] = [
-  { order_id: 1, order_code: 'SO-20260301-001', store_store_id: 1, order_date: '2026-03-01T09:00:00Z', delivery_date: '2026-03-02', status: 'APPROVED' },
-  { order_id: 2, order_code: 'SO-20260301-002', store_store_id: 2, order_date: '2026-03-01T10:30:00Z', delivery_date: '2026-03-02', status: 'PENDING' },
-  { order_id: 3, order_code: 'SO-20260302-001', store_store_id: 1, order_date: '2026-03-02T08:15:00Z', delivery_date: '2026-03-03', status: 'APPROVED' },
-  { order_id: 4, order_code: 'SO-20260302-002', store_store_id: 3, order_date: '2026-03-02T11:45:00Z', delivery_date: '2026-03-03', status: 'CANCELLED' },
-  { order_id: 5, order_code: 'SO-20260303-001', store_store_id: 2, order_date: '2026-03-03T09:00:00Z', delivery_date: '2026-03-04', status: 'PENDING' },
-];
-
-const MOCK_PRODUCT_BATCHES: ProductBatch[] = [
-  { batch_id: 1, product_id: 1, current_quantity: 120 },
-  { batch_id: 2, product_id: 1, current_quantity: 150 },
-  { batch_id: 3, product_id: 2, current_quantity: 40 },
-  { batch_id: 4, product_id: 3, current_quantity: 260 },
-  { batch_id: 5, product_id: 4, current_quantity: 0 },
-];
-
-const MOCK_PRODUCTS: Product[] = [
-  { product_id: 1, product_name: 'Cơm gà xối mỡ', category_id: 1 },
-  { product_id: 2, product_name: 'Phở bò tái', category_id: 2 },
-  { product_id: 3, product_name: 'Trà chanh sả', category_id: 4 },
-  { product_id: 4, product_name: 'Thịt bò phi lê', category_id: 1 },
-  { product_id: 5, product_name: 'Bún bò Huế', category_id: 2 },
-  { product_id: 6, product_name: 'Chả giò', category_id: 3 },
+  {
+    order_id: 1,
+    order_code: 'SO-20260301-001',
+    store_store_id: 1,
+    order_date: '2026-03-04T08:30:00Z',
+    delivery_date: '2026-03-05',
+    status: 'PENDING',
+  },
+  {
+    order_id: 2,
+    order_code: 'SO-20260301-002',
+    store_store_id: 2,
+    order_date: '2026-03-04T09:45:00Z',
+    delivery_date: '2026-03-05',
+    status: 'APPROVED',
+  },
+  {
+    order_id: 3,
+    order_code: 'SO-20260302-001',
+    store_store_id: 1,
+    order_date: '2026-03-03T14:15:00Z',
+    delivery_date: '2026-03-04',
+    status: 'APPROVED',
+  },
+  {
+    order_id: 4,
+    order_code: 'SO-20260302-002',
+    store_store_id: 3,
+    order_date: '2026-03-02T11:00:00Z',
+    delivery_date: '2026-03-03',
+    status: 'CANCELLED',
+  },
 ];
 
 const MOCK_CATEGORIES: Category[] = [
-  { category_id: 1, category_name: 'Món chính' },
-  { category_id: 2, category_name: 'Món nước' },
-  { category_id: 3, category_name: 'Khai vị' },
-  { category_id: 4, category_name: 'Đồ uống' },
+  { category_id: 1, category_name: 'Món chính', status: 'ACTIVE' },
+  { category_id: 2, category_name: 'Món nước', status: 'ACTIVE' },
+  { category_id: 3, category_name: 'Khai vị', status: 'ACTIVE' },
+  { category_id: 4, category_name: 'Đồ uống', status: 'ACTIVE' },
+];
+
+const MOCK_PRODUCTS: Product[] = [
+  {
+    product_id: 1,
+    product_name: 'Cơm gà xối mỡ',
+    unit: 'phần',
+    description: 'Cơm gà sốt bơ tỏi',
+    image_url: null,
+    status: 'ACTIVE',
+    category_id: 1,
+  },
+  {
+    product_id: 2,
+    product_name: 'Phở bò tái',
+    unit: 'tô',
+    description: null,
+    image_url: null,
+    status: 'ACTIVE',
+    category_id: 2,
+  },
+  {
+    product_id: 3,
+    product_name: 'Trà chanh sả',
+    unit: 'ly',
+    description: null,
+    image_url: null,
+    status: 'ACTIVE',
+    category_id: 4,
+  },
+  {
+    product_id: 4,
+    product_name: 'Thịt bò phi lê',
+    unit: 'kg',
+    description: 'Nguyên liệu kho lạnh',
+    image_url: null,
+    status: 'ACTIVE',
+    category_id: 1,
+  },
+  {
+    product_id: 5,
+    product_name: 'Chả giò',
+    unit: 'phần',
+    description: null,
+    image_url: null,
+    status: 'INACTIVE',
+    category_id: 3,
+  },
+];
+
+const MOCK_PRODUCT_BATCHES: ProductBatch[] = [
+  {
+    batch_id: 1,
+    batch_code: 'LOT-COMGA-001',
+    product_id: 1,
+    manu_order_id: 1,
+    initial_quantity: 200,
+    current_quantity: 120,
+    manufacturing_date: '2026-03-01',
+    expiry_date: '2026-03-05',
+    status: 'AVAILABLE',
+  },
+  {
+    batch_id: 2,
+    batch_code: 'LOT-COMGA-002',
+    product_id: 1,
+    manu_order_id: 2,
+    initial_quantity: 180,
+    current_quantity: 150,
+    manufacturing_date: '2026-03-02',
+    expiry_date: '2026-03-06',
+    status: 'AVAILABLE',
+  },
+  {
+    batch_id: 3,
+    batch_code: 'LOT-PHO-001',
+    product_id: 2,
+    manu_order_id: 3,
+    initial_quantity: 80,
+    current_quantity: 40,
+    manufacturing_date: '2026-02-28',
+    expiry_date: '2026-03-04',
+    status: 'AVAILABLE',
+  },
+  {
+    batch_id: 4,
+    batch_code: 'LOT-TRACHANH-001',
+    product_id: 3,
+    manu_order_id: 4,
+    initial_quantity: 300,
+    current_quantity: 260,
+    manufacturing_date: '2026-03-01',
+    expiry_date: '2026-03-10',
+    status: 'AVAILABLE',
+  },
+  {
+    batch_id: 5,
+    batch_code: 'LOT-THITBO-001',
+    product_id: 4,
+    manu_order_id: 5,
+    initial_quantity: 50,
+    current_quantity: 0,
+    manufacturing_date: '2026-02-20',
+    expiry_date: '2026-03-03',
+    status: 'OUT_OF_STOCK',
+  },
 ];
 
 const MOCK_ORDERS_BY_DAY = [
@@ -99,9 +227,24 @@ const MOCK_ORDERS_BY_DAY = [
 ];
 
 const MOCK_ACTIVITY = [
-  { id: '1', userName: 'Nguyễn Văn A', action: 'Xuất kho phiếu PX-001 cho đơn SO-20260301-001', time: '11:20' },
-  { id: '2', userName: 'Trần Thị B', action: 'Duyệt đơn yêu cầu SO-20260302-001', time: '11:00' },
-  { id: '3', userName: 'Lê Văn C', action: 'Nhập kho phiếu PN-002 — Trà chanh sả', time: '10:30' },
+  {
+    id: '1',
+    userName: 'Nguyễn Văn A',
+    action: 'Duyệt đơn SO-20260301-002 cho cửa hàng Quận 3',
+    time: '11:20',
+  },
+  {
+    id: '2',
+    userName: 'Trần Thị B',
+    action: 'Cập nhật tồn kho lô LOT-COMGA-001 sau xuất hàng',
+    time: '10:45',
+  },
+  {
+    id: '3',
+    userName: 'Lê Văn C',
+    action: 'Kiểm tra cảnh báo lô sắp hết hạn',
+    time: '10:10',
+  },
 ];
 
 const STORE_ORDER_STATUS_LABEL: Record<StoreOrderStatus, string> = {
@@ -118,6 +261,13 @@ const STORE_ORDER_STATUS_COLOR: Record<StoreOrderStatus, string> = {
 
 const CATEGORY_COLORS = ['#f59e0b', '#fbbf24', '#d97706', '#b45309'];
 
+const isNearExpiry = (date: string) => {
+  const today = new Date('2026-03-04');
+  const expiry = new Date(date);
+  const diffDays = (expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+  return diffDays >= 0 && diffDays <= 3;
+};
+
 const ManagerDashboard = () => {
   const totalStockUnits = useMemo(
     () => MOCK_PRODUCT_BATCHES.reduce((sum, b) => sum + b.current_quantity, 0),
@@ -130,6 +280,11 @@ const ManagerDashboard = () => {
     const today = '2026-03-04';
     return MOCK_STORE_ORDERS.filter((o) => o.order_date.startsWith(today)).length;
   }, []);
+
+  const nearExpiryCount = useMemo(
+    () => MOCK_PRODUCT_BATCHES.filter((b) => isNearExpiry(b.expiry_date) && b.current_quantity > 0).length,
+    []
+  );
 
   const categoryStats = useMemo(() => {
     const total = MOCK_PRODUCTS.length;
@@ -145,10 +300,20 @@ const ManagerDashboard = () => {
   const getStoreName = (storeId: number) =>
     MOCK_STORES.find((s) => s.store_id === storeId)?.store_name ?? `#${storeId}`;
 
+  const donutSegments = categoryStats.reduce(
+    (acc, cat, index) => {
+      const start = index === 0 ? 0 : acc[index - 1].end;
+      const end = start + cat.percent;
+      acc.push({ start, end, color: cat.color });
+      return acc;
+    },
+    [] as { start: number; end: number; color: string }[]
+  );
+
   return (
     <DashboardLayout navItems={MANAGER_SIDEBAR_ITEMS} roleLabel="MANAGER">
       <div className="space-y-5">
-        {/* Hero banner — gọn gàng, chuẩn */}
+        {/* Hero banner — gọn gàng, chuẩn, bám đúng nghiệp vụ kho */}
         <div className="relative flex items-center overflow-hidden rounded-md border border-amber-200/50 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-3 py-2 shadow-sm">
           <div className="absolute right-0 top-0 h-full w-1/4 bg-gradient-to-l from-white/10 to-transparent" />
           <div className="relative flex min-w-0 flex-1 items-center gap-2">
@@ -157,10 +322,10 @@ const ManagerDashboard = () => {
             </div>
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-xs font-semibold leading-tight text-white md:text-sm">
-                Bếp trung tâm · Quản lý kho & đơn hàng
+                Bếp trung tâm · Quản lý kho & đơn yêu cầu
               </h1>
               <p className="mt-0.5 truncate text-[9px] leading-tight text-amber-50/90">
-                Tổng quan tồn kho, đơn yêu cầu cửa hàng và danh mục sản phẩm
+                Tổng quan product_batches, store_orders và danh mục products
               </p>
             </div>
           </div>
@@ -170,31 +335,19 @@ const ManagerDashboard = () => {
         <div className="grid gap-5 sm:grid-cols-3">
           <Card className="overflow-hidden border-amber-200/70 bg-white shadow-lg shadow-amber-500/5 transition hover:shadow-xl">
             <CardContent className="relative p-0">
-              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-amber-500 to-amber-600" />
+              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-amber-500 to-orange-500" />
               <div className="flex items-center gap-4 p-4 pl-5">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-md">
+                <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md">
                   <Boxes className="size-5" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-amber-600/90">Tồn kho trung tâm</p>
-                  <p className="mt-0.5 text-2xl font-bold text-stone-900">{totalStockUnits.toLocaleString('vi-VN')}</p>
-                  <p className="text-[10px] text-stone-500">đơn vị (product_batches)</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="overflow-hidden border-orange-200/70 bg-white shadow-lg shadow-orange-500/5 transition hover:shadow-xl">
-            <CardContent className="relative p-0">
-              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-orange-500 to-orange-600" />
-              <div className="flex items-center gap-4 p-4 pl-5">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-md">
-                  <Package className="size-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-orange-600/90">Đơn hôm nay</p>
-                  <p className="mt-0.5 text-2xl font-bold text-stone-900">{ordersToday}</p>
-                  <p className="text-[10px] text-stone-500">store_orders</p>
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-amber-700/80">
+                    Tổng tồn kho
+                  </p>
+                  <p className="mt-0.5 text-2xl font-bold text-stone-900">
+                    {totalStockUnits.toLocaleString()}
+                  </p>
+                  <p className="text-[10px] text-stone-500">units · từ bảng product_batches</p>
                 </div>
               </div>
             </CardContent>
@@ -202,15 +355,39 @@ const ManagerDashboard = () => {
 
           <Card className="overflow-hidden border-amber-200/70 bg-white shadow-lg shadow-amber-500/5 transition hover:shadow-xl">
             <CardContent className="relative p-0">
-              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-amber-500 to-orange-500" />
+              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-orange-500 to-amber-500" />
               <div className="flex items-center gap-4 p-4 pl-5">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md">
+                <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md">
+                  <Package className="size-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-amber-700/80">
+                    Đơn yêu cầu hôm nay
+                  </p>
+                  <p className="mt-0.5 text-2xl font-bold text-stone-900">
+                    {ordersToday.toLocaleString()}
+                  </p>
+                  <p className="text-[10px] text-stone-500">store_orders · theo order_date</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden border-amber-200/70 bg-white shadow-lg shadow-amber-500/5 transition hover:shadow-xl">
+            <CardContent className="relative p-0">
+              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-amber-500 to-yellow-500" />
+              <div className="flex items-center gap-4 p-4 pl-5">
+                <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-yellow-400 text-white shadow-md">
                   <UtensilsCrossed className="size-5" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-amber-600/90">Sản phẩm</p>
-                  <p className="mt-0.5 text-2xl font-bold text-stone-900">{totalProducts}</p>
-                  <p className="text-[10px] text-stone-500">bảng products</p>
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-amber-700/80">
+                    Sản phẩm & danh mục
+                  </p>
+                  <p className="mt-0.5 text-2xl font-bold text-stone-900">
+                    {totalProducts.toLocaleString()}
+                  </p>
+                  <p className="text-[10px] text-stone-500">products · bảng products</p>
                 </div>
               </div>
             </CardContent>
@@ -218,14 +395,16 @@ const ManagerDashboard = () => {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Chart */}
+          {/* Đơn yêu cầu theo ngày (store_orders) */}
           <Card className="border-amber-100 bg-white shadow-md">
             <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
               <CardTitle className="flex items-center gap-2 text-sm font-bold text-amber-900">
                 <TrendingUp className="size-4 text-amber-600" />
                 Đơn yêu cầu theo ngày
               </CardTitle>
-              <CardDescription className="text-[10px] text-amber-700/80">Tuần này · store_orders</CardDescription>
+              <CardDescription className="text-[10px] text-amber-700/80">
+                Tuần này · từ store_orders
+              </CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
               <div className="flex h-36 items-end gap-1.5">
@@ -235,7 +414,7 @@ const ManagerDashboard = () => {
                       className={cn(
                         'w-full rounded-t-lg transition-all',
                         d.count === maxOrdersByDay
-                          ? 'bg-gradient-to-t from-amber-500 to-amber-400 shadow-md'
+                          ? 'bg-gradient-to-t from-amber-500 to-orange-400 shadow-md'
                           : 'bg-gradient-to-t from-amber-100 to-amber-50'
                       )}
                       style={{
@@ -250,100 +429,120 @@ const ManagerDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Categories */}
+          {/* Loại sản phẩm từ categories + products */}
           <Card className="border-amber-100 bg-white shadow-md">
             <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
               <CardTitle className="flex items-center gap-2 text-sm font-bold text-amber-900">
-                <Store className="size-4 text-amber-600" />
+                <Boxes className="size-4 text-amber-600" />
                 Loại sản phẩm
               </CardTitle>
-              <CardDescription className="text-[10px] text-amber-700/80">categories × products</CardDescription>
+              <CardDescription className="text-[10px] text-amber-700/80">
+                Tỷ lệ theo bảng categories & products
+              </CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
               <div className="flex items-center gap-4">
                 <div
-                  className="size-20 shrink-0 rounded-full border-2 border-white shadow-inner"
+                  className="size-24 shrink-0 rounded-full border-4 border-white shadow-inner"
                   style={{
-                    background: `conic-gradient(${categoryStats
-                      .map((c, i) => {
-                        const start = categoryStats.slice(0, i).reduce((s, x) => s + x.percent, 0);
-                        const end = start + c.percent;
-                        return `${c.color} ${start}% ${end}%`;
-                      })
+                    background: `conic-gradient(${donutSegments
+                      .map((seg) => `${seg.color} ${seg.start}% ${seg.end}%`)
                       .join(', ')})`,
                   }}
                 />
-                <div className="flex-1 space-y-2.5">
+                <div className="flex-1 space-y-1.5">
                   {categoryStats.map((cat) => (
-                    <div key={cat.category_id} className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
+                    <div key={cat.category_id} className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2">
                         <span
-                          className="size-2 shrink-0 rounded-full"
+                          className="size-2.5 rounded-full"
                           style={{ backgroundColor: cat.color }}
                         />
-                        <span className="text-xs font-medium text-stone-800">{cat.category_name}</span>
-                      </div>
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                        {cat.percent}%
+                        {cat.category_name}
+                      </span>
+                      <span className="text-xs font-semibold text-stone-800">
+                        {cat.count} sp · {cat.percent}%
                       </span>
                     </div>
                   ))}
-                  {categoryStats.length === 0 && (
-                    <p className="text-xs text-stone-500">Chưa có dữ liệu</p>
-                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Quick actions */}
+          {/* Cảnh báo lô sắp hết hạn */}
           <Card className="border-amber-100 bg-white shadow-md">
             <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <CardTitle className="text-sm font-bold text-amber-900">Hành động nhanh</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-sm font-bold text-amber-900">
+                <AlertTriangle className="size-4 text-amber-600" />
+                Lô hàng sắp hết hạn
+              </CardTitle>
+              <CardDescription className="text-[10px] text-amber-700/80">
+                FEFO · từ bảng product_batches
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-1.5 pt-4">
-              <Button
-                className="w-full justify-start gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 py-4 text-sm text-white shadow-md hover:from-amber-600 hover:to-orange-600"
-              >
-                <BarChart3 className="size-4" />
-                Xuất báo cáo
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-2 rounded-lg border-amber-200 py-4 text-xs text-amber-800 hover:bg-amber-50"
-              >
-                <BookOpen className="size-4" />
-                Cập nhật công thức
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-2 rounded-lg border-amber-200 py-4 text-xs text-amber-800 hover:bg-amber-50"
-              >
-                <Boxes className="size-4" />
-                Kiểm kê tồn kho
-              </Button>
+            <CardContent className="space-y-2 pt-4">
+              {MOCK_PRODUCT_BATCHES.filter(
+                (b) => isNearExpiry(b.expiry_date) && b.current_quantity > 0
+              ).map((b) => {
+                const product = MOCK_PRODUCTS.find((p) => p.product_id === b.product_id);
+                return (
+                  <div
+                    key={b.batch_id}
+                    className="flex items-center justify-between rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold text-stone-900">
+                        {product?.product_name ?? `#${b.product_id}`}
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-stone-600">
+                        {b.batch_code} · HD: {b.expiry_date}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-semibold text-amber-900">
+                        {b.current_quantity.toLocaleString()} {product?.unit}
+                      </p>
+                      <p className="mt-0.5 flex items-center justify-end gap-1 text-[10px] text-amber-700">
+                        <CalendarClock className="size-3" />
+                        Gần hết hạn
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+              {nearExpiryCount === 0 && (
+                <p className="text-xs text-stone-500">Không có lô hàng nào sắp hết hạn.</p>
+              )}
             </CardContent>
           </Card>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
+          {/* Đơn yêu cầu gần đây */}
           <Card className="overflow-hidden border-amber-100 bg-white shadow-md">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80">
-              <CardTitle className="text-base font-bold text-amber-900">Đơn yêu cầu gần đây</CardTitle>
-              <CardDescription className="text-amber-700/80">Mã đơn · Cửa hàng · Trạng thái</CardDescription>
+            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 py-3">
+              <CardTitle className="flex items-center gap-2 text-sm font-bold text-amber-900">
+                <Store className="size-4 text-amber-600" />
+                Đơn yêu cầu gần đây
+              </CardTitle>
+              <CardDescription className="text-[10px] text-amber-700/80">
+                store_orders · không có tiền
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <ul className="divide-y divide-amber-50">
-                {MOCK_STORE_ORDERS.slice(0, 4).map((o) => (
+                {MOCK_STORE_ORDERS.map((o) => (
                   <li
                     key={o.order_id}
                     className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-amber-50/50"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-stone-900">{o.order_code}</p>
+                      <p className="truncate text-sm font-semibold text-stone-900">
+                        {o.order_code}
+                      </p>
                       <p className="mt-0.5 text-[10px] text-stone-500">
-                        {getStoreName(o.store_store_id)} · Giao:{' '}
-                        {o.delivery_date ? new Date(o.delivery_date).toLocaleDateString('vi-VN') : '—'}
+                        {getStoreName(o.store_store_id)} · Giao: {o.delivery_date ?? '—'}
                       </p>
                     </div>
                     <span
@@ -360,16 +559,25 @@ const ManagerDashboard = () => {
             </CardContent>
           </Card>
 
+          {/* Hoạt động gần đây */}
           <Card className="overflow-hidden border-amber-100 bg-white shadow-md">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80">
-              <CardTitle className="text-base font-bold text-amber-900">Hoạt động gần đây</CardTitle>
-              <CardDescription className="text-amber-700/80">Nhập/xuất kho · Duyệt đơn</CardDescription>
+            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 py-3">
+              <CardTitle className="flex items-center gap-2 text-sm font-bold text-amber-900">
+                <CalendarClock className="size-4 text-amber-600" />
+                Hoạt động gần đây
+              </CardTitle>
+              <CardDescription className="text-[10px] text-amber-700/80">
+                Liên quan kho & đơn yêu cầu
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <ul className="divide-y divide-amber-50">
                 {MOCK_ACTIVITY.map((a) => (
-                  <li key={a.id} className="flex gap-3 px-4 py-3 transition hover:bg-amber-50/50">
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 text-xs font-bold text-white shadow-sm">
+                  <li
+                    key={a.id}
+                    className="flex gap-3 px-4 py-3 transition hover:bg-amber-50/50"
+                  >
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-xs font-bold text-white shadow-sm">
                       {a.userName.charAt(0)}
                     </div>
                     <div className="min-w-0 flex-1">
