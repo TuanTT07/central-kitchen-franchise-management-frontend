@@ -4,8 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Loader2 } from 'lucide-react';
 import { adminService, type StoreResponse } from '../../services/adminServices';
+import { authService } from '@/services/authService';
 
 const BranchManagementPage = () => {
   const [stores, setStores] = useState<StoreResponse[]>([]);
@@ -147,7 +148,7 @@ const BranchManagementPage = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-amber-200/60 shadow-sm">
+            <div className=" overflow-x-auto rounded-xl border border-amber-200/60 shadow-sm">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-amber-200 bg-amber-100/80 text-left">
@@ -160,43 +161,59 @@ const BranchManagementPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStores.map((store) => (
-                    <tr
-                      key={store.storeId}
-                      className="border-b border-amber-100/80 transition-colors hover:bg-amber-50/70"
-                    >
-                      <td className="px-5 py-4 font-mono text-amber-700">{store.storeId}</td>
-                      <td className="px-5 py-4 font-medium text-amber-900">{store.storeName}</td>
-                      <td className="px-5 py-4 text-stone-700">{store.address}</td>
-                      <td className="px-5 py-4 text-stone-700">{store.phone}</td>
-                      <td className="px-5 py-4 text-stone-700">{store.managerFullName}</td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="size-8 border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
-                            onClick={() => openEdit(store)}
-                          >
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="size-8 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                            onClick={() => openDelete(store)}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="py-20">
+                        <div className="flex flex-col items-center justify-center w-full">
+                          <Loader2 className="size-10 animate-spin text-amber-500" />
+                          <p className="mt-2 text-amber-600 animate-pulse">Đang tải dữ liệu...</p>
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredStores.map((store) => (
+                      <tr
+                        key={store.storeId}
+                        className="border-b border-amber-100/80 transition-colors hover:bg-amber-50/70"
+                      >
+                        <td className="px-5 py-4 font-mono text-amber-700">{store.storeId}</td>
+                        <td className="px-5 py-4 font-medium text-amber-900">{store.storeName}</td>
+                        <td className="px-5 py-4 text-stone-700">{store.address}</td>
+                        <td className="px-5 py-4 text-stone-700">{store.phone}</td>
+                        <td className="px-5 py-4 text-stone-700">{store.managerFullName}</td>
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="size-8 border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+                              onClick={() => openEdit(store)}
+                            >
+                              <Pencil className="size-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="size-8 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => openDelete(store)}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
 
-            {filteredStores.length === 0 && <p className="py-12 text-center text-amber-600">Không có cửa hàng nào</p>}
+            {!loading && filteredStores.length === 0 && (
+              <div className="py-20 flex flex-col items-center justify-center text-amber-600/60 bg-white rounded-b-xl border border-t-0 border-amber-200/60">
+                <Search className="size-12 mb-3 opacity-20" />
+                <p className="py-12 text-center text-amber-600">Không có cửa hàng nào</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
