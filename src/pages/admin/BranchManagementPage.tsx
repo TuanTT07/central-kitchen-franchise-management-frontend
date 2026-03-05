@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,8 +12,8 @@ const BranchManagementPage = () => {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [editingStore, setEditingStore] = useState<Store | null>(null);
-  const [storeToDelete, setStoreToDelete] = useState<Store | null>(null);
+  const [editingStore, setEditingStore] = useState<StoreResponse | null>(null);
+  const [storeToDelete, setStoreToDelete] = useState<StoreResponse | null>(null);
   const [formData, setFormData] = useState<{
     store_name: string;
     address: string;
@@ -38,7 +38,7 @@ const BranchManagementPage = () => {
     isLast: true,
   });
 
-  const featchStore = useCallback(
+  const fetchStore = useCallback(
     async (page: number = 0) => {
       setLoading(true);
       try {
@@ -57,7 +57,7 @@ const BranchManagementPage = () => {
           setStores(mappedStores);
           setPageInfo({
             totalPages: response.totalPages,
-            totalElements: response.numberOfElements,
+            totalElements: response.totalElements,
             isFirst: response.first,
             isLast: response.last,
           });
@@ -70,6 +70,10 @@ const BranchManagementPage = () => {
     },
     [pageSize]
   );
+
+  useEffect(() => {
+    fetchStore(currentPage);
+  }, [fetchStore, currentPage]);
 
   const filteredStores = stores.filter(
     (s) =>
@@ -93,7 +97,7 @@ const BranchManagementPage = () => {
     setDialogOpen(true);
   };
 
-  const openDelete = (store: Store) => {
+  const openDelete = (store: StoreResponse) => {
     setStoreToDelete(store);
     setDeleteConfirmOpen(true);
   };
@@ -102,10 +106,10 @@ const BranchManagementPage = () => {
     if (!formData.store_name.trim()) return;
 
     if (editingStore) {
-      setStores((prev) => prev.map((s) => (s.store_id === editingStore.store_id ? { ...s, ...formData } : s)));
+      setStores((prev) => prev.map((s) => (s.storeId === editingStore.storeId ? { ...s, ...formData } : s)));
     } else {
-      const newId = Math.max(0, ...stores.map((s) => s.store_id)) + 1;
-      setStores((prev) => [...prev, { store_id: newId, ...formData }]);
+      const newId = Math.max(0, ...stores.map((s) => s.storeId)) + 1;
+      // setStores((prev) => [...prev, { storeId: newId, ...formData }]);
     }
 
     setDialogOpen(false);
@@ -113,7 +117,7 @@ const BranchManagementPage = () => {
 
   const handleDelete = () => {
     if (storeToDelete) {
-      setStores((prev) => prev.filter((s) => s.store_id !== storeToDelete.store_id));
+      setStores((prev) => prev.filter((s) => s.storeId !== storeToDelete.storeId));
       setDeleteConfirmOpen(false);
       setStoreToDelete(null);
     }
@@ -158,14 +162,14 @@ const BranchManagementPage = () => {
                 <tbody>
                   {filteredStores.map((store) => (
                     <tr
-                      key={store.store_id}
+                      key={store.storeId}
                       className="border-b border-amber-100/80 transition-colors hover:bg-amber-50/70"
                     >
-                      <td className="px-5 py-4 font-mono text-amber-700">{store.store_id}</td>
-                      <td className="px-5 py-4 font-medium text-amber-900">{store.store_name}</td>
+                      <td className="px-5 py-4 font-mono text-amber-700">{store.storeId}</td>
+                      <td className="px-5 py-4 font-medium text-amber-900">{store.storeName}</td>
                       <td className="px-5 py-4 text-stone-700">{store.address}</td>
                       <td className="px-5 py-4 text-stone-700">{store.phone}</td>
-                      <td className="px-5 py-4 text-stone-700">{getManagerName(store.manager_id)}</td>
+                      <td className="px-5 py-4 text-stone-700">{store.managerFullName}</td>
                       <td className="px-5 py-4 text-right">
                         <div className="flex justify-end gap-2">
                           <Button
@@ -255,11 +259,11 @@ const BranchManagementPage = () => {
                 className="h-11 w-full rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-2.5 text-base focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
               >
                 <option value="">— Không chọn —</option>
-                {MOCK_USERS.map((u) => (
+                {/* {MOCK_USERS.map((u) => (
                   <option key={u.user_id} value={u.user_id}>
                     {u.full_name} (#{u.user_id})
                   </option>
-                ))}
+                ))} */}
               </select>
             </div>
           </div>
@@ -280,7 +284,7 @@ const BranchManagementPage = () => {
             <DialogTitle>Xác nhận xóa</DialogTitle>
           </DialogHeader>
           <p className="py-4 text-sm text-stone-700">
-            Bạn có chắc muốn xóa cửa hàng <strong>{storeToDelete?.store_name}</strong>? Thao tác này không thể hoàn tác.
+            Bạn có chắc muốn xóa cửa hàng <strong>{storeToDelete?.storeName}</strong>? Thao tác này không thể hoàn tác.
           </p>
           <DialogFooter>
             <Button variant="outline" size="lg" className="min-w-[6rem]" onClick={() => setDeleteConfirmOpen(false)}>

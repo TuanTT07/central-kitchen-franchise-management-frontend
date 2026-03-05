@@ -11,7 +11,7 @@ export interface UserResponse {
 }
 
 export interface StoreResponse {
-  storeId: string;
+  storeId: number;
   storeName: string;
   address: string;
   phone: string;
