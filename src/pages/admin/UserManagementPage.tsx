@@ -15,7 +15,6 @@ import {
   Loader2,
   UserCheck,
   UserX,
-  MoreVertical,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
