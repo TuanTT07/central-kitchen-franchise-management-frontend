@@ -47,8 +47,8 @@ const UserManagementPage = () => {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   // --- STATE QUẢN LÝ PHÂN TRANG (PAGINATION) ---
   const [currentPage, setCurrentPage] = useState(0); // Trang hiện tại (bắt đầu từ 0)
@@ -135,20 +135,12 @@ const UserManagementPage = () => {
   const openEdit = (user: UserResponse) => {
     // Chuyển đổi dữ liệu tạm thời sang interface User để dùng cho state editingUser
     const tempUser: any = {
-      id: user.userId, // Map userId sang id để các API update/delete cũ vẫn chạy được
-      username: user.username,
-      fullName: user.fullName,
-      email: user.email,
       isActive: user.isActive,
       roles: [user.role], // Chuyển "ADMIN" sang ["ADMIN"]
     };
 
     setEditingUser(tempUser);
     reset({
-      username: user.username,
-      password: '',
-      full_name: user.fullName,
-      email: user.email,
       role_id: ROLES.find((r) => r.role_name === user.role)?.role_id || 1,
       is_active: user.isActive,
     });
@@ -337,30 +329,30 @@ const UserManagementPage = () => {
                           {user.isActive ? 'Hoạt động' : 'Đã khóa'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-9 rounded-full text-amber-600 hover:bg-amber-100 hover:text-amber-700 transition-colors"
-                            onClick={() => openEdit(user)} // Đã khôi phục hàm mở form sửa
-                            title="Chỉnh sửa"
-                          >
-                            <Pencil className="size-4" />
-                          </Button>
+                      <td className="px-6 py-4 text-right flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-9 rounded-full text-amber-600 hover:bg-amber-100 hover:text-amber-700 transition-colors"
+                          onClick={() => openEdit(user)}
+                          title="Chỉnh sửa"
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+
+                        {user.isActive ? (
                           <Button
                             variant="ghost"
                             size="icon"
                             className="size-9 rounded-full text-rose-500 hover:bg-rose-100 hover:text-rose-600 transition-colors"
-                            onClick={() => openDelete(user)} // Đã khôi phục hàm mở form xóa
+                            onClick={() => openDelete(user)}
                             title="Xóa tài khoản"
                           >
                             <Trash2 className="size-4" />
                           </Button>
-                        </div>
-                        <div className="group-hover:hidden text-stone-300">
-                          <MoreVertical className="size-4 ml-auto" />
-                        </div>
+                        ) : (
+                          ''
+                        )}
                       </td>
                     </tr>
                   ))}
