@@ -51,6 +51,6 @@ export const adminService = {
 
   // Xóa tài khoản
   deleteAccount: async (id: number) => {
-    return await http.delete(`/admin/users/${id}`);
+    return await http.delete(`/admin/users/${id}/active`);
   },
 };
