@@ -14,6 +14,12 @@ import {
   ReportsPage,
   CategoryManager,
 } from './pages/manager/index.ts';
+import {
+  DeliverySchedulePage,
+  DistributionPlanPage,
+  IssueHandlingPage,
+  SummaryOrdersPage,
+} from './pages/supply/index.ts';
 import FranchiseStoreDashboard from './pages/franchise-store/FranchiseStoreDashboard.tsx';
 import SupplyDashboard from './pages/supply/SupplyDashboard.tsx';
 import CentralKitchenDashboard from './pages/central-kitchen/CentralKitchenDashboard.tsx';
@@ -22,7 +28,9 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import ProtectRoleRoute from './routes/ProtectRoleRoute.tsx';
 import { ADMIN_SIDEBAR_ITEMS } from './components/layout/index.ts';
 import RoleShell from './components/layout/RoleShell.tsx';
-import { MANAGER_SIDEBAR_ITEMS } from './components/layout/sidebarConfig.ts';
+import { MANAGER_SIDEBAR_ITEMS, SUPPLY_COORDINATOR_SIDEBAR_ITEMS } from './components/layout/sidebarConfig.ts';
+import { Role } from './Types/index.ts';
+
 function App() {
   return (
     <>
@@ -48,7 +56,7 @@ function App() {
               ></Route>
 
               {/* Routing riêng của admin */}
-              <Route element={<ProtectRoleRoute roleProtect="ADMIN" />}>
+              <Route element={<ProtectRoleRoute roleProtect={Role.ADMIN} />}>
                 <Route element={<RoleShell sidebarItems={ADMIN_SIDEBAR_ITEMS} roleLabel="ADMIN" />}>
                   <Route path="/admin/stores" element={<BranchManagementPage />}></Route>
                   <Route path="/admin/users" element={<UserManagementPage />}></Route>
@@ -58,7 +66,7 @@ function App() {
               </Route>
 
               {/* Routing riêng của manager */}
-              <Route element={<ProtectRoleRoute roleProtect="MANAGER" />}>
+              <Route element={<ProtectRoleRoute roleProtect={Role.MANAGER} />}>
                 <Route element={<RoleShell sidebarItems={MANAGER_SIDEBAR_ITEMS} roleLabel="MANAGER" />}>
                   <Route path="/manager/inventory-overview" element={<InventoryOverviewPage />}></Route>
                   <Route path="/manager/products" element={<ProductManagementPage />}></Route>
@@ -70,6 +78,18 @@ function App() {
               {/* Routing riêng của central kitchen */}
               {/* Routing riêng của franchise store */}
               {/* Routing riêng của supplier */}
+              <Route element={<ProtectRoleRoute roleProtect={Role.SUPPLY_COORDINATOR} />}>
+                <Route
+                  element={
+                    <RoleShell sidebarItems={SUPPLY_COORDINATOR_SIDEBAR_ITEMS} roleLabel={Role.SUPPLY_COORDINATOR} />
+                  }
+                >
+                  <Route path="/supply-coordinator/delivery-schedule" element={<DeliverySchedulePage />}></Route>
+                  <Route path="/supply-coordinator/distribution-plan" element={<DistributionPlanPage />}></Route>
+                  <Route path="/supply-coordinator/issues" element={<IssueHandlingPage />}></Route>
+                  <Route path="/supply-coordinator/summary-orders" element={<SummaryOrdersPage />}></Route>
+                </Route>
+              </Route>
             </Route>
           </Routes>
         </AuthProvider>

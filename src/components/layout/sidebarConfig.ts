@@ -28,3 +28,11 @@ export const MANAGER_SIDEBAR_ITEMS = [
   { label: 'Danh mục', href: '/manager/categories', icon: BookOpen },
   { label: 'Báo cáo', href: '/manager/reports', icon: BarChart3 },
 ] as const;
+
+export const SUPPLY_COORDINATOR_SIDEBAR_ITEMS = [
+  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { label: 'Lịch giao hàng', href: '/supply-coordinator/delivery-schedule', icon: ShoppingCart },
+  { label: 'Kế hoạch phân phối', href: '/supply-coordinator/distribution-plan', icon: Boxes },
+  { label: 'Xử lý sự cố', href: '/supply-coordinator/issues', icon: UtensilsCrossed },
+  { label: 'Tổng hợp đơn', href: '/supply-coordinator/summary-orders', icon: BookOpen },
+] as const;
