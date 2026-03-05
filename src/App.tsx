@@ -28,9 +28,16 @@ import {
   ManufacturingOrders,
   ProductBatches,
   ProductCentral,
+  Receipts,
 } from './pages/central-kitchen/index.ts';
-import FranchiseStoreDashboard from './pages/franchise-store/FranchiseStoreDashboard.tsx';
-import SupplyDashboard from './pages/supply/SupplyDashboard.tsx';
+
+import {
+  FranchiseStoreDashboard,
+  CreateOrderPage,
+  OrderTrackingPage,
+  ProductsFranchise,
+  StoreProfile,
+} from './pages/franchise-store/index.ts';
 import { RoleRoute, ProtectedRoute } from './routes/index.ts';
 import { AuthProvider } from '@/contexts/AuthContext';
 import ProtectRoleRoute from './routes/ProtectRoleRoute.tsx';
@@ -38,11 +45,12 @@ import { ADMIN_SIDEBAR_ITEMS } from './components/layout/index.ts';
 import RoleShell from './components/layout/RoleShell.tsx';
 import {
   CENTRAL_KITCHEN_SIDEBAR_ITEMS,
+  FRANCHISEE_SIDEBAR_ITEMS,
   MANAGER_SIDEBAR_ITEMS,
   SUPPLY_COORDINATOR_SIDEBAR_ITEMS,
 } from './components/layout/sidebarConfig.ts';
 import { Role } from './Types/index.ts';
-import Receipts from './pages/central-kitchen/Receipts.tsx';
+import SupplyDashboard from './pages/supply/SupplyDashboard.tsx';
 
 function App() {
   return (
@@ -100,6 +108,16 @@ function App() {
                 </Route>
               </Route>
               {/* Routing riêng của franchise store */}
+              <Route element={<ProtectRoleRoute roleProtect={Role.FRANCHISE_STORE_STAFF} />}>
+                <Route
+                  element={<RoleShell sidebarItems={FRANCHISEE_SIDEBAR_ITEMS} roleLabel={Role.FRANCHISE_STORE_STAFF} />}
+                >
+                  <Route path="/franchise-store/create-order" element={<CreateOrderPage />}></Route>
+                  <Route path="/franchise-store/order-tracking" element={<OrderTrackingPage />}></Route>
+                  <Route path="/franchise-store/products" element={<ProductsFranchise />}></Route>
+                  <Route path="/franchise-store/store-profile" element={<StoreProfile />}></Route>
+                </Route>
+              </Route>
               {/* Routing riêng của supplier */}
               <Route element={<ProtectRoleRoute roleProtect={Role.SUPPLY_COORDINATOR} />}>
                 <Route

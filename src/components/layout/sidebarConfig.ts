@@ -8,6 +8,8 @@ import {
   Settings,
   BookOpen,
   BarChart3,
+  ReceiptText,
+  Info,
 } from 'lucide-react';
 
 export const ADMIN_SIDEBAR_ITEMS = [
@@ -45,4 +47,11 @@ export const CENTRAL_KITCHEN_SIDEBAR_ITEMS = [
   { label: 'Tồn kho', href: '/central-kitchen/inventory', icon: Boxes },
   { label: 'Giao dịch hàng tồn kho', href: '/central-kitchen/inventory-transactions', icon: Users },
   { label: 'Sản phẩm', href: '/central-kitchen/products', icon: UtensilsCrossed },
+] as const;
+export const FRANCHISEE_SIDEBAR_ITEMS = [
+  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { label: 'Tạo đơn hàng', href: '/franchise-store/create-order', icon: ShoppingCart },
+  { label: 'Đơn hàng', href: '/franchise-store/order-tracking', icon: ReceiptText },
+  { label: 'Sản phẩm', href: '/franchise-store/products', icon: Package },
+  { label: 'Thông tin cửa hàng', href: '/franchise-store/store-profile', icon: Info },
 ] as const;
