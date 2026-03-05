@@ -2,16 +2,10 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LayoutDashboard, ShoppingCart, Package, Boxes, UtensilsCrossed, Receipt, Truck } from 'lucide-react';
+import { ShoppingCart, Package, Boxes, UtensilsCrossed, Receipt, Truck } from 'lucide-react';
 import { mockRecentOrders, mockActivity } from '@/services/mockDashboardData';
-
-const franchiseNavItems = [
-  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { label: 'Tạo đơn', href: '#', icon: ShoppingCart },
-  { label: 'Theo dõi đơn', href: '#', icon: Receipt },
-  { label: 'Nhận hàng', href: '#', icon: Truck },
-  { label: 'Tồn kho', href: '#', icon: Boxes },
-];
+import { FRANCHISEE_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
+import { Role } from '@/Types';
 
 const statusLabel: Record<string, string> = {
   PENDING: 'Chờ xử lý',
@@ -29,7 +23,7 @@ const statusColor: Record<string, string> = {
 
 const FranchiseStoreDashboard = () => {
   return (
-    <DashboardLayout navItems={franchiseNavItems} roleLabel="FRANCHISE">
+    <DashboardLayout navItems={FRANCHISEE_SIDEBAR_ITEMS} roleLabel={Role.FRANCHISE_STORE_STAFF}>
       <div className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="border-border bg-white">
