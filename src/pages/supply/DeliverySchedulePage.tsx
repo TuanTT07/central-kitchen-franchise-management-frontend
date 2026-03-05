@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CalendarClock, Truck, MapPin } from 'lucide-react';
+import { Truck, MapPin } from 'lucide-react';
 import { mockRecentOrders } from '@/services/mockDashboardData';
 
 const DeliverySchedulePage = () => {
@@ -58,7 +58,6 @@ const DeliverySchedulePage = () => {
                   <option value="evening">Tối</option>
                 </select>
                 <Button className="h-8 rounded-full bg-amber-500 px-3 text-xs text-white hover:bg-amber-600">
-                  <CalendarClock className="mr-1.5 size-3.5" />
                   Lên lịch mới
                 </Button>
               </div>

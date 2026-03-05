@@ -1,7 +1,7 @@
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Truck, Calendar, Package, AlertTriangle, Sparkles, CalendarClock } from 'lucide-react';
+import { Truck, Package, AlertTriangle, Sparkles, CalendarClock } from 'lucide-react';
 import { mockRecentOrders, mockActivity } from '@/services/mockDashboardData';
 import { SUPPLY_COORDINATOR_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 import { Role } from '@/Types';
