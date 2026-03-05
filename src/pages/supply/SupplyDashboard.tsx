@@ -2,20 +2,15 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LayoutDashboard, Truck, Calendar, Package, AlertTriangle } from 'lucide-react';
+import { Truck, Calendar, Package, AlertTriangle } from 'lucide-react';
 import { mockRecentOrders, mockActivity } from '@/services/mockDashboardData';
 
-const supplyNavItems = [
-  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { label: 'Lịch giao hàng', href: '#', icon: Calendar },
-  { label: 'Kế hoạch phân phối', href: '#', icon: Truck },
-  { label: 'Xử lý sự cố', href: '#', icon: AlertTriangle },
-  { label: 'Tổng hợp đơn', href: '#', icon: Package },
-];
+import { SUPPLY_COORDINATOR_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
+import { Role } from '@/Types';
 
 const SupplyDashboard = () => {
   return (
-    <DashboardLayout navItems={supplyNavItems} roleLabel="SUPPLIER">
+    <DashboardLayout navItems={SUPPLY_COORDINATOR_SIDEBAR_ITEMS} roleLabel={Role.SUPPLY_COORDINATOR}>
       <div className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-3">
           <Card className="border-border bg-white">
