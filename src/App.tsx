@@ -20,16 +20,29 @@ import {
   IssueHandlingPage,
   SummaryOrdersPage,
 } from './pages/supply/index.ts';
+
+import {
+  CentralKitchenDashboard,
+  InventoryCentral,
+  InventoryTransactions,
+  ManufacturingOrders,
+  ProductBatches,
+  ProductCentral,
+} from './pages/central-kitchen/index.ts';
 import FranchiseStoreDashboard from './pages/franchise-store/FranchiseStoreDashboard.tsx';
 import SupplyDashboard from './pages/supply/SupplyDashboard.tsx';
-import CentralKitchenDashboard from './pages/central-kitchen/CentralKitchenDashboard.tsx';
 import { RoleRoute, ProtectedRoute } from './routes/index.ts';
 import { AuthProvider } from '@/contexts/AuthContext';
 import ProtectRoleRoute from './routes/ProtectRoleRoute.tsx';
 import { ADMIN_SIDEBAR_ITEMS } from './components/layout/index.ts';
 import RoleShell from './components/layout/RoleShell.tsx';
-import { MANAGER_SIDEBAR_ITEMS, SUPPLY_COORDINATOR_SIDEBAR_ITEMS } from './components/layout/sidebarConfig.ts';
+import {
+  CENTRAL_KITCHEN_SIDEBAR_ITEMS,
+  MANAGER_SIDEBAR_ITEMS,
+  SUPPLY_COORDINATOR_SIDEBAR_ITEMS,
+} from './components/layout/sidebarConfig.ts';
 import { Role } from './Types/index.ts';
+import Receipts from './pages/central-kitchen/Receipts.tsx';
 
 function App() {
   return (
@@ -76,6 +89,16 @@ function App() {
               </Route>
 
               {/* Routing riêng của central kitchen */}
+              <Route element={<ProtectRoleRoute roleProtect={Role.CENTRAL_KITCHEN_STAFF} />}>
+                <Route element={<RoleShell sidebarItems={CENTRAL_KITCHEN_SIDEBAR_ITEMS} roleLabel="CENTRAL_KITCHEN" />}>
+                  <Route path="/central-kitchen/orders" element={<ManufacturingOrders />}></Route>
+                  <Route path="/central-kitchen/receipts" element={<Receipts />}></Route>
+                  <Route path="/central-kitchen/product-batches" element={<ProductBatches />}></Route>
+                  <Route path="/central-kitchen/inventory" element={<InventoryCentral />}></Route>
+                  <Route path="/central-kitchen/inventory-transactions" element={<InventoryTransactions />}></Route>
+                  <Route path="/central-kitchen/products" element={<ProductCentral />}></Route>
+                </Route>
+              </Route>
               {/* Routing riêng của franchise store */}
               {/* Routing riêng của supplier */}
               <Route element={<ProtectRoleRoute roleProtect={Role.SUPPLY_COORDINATOR} />}>

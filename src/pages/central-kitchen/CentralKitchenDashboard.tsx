@@ -2,16 +2,9 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LayoutDashboard, ChefHat, Package, ClipboardList, Boxes } from 'lucide-react';
+import { ChefHat, Package, Boxes } from 'lucide-react';
 import { mockOrdersByDay, mockRecentOrders, mockActivity } from '@/services/mockDashboardData';
-
-const centralNavItems = [
-  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { label: 'Xử lý đơn', href: '#', icon: Package },
-  { label: 'Kế hoạch sản xuất', href: '#', icon: ClipboardList },
-  { label: 'Nguyên liệu', href: '#', icon: Boxes },
-  { label: 'Trạng thái sản xuất', href: '#', icon: ChefHat },
-];
+import { CENTRAL_KITCHEN_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 
 const statusLabel: Record<string, string> = {
   PENDING: 'Chờ xử lý',
@@ -31,7 +24,7 @@ const CentralKitchenDashboard = () => {
   const maxOrders = Math.max(...mockOrdersByDay.map((d) => d.count));
 
   return (
-    <DashboardLayout navItems={centralNavItems} roleLabel="CENTRAL_KITCHEN">
+    <DashboardLayout navItems={CENTRAL_KITCHEN_SIDEBAR_ITEMS} roleLabel="CENTRAL_KITCHEN">
       <div className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-3">
           <Card className="border-border bg-white">
