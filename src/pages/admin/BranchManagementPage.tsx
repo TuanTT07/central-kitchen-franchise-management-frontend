@@ -1,62 +1,20 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
-
-interface Store {
-  store_id: number;
-  store_name: string;
-  address: string;
-  phone: string;
-  manager_id: number | null;
-}
-
-const MOCK_USERS = [
-  { user_id: 1, full_name: 'Nguyễn Văn A' },
-  { user_id: 2, full_name: 'Trần Thị B' },
-  { user_id: 3, full_name: 'Lê Văn C' },
-];
-
-const MOCK_STORES: Store[] = [
-  {
-    store_id: 1,
-    store_name: 'Cửa hàng Quận 1',
-    address: '123 Nguyễn Huệ, Q1, TP.HCM',
-    phone: '028 1234 5678',
-    manager_id: 1,
-  },
-  {
-    store_id: 2,
-    store_name: 'Cửa hàng Quận 3',
-    address: '45 Lê Lợi, Q3, TP.HCM',
-    phone: '028 2345 6789',
-    manager_id: 2,
-  },
-  {
-    store_id: 3,
-    store_name: 'Cửa hàng Quận 7',
-    address: '78 Nguyễn Văn Linh, Q7, TP.HCM',
-    phone: '028 3456 7890',
-    manager_id: null,
-  },
-];
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Plus, Pencil, Trash2, Search, Loader2, ChevronLeft } from 'lucide-react';
+import { adminService, type StoreResponse } from '../../services/adminServices';
+import { cn } from '@/lib/utils';
 
 const BranchManagementPage = () => {
-  const [stores, setStores] = useState<Store[]>(MOCK_STORES);
+  const [stores, setStores] = useState<StoreResponse[]>([]);
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [editingStore, setEditingStore] = useState<Store | null>(null);
-  const [storeToDelete, setStoreToDelete] = useState<Store | null>(null);
+  const [editingStore, setEditingStore] = useState<StoreResponse | null>(null);
+  const [storeToDelete, setStoreToDelete] = useState<StoreResponse | null>(null);
   const [formData, setFormData] = useState<{
     store_name: string;
     address: string;
@@ -68,17 +26,60 @@ const BranchManagementPage = () => {
     phone: '',
     manager_id: null,
   });
+  // status page
+  const [loading, setLoading] = useState(false);
+
+  // --- STATE QUẢN LÝ PHÂN TRANG (PAGINATION) ---
+  const [currentPage, setCurrentPage] = useState(0); // Trang hiện tại (bắt đầu từ 0)
+  const [pageSize] = useState(10); // Số lượng phần tử mỗi trang
+  const [pageInfo, setPageInfo] = useState({
+    totalPages: 0,
+    totalElements: 0,
+    isFirst: true,
+    isLast: true,
+  });
+
+  const fetchStore = useCallback(
+    async (page: number = 0) => {
+      setLoading(true);
+      try {
+        const response = (await adminService.getAllStores(page, pageSize)).data;
+        if (response) {
+          const mappedStores = response.content.map((s: StoreResponse) => ({
+            storeId: s.storeId,
+            storeName: s.storeName,
+            address: s.address,
+            phone: s.phone,
+            managerUserId: s.managerUserId,
+            managerUserName: s.managerUserName,
+            managerFullName: s.managerFullName,
+            isActive: s.isActive,
+          }));
+          setStores(mappedStores);
+          setPageInfo({
+            totalPages: response.totalPages,
+            totalElements: response.totalElements,
+            isFirst: response.first,
+            isLast: response.last,
+          });
+        }
+      } catch (error) {
+        console.log(error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [pageSize]
+  );
+
+  useEffect(() => {
+    fetchStore(currentPage);
+  }, [fetchStore, currentPage]);
 
   const filteredStores = stores.filter(
     (s) =>
-      s.store_name.toLowerCase().includes(search.toLowerCase()) ||
-      s.address.toLowerCase().includes(search.toLowerCase())
+      s.storeName.toLowerCase().includes(search.toLowerCase()) || s.address.toLowerCase().includes(search.toLowerCase())
   );
-
-  const getManagerName = (managerId: number | null) => {
-    if (managerId == null) return '—';
-    return MOCK_USERS.find((u) => u.user_id === managerId)?.full_name ?? `#${managerId}`;
-  };
 
   const openAdd = () => {
     setEditingStore(null);
@@ -86,18 +87,18 @@ const BranchManagementPage = () => {
     setDialogOpen(true);
   };
 
-  const openEdit = (store: Store) => {
+  const openEdit = (store: StoreResponse) => {
     setEditingStore(store);
     setFormData({
-      store_name: store.store_name,
+      store_name: store.storeName,
       address: store.address,
       phone: store.phone,
-      manager_id: store.manager_id,
+      manager_id: store.managerUserId,
     });
     setDialogOpen(true);
   };
 
-  const openDelete = (store: Store) => {
+  const openDelete = (store: StoreResponse) => {
     setStoreToDelete(store);
     setDeleteConfirmOpen(true);
   };
@@ -106,16 +107,10 @@ const BranchManagementPage = () => {
     if (!formData.store_name.trim()) return;
 
     if (editingStore) {
-      setStores((prev) =>
-        prev.map((s) =>
-          s.store_id === editingStore.store_id
-            ? { ...s, ...formData }
-            : s
-        )
-      );
+      setStores((prev) => prev.map((s) => (s.storeId === editingStore.storeId ? { ...s, ...formData } : s)));
     } else {
-      const newId = Math.max(0, ...stores.map((s) => s.store_id)) + 1;
-      setStores((prev) => [...prev, { store_id: newId, ...formData }]);
+      // const newId = Math.max(0, ...stores.map((s) => s.storeId)) + 1;
+      // setStores((prev) => [...prev, { storeId: newId, ...formData }]);
     }
 
     setDialogOpen(false);
@@ -123,7 +118,7 @@ const BranchManagementPage = () => {
 
   const handleDelete = () => {
     if (storeToDelete) {
-      setStores((prev) => prev.filter((s) => s.store_id !== storeToDelete.store_id));
+      setStores((prev) => prev.filter((s) => s.storeId !== storeToDelete.storeId));
       setDeleteConfirmOpen(false);
       setStoreToDelete(null);
     }
@@ -134,13 +129,8 @@ const BranchManagementPage = () => {
       <div className="h-full w-full">
         <Card className="border-amber-200/60 bg-white shadow-md">
           <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
-            <CardTitle className="text-xl font-bold text-amber-900">
-              Quản lý Cửa hàng (Store)
-            </CardTitle>
-            <Button
-              onClick={openAdd}
-              className="gap-2 bg-amber-500 text-white hover:bg-amber-600"
-            >
+            <CardTitle className="text-xl font-bold text-amber-900">Quản lý Cửa hàng (Store)</CardTitle>
+            <Button onClick={openAdd} className="gap-2 bg-amber-500 text-white hover:bg-amber-600">
               <Plus className="size-4" />
               Thêm cửa hàng
             </Button>
@@ -158,7 +148,7 @@ const BranchManagementPage = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-amber-200/60 shadow-sm">
+            <div className=" overflow-x-auto rounded-xl border border-amber-200/60 shadow-sm">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-amber-200 bg-amber-100/80 text-left">
@@ -167,70 +157,112 @@ const BranchManagementPage = () => {
                     <th className="px-5 py-4 font-semibold text-amber-900">Địa chỉ</th>
                     <th className="px-5 py-4 font-semibold text-amber-900">Số điện thoại</th>
                     <th className="px-5 py-4 font-semibold text-amber-900">Cửa hàng trưởng</th>
-                    <th className="px-5 py-4 text-right font-semibold text-amber-900">
-                      Thao tác
-                    </th>
+                    <th className="px-5 py-4 text-right font-semibold text-amber-900">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStores.map((store) => (
-                    <tr
-                      key={store.store_id}
-                      className="border-b border-amber-100/80 transition-colors hover:bg-amber-50/70"
-                    >
-                      <td className="px-5 py-4 font-mono text-amber-700">
-                        {store.store_id}
-                      </td>
-                      <td className="px-5 py-4 font-medium text-amber-900">
-                        {store.store_name}
-                      </td>
-                      <td className="px-5 py-4 text-stone-700">{store.address}</td>
-                      <td className="px-5 py-4 text-stone-700">{store.phone}</td>
-                      <td className="px-5 py-4 text-stone-700">
-                        {getManagerName(store.manager_id)}
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="size-8 border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
-                            onClick={() => openEdit(store)}
-                          >
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="size-8 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                            onClick={() => openDelete(store)}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="py-20">
+                        <div className="flex flex-col items-center justify-center w-full">
+                          <Loader2 className="size-10 animate-spin text-amber-500" />
+                          <p className="mt-2 text-amber-600 animate-pulse">Đang tải dữ liệu...</p>
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredStores.map((store) => (
+                      <tr
+                        key={store.storeId}
+                        className="border-b border-amber-100/80 transition-colors hover:bg-amber-50/70"
+                      >
+                        <td className="px-5 py-4 font-mono text-amber-700">{store.storeId}</td>
+                        <td className="px-5 py-4 font-medium text-amber-900">{store.storeName}</td>
+                        <td className="px-5 py-4 text-stone-700">{store.address}</td>
+                        <td className="px-5 py-4 text-stone-700">{store.phone}</td>
+                        <td className="px-5 py-4 text-stone-700">{store.managerFullName}</td>
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="size-8 border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+                              onClick={() => openEdit(store)}
+                            >
+                              <Pencil className="size-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="size-8 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => openDelete(store)}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
 
-            {filteredStores.length === 0 && (
-              <p className="py-12 text-center text-amber-600">Không có cửa hàng nào</p>
+            {/* --- GIAO DIỆN ĐIỀU KHIỂN PHÂN TRANG --- */}
+            <div className="mt-6 flex items-center justify-between px-2">
+              <div className="text-sm text-amber-900/60 font-medium">
+                Hiển thị <span className="text-amber-600">{currentPage * pageSize + 1}</span> -{' '}
+                <span className="text-amber-600">{Math.min((currentPage + 1) * pageSize, pageInfo.totalElements)}</span>{' '}
+                trên tổng số <span className="text-amber-600">{pageInfo.totalElements}</span> người dùng
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
+                  disabled={pageInfo.isFirst || loading}
+                  className="border-amber-200 text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                >
+                  <ChevronLeft className="size-4 mr-1" />
+                  Trang trước
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {[...Array(pageInfo.totalPages)].map((_, i) => (
+                    <Button
+                      key={i}
+                      variant={currentPage === i ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setCurrentPage(i)}
+                      className={cn(
+                        'size-9 p-0',
+                        currentPage === i
+                          ? 'bg-amber-500 text-white hover:bg-amber-600'
+                          : 'border-amber-200 text-amber-700 hover:bg-amber-100'
+                      )}
+                      disabled={loading}
+                    >
+                      {i + 1}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {!loading && filteredStores.length === 0 && (
+              <div className="py-20 flex flex-col items-center justify-center text-amber-600/60 bg-white rounded-b-xl border border-t-0 border-amber-200/60">
+                <Search className="size-12 mb-3 opacity-20" />
+                <p className="py-12 text-center text-amber-600">Không có cửa hàng nào</p>
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent
-          onClose={() => setDialogOpen(false)}
-          className="max-w-2xl min-w-[28rem] p-8"
-        >
+        <DialogContent onClose={() => setDialogOpen(false)} className="max-w-2xl min-w-[28rem] p-8">
           <DialogHeader>
-            <DialogTitle>
-              {editingStore ? 'Chỉnh sửa cửa hàng' : 'Thêm cửa hàng mới'}
-            </DialogTitle>
+            <DialogTitle>{editingStore ? 'Chỉnh sửa cửa hàng' : 'Thêm cửa hàng mới'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-5 py-2">
             <div className="space-y-2">
@@ -240,9 +272,7 @@ const BranchManagementPage = () => {
               <Input
                 id="store_name"
                 value={formData.store_name}
-                onChange={(e) =>
-                  setFormData((p) => ({ ...p, store_name: e.target.value }))
-                }
+                onChange={(e) => setFormData((p) => ({ ...p, store_name: e.target.value }))}
                 placeholder="VD: Cửa hàng Quận 1"
                 className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
               />
@@ -254,9 +284,7 @@ const BranchManagementPage = () => {
               <Input
                 id="address"
                 value={formData.address}
-                onChange={(e) =>
-                  setFormData((p) => ({ ...p, address: e.target.value }))
-                }
+                onChange={(e) => setFormData((p) => ({ ...p, address: e.target.value }))}
                 placeholder="Địa chỉ đầy đủ"
                 className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
               />
@@ -268,9 +296,7 @@ const BranchManagementPage = () => {
               <Input
                 id="phone"
                 value={formData.phone}
-                onChange={(e) =>
-                  setFormData((p) => ({ ...p, phone: e.target.value }))
-                }
+                onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
                 placeholder="028 xxx xxxx"
                 className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
               />
@@ -285,35 +311,25 @@ const BranchManagementPage = () => {
                 onChange={(e) =>
                   setFormData((p) => ({
                     ...p,
-                    manager_id:
-                      e.target.value === '' ? null : Number(e.target.value),
+                    manager_id: e.target.value === '' ? null : Number(e.target.value),
                   }))
                 }
                 className="h-11 w-full rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-2.5 text-base focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
               >
                 <option value="">— Không chọn —</option>
-                {MOCK_USERS.map((u) => (
+                {/* {MOCK_USERS.map((u) => (
                   <option key={u.user_id} value={u.user_id}>
                     {u.full_name} (#{u.user_id})
                   </option>
-                ))}
+                ))} */}
               </select>
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              size="lg"
-              className="min-w-[6rem]"
-              onClick={() => setDialogOpen(false)}
-            >
+            <Button variant="outline" size="lg" className="min-w-[6rem]" onClick={() => setDialogOpen(false)}>
               Hủy
             </Button>
-            <Button
-              size="lg"
-              className="min-w-[6rem] bg-amber-500 text-white hover:bg-amber-600"
-              onClick={handleSave}
-            >
+            <Button size="lg" className="min-w-[6rem] bg-amber-500 text-white hover:bg-amber-600" onClick={handleSave}>
               {editingStore ? 'Cập nhật' : 'Thêm'}
             </Button>
           </DialogFooter>
@@ -321,33 +337,18 @@ const BranchManagementPage = () => {
       </Dialog>
 
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <DialogContent
-          onClose={() => setDeleteConfirmOpen(false)}
-          className="max-w-md p-8"
-        >
+        <DialogContent onClose={() => setDeleteConfirmOpen(false)} className="max-w-md p-8">
           <DialogHeader>
             <DialogTitle>Xác nhận xóa</DialogTitle>
           </DialogHeader>
           <p className="py-4 text-sm text-stone-700">
-            Bạn có chắc muốn xóa cửa hàng{' '}
-            <strong>{storeToDelete?.store_name}</strong>? Thao tác này không thể
-            hoàn tác.
+            Bạn có chắc muốn xóa cửa hàng <strong>{storeToDelete?.storeName}</strong>? Thao tác này không thể hoàn tác.
           </p>
           <DialogFooter>
-            <Button
-              variant="outline"
-              size="lg"
-              className="min-w-[6rem]"
-              onClick={() => setDeleteConfirmOpen(false)}
-            >
+            <Button variant="outline" size="lg" className="min-w-[6rem]" onClick={() => setDeleteConfirmOpen(false)}>
               Hủy
             </Button>
-            <Button
-              variant="destructive"
-              size="lg"
-              className="min-w-[6rem]"
-              onClick={handleDelete}
-            >
+            <Button variant="destructive" size="lg" className="min-w-[6rem]" onClick={handleDelete}>
               Xóa
             </Button>
           </DialogFooter>

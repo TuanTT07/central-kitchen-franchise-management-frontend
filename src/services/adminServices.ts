@@ -10,6 +10,17 @@ export interface UserResponse {
   isActive: boolean;
 }
 
+export interface StoreResponse {
+  storeId: number;
+  storeName: string;
+  address: string;
+  phone: string;
+  managerUserId: number;
+  managerUserName: string;
+  managerFullName: string;
+  isActive: boolean;
+}
+
 export const adminService = {
   /**
    * Lấy danh sách người dùng có phân trang
@@ -52,5 +63,12 @@ export const adminService = {
   // Xóa tài khoản
   deleteAccount: async (id: number) => {
     return await http.delete(`/admin/users/${id}/active`);
+  },
+
+  // lấy ra tất cả các cửa hàng
+  getAllStores: async (page: number = 0, size: number = 10) => {
+    return await http.get<PaginatedResponse<StoreResponse[]>>('/admin/stores', {
+      params: { page, size },
+    });
   },
 };
