@@ -6,6 +6,6 @@ export const authService = {
     const response = await http.post<LoginResponse>('/auth/login', { username, password });
     return response.data;
   },
-  logout: async (refreshToken: string | null) => await http.post('/auth/logout', refreshToken),
-  refreshToken: async (token: string) => await http.post('/auth/refresh', token),
+  logout: async (refreshToken: string | null) => await http.post('/auth/logout', { refreshToken }),
+  refreshToken: async (refreshToken: string) => await http.post('/auth/refresh', { refreshToken }),
 };
