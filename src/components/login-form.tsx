@@ -28,15 +28,15 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
     setError(null); // Reset lỗi trước khi submit
     setIsLoading(true); // Bắt đầu trạng thái loading
     try {
-      const response = await authService.signIn(username, password);
+      const payload = await authService.signIn(username, password);
 
-      localStorage.setItem('authToken', response.data.access_token);
-      localStorage.setItem('refreshToken', response.data.refresh_token);
-      localStorage.setItem('userRole', response.data.user.roles[0]); // Lưu role đầu tiên của user
-      localStorage.setItem('user', JSON.stringify(response.data.user)); // Lưu thông tin người dùng dưới dạng JSON
+      localStorage.setItem('authToken', payload.access_token);
+      localStorage.setItem('refreshToken', payload.refresh_token);
+      localStorage.setItem('userRole', payload.user.roles[0]); // Lưu role đầu tiên của user
+      localStorage.setItem('user', JSON.stringify(payload.user)); // Lưu thông tin người dùng dưới dạng JSON
 
       navigate('/', { replace: true });
-      console.log('Đăng nhập thành công:', response);
+      console.log('Đăng nhập thành công:', payload);
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Đăng nhập thất bại. Vui lòng thử lại.');
     } finally {
