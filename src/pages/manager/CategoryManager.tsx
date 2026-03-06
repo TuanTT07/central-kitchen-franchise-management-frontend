@@ -10,7 +10,7 @@ import { Tag, Plus, Pencil, Trash2, Search, CheckCircle2, Info } from 'lucide-re
 
 import { managerServices, type categoryResponse } from '@/services/managerServices';
 
-type CategoryStatus = 'ACTIVE' | 'INACTIVE';
+// type CategoryStatus = 'ACTIVE' | 'INACTIVE';
 type CategoryFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
 function CategoryManager() {
@@ -102,19 +102,19 @@ function CategoryManager() {
 
   const handleSave = async (data: categoryResponse) => {
     if (editingCategory) {
-
       try {
-        const response = await managerServices.updateCategory(data.categoryId, data);
+        const response = await managerServices.updateCategory(data.categoryId, {categoryName: data.categoryName});
 
-       if (response) {
-  setCategories((prev) =>
-    prev.map((c) =>
-      c.categoryId === data.categoryId
-        ? { ...c, categoryName: data.categoryName } //  Trả về object mới đã cập nhật tên
-        : c //  Trả về object cũ nếu không phải ID đang sửa
-    )
-  );
-}
+        if (response.success) {
+          setCategories((prev) =>
+            prev.map(
+              (c) =>
+                c.categoryId === data.categoryId
+                  ? { ...c, categoryName: data.categoryName } //  Trả về object mới đã cập nhật tên
+                  : c //  Trả về object cũ nếu không phải ID đang sửa
+            )
+          );
+        }
       } catch (error) {
         console.log(error);
       }
@@ -131,9 +131,16 @@ function CategoryManager() {
     setDialogOpen(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!categoryToDelete) return;
-    // setCategories((prev) => prev.filter((c) => c.category_id !== categoryToDelete.category_id));
+    try {
+      const response = await managerServices.deleteCategory(categoryToDelete.categoryId);
+      if (response.success) {
+        getCategories();
+      }
+    } catch (error) {
+      console.error(error);
+    }
     setCategoryToDelete(null);
     setDeleteConfirmOpen(false);
   };
@@ -257,9 +264,9 @@ function CategoryManager() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-100/60">
-                {categories.map((category) => (
+                {categories.map((category, index) => (
                   <tr key={category.categoryId} className="group transition hover:bg-amber-50/40">
-                    <td className="px-6 py-4 font-mono text-xs text-amber-700">#{category.categoryId}</td>
+                    <td className="px-6 py-4 font-mono text-xs text-amber-700">#{index + 1}</td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-0.5">
                         <span className="text-sm font-semibold text-stone-900">{category.categoryName}</span>
@@ -328,7 +335,6 @@ function CategoryManager() {
           </div>
         </CardContent>
       </Card>
-
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent
           onClose={() => setDialogOpen(false)}
@@ -413,8 +419,7 @@ function CategoryManager() {
         </DialogContent>
       </Dialog>
 
-      {/** popup confirm delete
-       * <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent
           onClose={() => setDeleteConfirmOpen(false)}
           className="max-w-md border-amber-200/60 bg-white p-8 shadow-xl"
@@ -427,7 +432,7 @@ function CategoryManager() {
           </DialogHeader>
           <p className="py-4 text-sm text-stone-700">
             Bạn có chắc muốn xóa danh mục{' '}
-            <span className="font-semibold text-amber-800">{categoryToDelete?.category_name}</span>? Thao tác này không
+            <span className="font-semibold text-amber-800">{categoryToDelete?.categoryName}</span>? Thao tác này không
             thể hoàn tác và có thể ảnh hưởng tới việc phân nhóm sản phẩm.
           </p>
           <DialogFooter>
@@ -444,7 +449,6 @@ function CategoryManager() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-       */}
     </div>
   );
 }
