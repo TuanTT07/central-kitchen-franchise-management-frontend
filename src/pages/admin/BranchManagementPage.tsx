@@ -5,29 +5,41 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Pencil, Trash2, Search, Loader2, ChevronLeft } from 'lucide-react';
-import { adminService, type StoreResponse } from '../../services/adminServices';
+import { adminService, type StoreResponse, type UserResponse } from '../../services/adminServices';
 import { cn } from '@/lib/utils';
+import { Role } from '../../Types/Role';
+import { useForm } from 'react-hook-form';
+
+interface formData {
+  storeName: string;
+  address: string;
+  phone: string;
+  managerUserId: number;
+  isActive: boolean;
+}
 
 const BranchManagementPage = () => {
+  // register, reset... từ useForm
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<formData>();
+
+  // state
   const [stores, setStores] = useState<StoreResponse[]>([]);
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [editingStore, setEditingStore] = useState<StoreResponse | null>(null);
   const [storeToDelete, setStoreToDelete] = useState<StoreResponse | null>(null);
-  const [formData, setFormData] = useState<{
-    store_name: string;
-    address: string;
-    phone: string;
-    manager_id: number | null;
-  }>({
-    store_name: '',
-    address: '',
-    phone: '',
-    manager_id: null,
-  });
+
   // status page
   const [loading, setLoading] = useState(false);
+
+  // Các user có role Manager
+  const [userRoleManager, setUserRoleManager] = useState<UserResponse[]>([]);
 
   // --- STATE QUẢN LÝ PHÂN TRANG (PAGINATION) ---
   const [currentPage, setCurrentPage] = useState(0); // Trang hiện tại (bắt đầu từ 0)
@@ -38,6 +50,8 @@ const BranchManagementPage = () => {
     isFirst: true,
     isLast: true,
   });
+
+
 
   const fetchStore = useCallback(
     async (page: number = 0) => {
@@ -81,19 +95,37 @@ const BranchManagementPage = () => {
       s.storeName.toLowerCase().includes(search.toLowerCase()) || s.address.toLowerCase().includes(search.toLowerCase())
   );
 
-  const openAdd = () => {
+  const openAdd = async () => {
     setEditingStore(null);
-    setFormData({ store_name: '', address: '', phone: '', manager_id: null });
+    try {
+      const response = (await adminService.getAllUsers()).data;
+      if (response) {
+        const mappedUserRoleManager = response.content.filter((u: UserResponse) => u.role === Role.MANAGER);
+        setUserRoleManager(mappedUserRoleManager);
+        
+        // Reset form về giá trị mặc định, managerUserId lấy từ user đầu tiên nếu có
+        reset({
+          storeName: '',
+          address: '',
+          phone: '',
+          managerUserId: mappedUserRoleManager.length > 0 ? mappedUserRoleManager[0].userId : 0,
+          isActive: true
+        });
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách Manager:", error);
+    }
     setDialogOpen(true);
   };
 
   const openEdit = (store: StoreResponse) => {
     setEditingStore(store);
-    setFormData({
-      store_name: store.storeName,
+    reset({
+      storeName: store.storeName,
       address: store.address,
       phone: store.phone,
-      manager_id: store.managerUserId,
+      managerUserId: store.managerUserId,
+      isActive: store.isActive,
     });
     setDialogOpen(true);
   };
@@ -103,17 +135,35 @@ const BranchManagementPage = () => {
     setDeleteConfirmOpen(true);
   };
 
-  const handleSave = () => {
-    if (!formData.store_name.trim()) return;
+  const handleSave = async (data: formData) => {
+    try {
+      setLoading(true);
+      // Ép kiểu managerUserId sang number vì thẻ select trả về string
+      const payload = {
+        ...data,
+        managerUserId: Number(data.managerUserId),
+        isActive: editingStore ? data.isActive : true
+      };
 
-    if (editingStore) {
-      setStores((prev) => prev.map((s) => (s.storeId === editingStore.storeId ? { ...s, ...formData } : s)));
-    } else {
-      // const newId = Math.max(0, ...stores.map((s) => s.storeId)) + 1;
-      // setStores((prev) => [...prev, { storeId: newId, ...formData }]);
+      if (editingStore) {
+        // Nếu có API updateStore trong adminService thì gọi ở đây
+        // Hiện tại chỉ thấy createStore, tạm thời update local state hoặc đợi API update
+        setStores((prev) => prev.map((s) => (s.storeId === editingStore.storeId ? { ...s, ...payload } : s)));
+        alert('Cập nhật cửa hàng thành công');
+      } else {
+        const response = await adminService.createStore(payload);
+        if (response) {
+          await fetchStore();
+          alert('Tạo cửa hàng thành công');
+        }
+      }
+      setDialogOpen(false);
+    } catch (error: any) {
+      console.error("Lỗi khi lưu cửa hàng:", error);
+      alert(error.response?.data?.message || 'Có lỗi xảy ra khi lưu cửa hàng');
+    } finally {
+      setLoading(false);
     }
-
-    setDialogOpen(false);
   };
 
   const handleDelete = () => {
@@ -261,78 +311,82 @@ const BranchManagementPage = () => {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent onClose={() => setDialogOpen(false)} className="max-w-2xl min-w-[28rem] p-8">
-          <DialogHeader>
-            <DialogTitle>{editingStore ? 'Chỉnh sửa cửa hàng' : 'Thêm cửa hàng mới'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-5 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="store_name" className="text-base">
-                Tên cửa hàng
-              </Label>
-              <Input
-                id="store_name"
-                value={formData.store_name}
-                onChange={(e) => setFormData((p) => ({ ...p, store_name: e.target.value }))}
-                placeholder="VD: Cửa hàng Quận 1"
-                className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
-              />
+          <form onSubmit={handleSubmit(handleSave)} noValidate>
+            <DialogHeader>
+              <DialogTitle>{editingStore ? 'Chỉnh sửa cửa hàng' : 'Thêm cửa hàng mới'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-5 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="store_name" className="text-base">
+                  Tên cửa hàng
+                </Label>
+                <Input
+                  id="store_name"
+                  placeholder="Nhập tên cửa hàng"
+                  className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
+                  {...register('storeName', {
+                    required: 'Tên cửa hàng không được để trống',
+                  })}
+                />
+                {errors.storeName && <p className="text-red-500">{errors.storeName.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address" className="text-base">
+                  Địa chỉ
+                </Label>
+                <Input
+                  id="address"
+                  placeholder="Nhập địa chỉ"
+                  className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
+                  {...register('address', {
+                    required: 'Địa chỉ không được để trống',
+                  })}
+                />
+                {errors.address && <p className="text-red-500">{errors.address.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-base">
+                  Số điện thoại
+                </Label>
+                <Input
+                  id="phone"
+                  placeholder="Nhập số điện thoại (084 xxx xxx)"
+                  className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
+                  {...register('phone', {
+                    required: 'Số điện thoại không được để trống',
+                  })}
+                />
+                {errors.phone && <p className="text-red-500">{errors.phone.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="manager_id" className="text-base">
+                  Cửa hàng trưởng (User)
+                </Label>
+
+                <select
+                  id="manager_id"
+                  className="h-11 w-full rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-2.5 text-base focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
+                  {...register('managerUserId', {
+                    required: 'Cửa hàng trưởng không được để trống',
+                  })}
+                >
+                  {userRoleManager.map((u) => (
+                    <option key={u.userId} value={u.userId}>
+                      {u.fullName} ({u.username})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="address" className="text-base">
-                Địa chỉ
-              </Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData((p) => ({ ...p, address: e.target.value }))}
-                placeholder="Địa chỉ đầy đủ"
-                className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone" className="text-base">
-                Số điện thoại
-              </Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
-                placeholder="028 xxx xxxx"
-                className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="manager_id" className="text-base">
-                Cửa hàng trưởng (User)
-              </Label>
-              <select
-                id="manager_id"
-                value={formData.manager_id ?? ''}
-                onChange={(e) =>
-                  setFormData((p) => ({
-                    ...p,
-                    manager_id: e.target.value === '' ? null : Number(e.target.value),
-                  }))
-                }
-                className="h-11 w-full rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-2.5 text-base focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
-              >
-                <option value="">— Không chọn —</option>
-                {/* {MOCK_USERS.map((u) => (
-                  <option key={u.user_id} value={u.user_id}>
-                    {u.full_name} (#{u.user_id})
-                  </option>
-                ))} */}
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="lg" className="min-w-[6rem]" onClick={() => setDialogOpen(false)}>
-              Hủy
-            </Button>
-            <Button size="lg" className="min-w-[6rem] bg-amber-500 text-white hover:bg-amber-600" onClick={handleSave}>
-              {editingStore ? 'Cập nhật' : 'Thêm'}
-            </Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button variant="outline" size="lg" className="min-w-[6rem]" onClick={() => setDialogOpen(false)}>
+                Hủy
+              </Button>
+              <Button type="submit" size="lg" className="min-w-[6rem] bg-amber-500 text-white hover:bg-amber-600">
+                {editingStore ? 'Cập nhật' : 'Thêm'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

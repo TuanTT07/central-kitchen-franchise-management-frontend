@@ -25,7 +25,9 @@ class Http {
     this.instance.interceptors.request.use(
       (config) => {
         const token = localStorage.getItem('authToken');
-        if (token && config.headers) {
+        const isAuthRoute = config.url?.includes('/auth/login') || config.url?.includes('/auth/refresh');
+
+        if (token && config.headers && !isAuthRoute) {
           const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
           config.headers.set('Authorization', authHeader);
         }
@@ -41,9 +43,10 @@ class Http {
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
+        const isAuthRoute = originalRequest?.url?.includes('/auth/login') || originalRequest?.url?.includes('/auth/refresh');
 
-        // Chỉ xử lý nếu lỗi là 401 và request này chưa từng được retry
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Chỉ xử lý nếu lỗi là 401, không phải route auth và request này chưa từng được retry
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
           originalRequest._retry = true;
 
           try {
@@ -51,14 +54,21 @@ class Http {
             if (!rToken) throw new Error('No refresh token');
 
             // Gọi API lấy Access Token mới
-            // Lưu ý: data.data.access_token vì Backend bọc trong Response Object
             const res = await authService.refreshToken(rToken);
-            const { access_token } = res.data.data;
+            
+            // Backend trả về: { data: { access_token: "...", ... } }
+            const access_token = res.data?.data?.access_token || res.data?.access_token;
+
+            if (!access_token) {
+              console.error('Không tìm thấy access_token trong response refresh');
+              throw new Error('Refresh token failed');
+            }
 
             localStorage.setItem('authToken', access_token);
 
-            // Chạy lại request cũ với token mới
-            originalRequest.headers.set('Authorization', `Bearer ${access_token}`);
+            // Chạy lại request cũ với token mới (phải có Bearer)
+            const authHeader = access_token.startsWith('Bearer ') ? access_token : `Bearer ${access_token}`;
+            originalRequest.headers.set('Authorization', authHeader);
             return this.instance(originalRequest);
           } catch (refreshError) {
             // Nếu Refresh cũng lỗi (hết hạn hoàn toàn) -> Logout

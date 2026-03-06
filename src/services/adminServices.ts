@@ -71,4 +71,13 @@ export const adminService = {
       params: { page, size },
     });
   },
+  createStore: async (body: {
+    storeName: string;
+    address: string;
+    phone: string;
+    managerUserId: number;
+    isActive: boolean;
+  }) => {
+    return await http.post('/admin/stores', body);
+  },
 };
