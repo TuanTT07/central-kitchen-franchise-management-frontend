@@ -1,6 +1,8 @@
 export interface Response<T> {
+  success: boolean;
   message: string;
-  data: T;
+  data: T | null;
+  error: T | null;
 }
 
 export interface PaginatedResponse<T> {
