@@ -53,6 +53,15 @@ function CategoryManager() {
     setDialogOpen(true);
   };
 
+  const openEdit = (category: categoryResponse) => {
+    setEditingCategory(category);
+    reset({
+      categoryId: category.categoryId,
+      categoryName: category.categoryName,
+    });
+    setDialogOpen(true);
+  };
+
   // const categoryStats = useMemo(() => {
   //   const stats: Record<number, { total: number; active: number }> = {};
 
@@ -86,15 +95,6 @@ function CategoryManager() {
   //   return list;
   // }, [categories, search, statusFilter]);
 
-  const openEdit = (category: categoryResponse) => {
-    //   setEditingCategory(category);
-    //   reset({
-    //     category_name: category.category_name,
-    //     status: (category.status ?? 'ACTIVE') as CategoryStatus,
-    //   });
-    //   setDialogOpen(true);
-  };
-
   const openDelete = (category: categoryResponse) => {
     setCategoryToDelete(category);
     setDeleteConfirmOpen(true);
@@ -102,13 +102,22 @@ function CategoryManager() {
 
   const handleSave = async (data: categoryResponse) => {
     if (editingCategory) {
-      // setCategories((prev) =>
-      //   prev.map((c) =>
-      //     c.category_id === editingCategory.category_id
-      //       ? { ...c, category_name: data.category_name, status: data.status }
-      //       : c
-      //   )
-      // );
+
+      try {
+        const response = await managerServices.updateCategory(data.categoryId, data);
+
+       if (response) {
+  setCategories((prev) =>
+    prev.map((c) =>
+      c.categoryId === data.categoryId
+        ? { ...c, categoryName: data.categoryName } //  Trả về object mới đã cập nhật tên
+        : c //  Trả về object cũ nếu không phải ID đang sửa
+    )
+  );
+}
+      } catch (error) {
+        console.log(error);
+      }
     } else {
       try {
         const response = await managerServices.creatCategory(data);

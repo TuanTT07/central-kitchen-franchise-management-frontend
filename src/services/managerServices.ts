@@ -15,4 +15,8 @@ export const managerServices = {
     const response = await http.post<Response<categoryResponse>>('/api/v1/categories', body);
     return response.data;
   },
+  updateCategory: async (id: number, body: { categoryId: number; categoryName: string }) => {
+    const response = await http.put<Response<categoryResponse>>(`/api/v1/categories/${id}`, body);
+    return response.data;
+  },
 };
