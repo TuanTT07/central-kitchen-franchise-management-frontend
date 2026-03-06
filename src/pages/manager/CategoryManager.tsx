@@ -45,6 +45,14 @@ function CategoryManager() {
     getCategories();
   }, []);
 
+  const openAdd = () => {
+    setEditingCategory(null);
+    reset({
+      categoryName: '',
+    });
+    setDialogOpen(true);
+  };
+
   // const categoryStats = useMemo(() => {
   //   const stats: Record<number, { total: number; active: number }> = {};
 
@@ -78,14 +86,6 @@ function CategoryManager() {
   //   return list;
   // }, [categories, search, statusFilter]);
 
-  const openAdd = () => {
-    setEditingCategory(null);
-    reset({
-      categoryName: '',
-    });
-    setDialogOpen(true);
-  };
-
   const openEdit = (category: categoryResponse) => {
     //   setEditingCategory(category);
     //   reset({
@@ -100,7 +100,7 @@ function CategoryManager() {
     setDeleteConfirmOpen(true);
   };
 
-  const handleSave = (data: categoryResponse) => {
+  const handleSave = async (data: categoryResponse) => {
     if (editingCategory) {
       // setCategories((prev) =>
       //   prev.map((c) =>
@@ -110,15 +110,14 @@ function CategoryManager() {
       //   )
       // );
     } else {
-      // const newId = prevMaxId(categories) + 1;
-      // setCategories((prev) => [
-      //   ...prev,
-      //   {
-      //     category_id: newId,
-      //     category_name: data.category_name,
-      //     status: data.status,
-      //   },
-      // ]);
+      try {
+        const response = await managerServices.creatCategory(data);
+        if (response.success) {
+          getCategories();
+        }
+      } catch (error) {
+        console.log(error);
+      }
     }
     setDialogOpen(false);
   };
@@ -321,9 +320,7 @@ function CategoryManager() {
         </CardContent>
       </Card>
 
-      {/**
-      * Form edit chưa xử lí
-      *  <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent
           onClose={() => setDialogOpen(false)}
           className="max-w-md min-w-[320px] overflow-hidden border-none p-0 shadow-2xl"
@@ -354,12 +351,12 @@ function CategoryManager() {
                     id="category_name"
                     placeholder="Ví dụ: Món chính, Đồ uống..."
                     className="h-10 border-amber-200 bg-amber-50/40 text-sm focus:border-amber-500 focus:ring-amber-200"
-                    {...register('category_name', {
+                    {...register('categoryName', {
                       required: 'Tên danh mục là bắt buộc',
                       minLength: { value: 2, message: 'Ít nhất 2 ký tự' },
                     })}
                   />
-                  {errors.category_name && <FieldError errors={[errors.category_name]} />}
+                  {errors.categoryName && <FieldError errors={[errors.categoryName]} />}
                 </FieldContent>
               </Field>
 
@@ -371,7 +368,9 @@ function CategoryManager() {
                   <CheckCircle2 className="size-4 text-emerald-500" />
                   Trạng thái sử dụng
                 </FieldLabel>
-                <FieldContent>
+                {/**
+                 * Phần này phải chờ BE xử lí lại API cho gửi status lên
+                 * <FieldContent>
                   <select
                     id="status"
                     className="h-10 w-full rounded-md border border-amber-200 bg-amber-50/40 px-3 text-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
@@ -381,6 +380,7 @@ function CategoryManager() {
                     <option value="INACTIVE">Ngưng dùng</option>
                   </select>
                 </FieldContent>
+                 */}
               </Field>
             </div>
 
@@ -403,7 +403,6 @@ function CategoryManager() {
           </form>
         </DialogContent>
       </Dialog>
-      */}
 
       {/** popup confirm delete
        * <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
