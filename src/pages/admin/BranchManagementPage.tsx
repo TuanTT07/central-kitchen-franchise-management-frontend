@@ -4,9 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Search, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Loader2, ChevronLeft } from 'lucide-react';
 import { adminService, type StoreResponse } from '../../services/adminServices';
-import { authService } from '@/services/authService';
+import { cn } from '@/lib/utils';
 
 const BranchManagementPage = () => {
   const [stores, setStores] = useState<StoreResponse[]>([]);
@@ -109,7 +109,7 @@ const BranchManagementPage = () => {
     if (editingStore) {
       setStores((prev) => prev.map((s) => (s.storeId === editingStore.storeId ? { ...s, ...formData } : s)));
     } else {
-      const newId = Math.max(0, ...stores.map((s) => s.storeId)) + 1;
+      // const newId = Math.max(0, ...stores.map((s) => s.storeId)) + 1;
       // setStores((prev) => [...prev, { storeId: newId, ...formData }]);
     }
 
@@ -206,6 +206,47 @@ const BranchManagementPage = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* --- GIAO DIỆN ĐIỀU KHIỂN PHÂN TRANG --- */}
+            <div className="mt-6 flex items-center justify-between px-2">
+              <div className="text-sm text-amber-900/60 font-medium">
+                Hiển thị <span className="text-amber-600">{currentPage * pageSize + 1}</span> -{' '}
+                <span className="text-amber-600">{Math.min((currentPage + 1) * pageSize, pageInfo.totalElements)}</span>{' '}
+                trên tổng số <span className="text-amber-600">{pageInfo.totalElements}</span> người dùng
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
+                  disabled={pageInfo.isFirst || loading}
+                  className="border-amber-200 text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                >
+                  <ChevronLeft className="size-4 mr-1" />
+                  Trang trước
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {[...Array(pageInfo.totalPages)].map((_, i) => (
+                    <Button
+                      key={i}
+                      variant={currentPage === i ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setCurrentPage(i)}
+                      className={cn(
+                        'size-9 p-0',
+                        currentPage === i
+                          ? 'bg-amber-500 text-white hover:bg-amber-600'
+                          : 'border-amber-200 text-amber-700 hover:bg-amber-100'
+                      )}
+                      disabled={loading}
+                    >
+                      {i + 1}
+                    </Button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {!loading && filteredStores.length === 0 && (
