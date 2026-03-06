@@ -56,8 +56,8 @@ class Http {
             // Gọi API lấy Access Token mới
             const res = await authService.refreshToken(rToken);
             
-            // Cấu trúc JSON mới: res.data.data.access_token và res.data.data.refresh_token
-            const { access_token, refresh_token } = res.data;
+            // Cấu trúc JSON: res.data.data.access_token và res.data.data.refresh_token (nếu có bọc data)
+            const { access_token, refresh_token } = res.data.data || res.data;
 
             if (!access_token) throw new Error('Refresh token failed');
 

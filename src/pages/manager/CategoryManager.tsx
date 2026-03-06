@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field';
 import { cn } from '@/lib/utils';
-import { Tag, Plus, Pencil, Trash2, Search, CheckCircle2, Info } from 'lucide-react';
+import { Tag, Plus, Pencil, Trash2, Search, CheckCircle2 } from 'lucide-react';
 
 import { managerServices, type categoryResponse } from '@/services/managerServices';
 
