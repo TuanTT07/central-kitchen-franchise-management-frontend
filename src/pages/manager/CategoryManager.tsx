@@ -93,22 +93,22 @@ function CategoryManager() {
     return stats;
   }, [products]);
 
-  // const filteredCategories = useMemo(() => {
-  //   let list = categories;
+  const filteredCategories = useMemo(() => {
+    let list = [...categories];
 
-  //   if (statusFilter !== 'ALL') {
-  //     list = list.filter(
-  //       (c) => ( ?? 'INACTIVE') === statusFilter
-  //     );
-  //   }
+    // 1. Lọc theo trạng thái
+    if (statusFilter !== 'ALL') {
+      list = list.filter((c) => c.status === statusFilter);
+    }
 
-  //   if (search.trim()) {
-  //     const keyword = search.toLowerCase();
-  //     list = list.filter((c) => c.category_name.toLowerCase().includes(keyword));
-  //   }
+    // 2. Tìm kiếm theo tên
+    if (search.trim()) {
+      const keyword = search.toLowerCase();
+      list = list.filter((c) => c.categoryName.toLowerCase().includes(keyword));
+    }
 
-  // return list;
-  // }, [categories, search, statusFilter]);
+    return list;
+  }, [categories, search, statusFilter]);
 
   const openDelete = (category: categoryResponse) => {
     setCategoryToDelete(category);
@@ -279,7 +279,7 @@ function CategoryManager() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-100/60">
-                {categories.map((category, index) => {
+                {filteredCategories.map((category, index) => {
                   return (
                     <tr key={category.categoryId} className="group transition hover:bg-amber-50/40">
                       <td className="px-6 py-4 font-mono text-xs text-amber-700">#{index + 1}</td>
@@ -341,17 +341,13 @@ function CategoryManager() {
                 })}
               </tbody>
             </table>
-            {/**xử lí sau
-             *  {filteredCategories.length === 0 && (
+            {filteredCategories.length === 0 && (
               <div className="flex flex-col items-center justify-center gap-2 py-16 text-amber-700/70">
                 <Search className="mb-1 size-10 opacity-30" />
                 <p className="text-sm font-medium">Không tìm thấy danh mục nào phù hợp</p>
-                <p className="text-xs text-amber-700/70">
-                  Hãy thử lại với từ khóa khác hoặc thêm danh mục mới.
-                </p>
+                <p className="text-xs text-amber-700/70">Hãy thử lại với từ khóa khác hoặc thêm danh mục mới.</p>
               </div>
             )}
-             */}
           </div>
         </CardContent>
       </Card>
