@@ -61,6 +61,14 @@ const ProductManagementPage = () => {
     formState: { errors: errorsUnit },
   } = useForm<UnitResponse>();
 
+  const getCategories = async () => {
+    try {
+      const response = (await managerServices.getAllCategories()).data;
+      if (response) {
+        setCategories(response);
+      }
+    } catch (error) {}
+  };
   const getProducts = async () => {
     try {
       const response = (await managerServices.getAllProducts()).data;
@@ -81,32 +89,39 @@ const ProductManagementPage = () => {
   useEffect(() => {
     getProducts();
     getUnits();
+    getCategories();
   }, []);
 
-  const filteredProducts = useMemo(() => {
-    if (!search.trim()) return products;
-    const keyword = search.toLowerCase();
-    return products.filter((p) => {
-      return p.productName.toLowerCase().includes(keyword);
+  // Hợp nhất dữ liệu Products với Category Name và Unit Name
+  const displayProducts = useMemo(() => {
+    const rawList = products.map((p: ProductsResponse) => {
+      const category = categories.find((c) => c.categoryId === p.categoryId);
+      // Ép kiểu p.unit về số để so sánh chính xác với u.unitId
+      const unit = units.find((u: UnitResponse) => u.unitId === Number(p.unit));
+      return {
+        ...p,
+        categoryName: category?.categoryName || p.categoryName || 'Chưa phân loại',
+        // Nếu tìm thấy ở local thì dùng unitName, nếu không thì dùng unitName từ API trả về
+        unitName: unit?.unitName || p.unitName || 'Không xác định',
+      };
     });
-  }, [products, search]);
 
-  // lấy ra danh sách category
-  const getCategories = async () => {
-    try {
-      const response = (await managerServices.getAllCategories()).data;
-      if (response) {
-        setCategories(response);
-      }
-    } catch (error) {}
-  };
+    if (!search.trim()) return rawList;
+    const keyword = search.toLowerCase();
+    return rawList.filter((p) => {
+      const productName = String(p.productName).toLowerCase();
+      const categoryName = String(p.categoryName).toLowerCase();
+      const unitName = String(p.unitName).toLowerCase();
+      return productName.includes(keyword) || categoryName.includes(keyword) || unitName.includes(keyword);
+    });
+  }, [products, categories, units, search]);
 
   const openAdd = () => {
     setEditingProduct(null);
     getCategories();
     reset({
       productName: '',
-      unit: '',
+      unit: 0,
       imageUrl: '',
       description: '',
       categoryId: 0,
@@ -121,7 +136,7 @@ const ProductManagementPage = () => {
     reset({
       productId: product.productId,
       productName: product.productName,
-      unit: product.unit,
+      unit: Number(product.unit), // Ép kiểu về số để Select khớp giá trị
       imageUrl: product.imageUrl ?? undefined,
       description: product.description ?? undefined,
       categoryId: product.categoryId,
@@ -139,7 +154,7 @@ const ProductManagementPage = () => {
       try {
         const response = await managerServices.updateProduct(data.productId, {
           productName: data.productName,
-          unit: data.unit,
+          unitId: Number(data.unit), // Gửi đúng key unitId
           imageUrl: data.imageUrl,
           description: data.description,
           categoryId: Number(data.categoryId),
@@ -153,7 +168,7 @@ const ProductManagementPage = () => {
       try {
         const response = await managerServices.createProduct({
           productName: data.productName,
-          unit: data.unit,
+          unitId: Number(data.unit), // Gửi đúng key unitId
           imageUrl: data.imageUrl,
           description: data.description,
           categoryId: Number(data.categoryId),
@@ -305,7 +320,7 @@ const ProductManagementPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-100/60">
-                {filteredProducts.map((product, index) => (
+                {displayProducts.map((product, index) => (
                   <tr key={product.productId} className="group transition hover:bg-amber-50/40">
                     <td className="px-6 py-4 text-xs font-mono text-amber-600/70">{index + 1}</td>
                     <td className="px-6 py-4">
@@ -330,11 +345,16 @@ const ProductManagementPage = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4"></td>
+                    <td className="px-6 py-4">
+                      <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                        <Tag className="size-3 text-amber-500" />
+                        {product.categoryName}
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-700">
                         <Scale className="size-3 text-amber-500" />
-                        {product.unit}
+                        {product.unitName}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -379,7 +399,7 @@ const ProductManagementPage = () => {
               </tbody>
             </table>
 
-            {filteredProducts.length === 0 && (
+            {displayProducts.length === 0 && (
               <div className="flex flex-col items-center justify-center gap-2 py-16 text-amber-700/70">
                 <Search className="mb-1 size-10 opacity-30" />
                 <p className="text-sm font-medium">Không tìm thấy sản phẩm nào phù hợp</p>
@@ -470,10 +490,14 @@ const ProductManagementPage = () => {
                     <select
                       id="unit"
                       className="h-11 w-full rounded-md border border-amber-200 bg-amber-50/40 px-3 text-sm transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
-                      {...register('unit', { required: 'Đơn vị là bắt buộc' })}
+                      {...register('unit', {
+                        required: 'Đơn vị là bắt buộc',
+                        valueAsNumber: true,
+                      })}
                     >
+                      <option value="">Chọn đơn vị</option>
                       {units.map((u) => (
-                        <option key={u.unitId} value={u.unitName}>
+                        <option key={u.unitId} value={u.unitId}>
                           {u.unitName}
                         </option>
                       ))}
@@ -728,9 +752,8 @@ const ProductManagementPage = () => {
             </DialogTitle>
           </DialogHeader>
           <p className="py-4 text-sm text-stone-700">
-            Bạn có chắc muốn xóa đơn vị{' '}
-            <span className="font-semibold text-amber-800">{unitToDelete?.unitName}</span>? Việc này có thể ảnh hưởng đến
-            các sản phẩm đang sử dụng đơn vị này.
+            Bạn có chắc muốn xóa đơn vị <span className="font-semibold text-amber-800">{unitToDelete?.unitName}</span>?
+            Việc này có thể ảnh hưởng đến các sản phẩm đang sử dụng đơn vị này.
           </p>
           <DialogFooter>
             <Button

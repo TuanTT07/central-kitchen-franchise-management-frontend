@@ -9,7 +9,8 @@ export interface CategoryResponse {
 export interface ProductsResponse {
   productId: number;
   productName: string;
-  unit: string;
+  unit: number;
+  unitName: String | null;
   imageUrl: string;
   description: string;
   status: 'ACTIVE' | 'INACTIVE';
@@ -49,7 +50,7 @@ export const managerServices = {
   },
   createProduct: async (body: {
     productName: string;
-    unit: string;
+    unitId: number;
     imageUrl: string;
     description: string;
     categoryId: number;
@@ -59,7 +60,7 @@ export const managerServices = {
   },
   updateProduct: async (
     id: number,
-    body: { productName: string; unit: string; imageUrl: string; description: string; categoryId: number }
+    body: { productName: string; unitId: number; imageUrl: string; description: string; categoryId: number }
   ) => {
     const response = await http.patch(`/api/v1/products/${id}`, body);
     return response.data;
