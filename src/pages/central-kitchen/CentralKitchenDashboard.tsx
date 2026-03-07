@@ -6,13 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import {
   ChefHat,
   Package,
-  Boxes,
   Sparkles,
   UtensilsCrossed,
-  ReceiptText,
-  Truck,
   AlertTriangle,
-  ArrowLeftRight,
 } from 'lucide-react';
 import { CENTRAL_KITCHEN_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 import { Role } from '@/Types';
