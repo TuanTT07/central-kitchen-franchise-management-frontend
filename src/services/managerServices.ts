@@ -50,4 +50,11 @@ export const managerServices = {
     const response = await http.post<Response<productsResponse>>('/api/v1/products', body);
     return response.data;
   },
+  updateProduct: async (
+    id: number,
+    body: { productName: string; unit: string; imageUrl: string; description: string; categoryId: number }
+  ) => {
+    const response = await http.patch(`/api/v1/products/${id}`, body);
+    return response.data;
+  },
 };

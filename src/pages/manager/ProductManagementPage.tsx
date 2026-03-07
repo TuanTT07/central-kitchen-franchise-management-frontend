@@ -22,7 +22,7 @@ import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/fie
 import { cn } from '@/lib/utils';
 
 import { managerServices, type categoryResponse, type productsResponse } from '@/services/managerServices';
-import http from '@/lib/axios';
+import { data } from 'react-router';
 
 type ProductStatus = 'ACTIVE' | 'INACTIVE' | null;
 
@@ -98,16 +98,17 @@ const ProductManagementPage = () => {
   };
 
   const openEdit = (product: productsResponse) => {
-    //   setEditingProduct(product);
-    //   reset({
-    //     product_name: product.product_name,
-    //     unit: product.unit,
-    //     image_url: product.image_url ?? undefined,
-    //     description: product.description ?? undefined,
-    //     category_id: product.category_id,
-    //     status: product.status ?? 'ACTIVE',
-    //   });
-    //   setDialogOpen(true);
+    setEditingProduct(product);
+    getCategories();
+    reset({
+      productId: product.productId,
+      productName: product.productName,
+      unit: product.unit,
+      imageUrl: product.imageUrl ?? undefined,
+      description: product.description ?? undefined,
+      categoryID: product.categoryID,
+    });
+    setDialogOpen(true);
   };
 
   const openDelete = (product: productsResponse) => {
@@ -117,24 +118,21 @@ const ProductManagementPage = () => {
 
   const handleSave = async (data: productsResponse) => {
     if (editingProduct) {
-      //     setProducts((prev) =>
-      //       prev.map((p) =>
-      //         p.product_id === editingProduct.product_id
-      //           ? {
-      //               ...p,
-      //               product_name: data.product_name,
-      //               unit: data.unit,
-      //               image_url: data.image_url ?? null,
-      //               description: data.description ?? null,
-      //               category_id: data.category_id,
-      //               status: data.status ?? 'ACTIVE',
-      //             }
-      //           : p
-      //       )
-      // );
+      try {
+        const response = await managerServices.updateProduct(data.productId, {
+          productName: data.productName,
+          unit: data.unit,
+          imageUrl: data.imageUrl,
+          description: data.description,
+          categoryId: Number(data.categoryID),
+        });
+
+        if (response) {
+          getProducts();
+        }
+      } catch (error) {}
     } else {
       try {
-        console.log(data.categoryID);
         const response = await managerServices.createProduct({
           productName: data.productName,
           unit: data.unit,
@@ -142,7 +140,6 @@ const ProductManagementPage = () => {
           description: data.description,
           categoryId: Number(data.categoryID),
         });
-        console.log(response);
         if (response) {
           getProducts();
         }
