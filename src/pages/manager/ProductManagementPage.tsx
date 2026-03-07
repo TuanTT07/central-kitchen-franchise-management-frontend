@@ -83,7 +83,7 @@ const ProductManagementPage = () => {
       unit: '',
       imageUrl: '',
       description: '',
-      categoryID: 0,
+      categoryId: 0,
       status: 'ACTIVE',
     });
     setDialogOpen(true);
@@ -98,7 +98,7 @@ const ProductManagementPage = () => {
       unit: product.unit,
       imageUrl: product.imageUrl ?? undefined,
       description: product.description ?? undefined,
-      categoryID: product.categoryID,
+      categoryId: product.categoryId,
     });
     setDialogOpen(true);
   };
@@ -116,7 +116,7 @@ const ProductManagementPage = () => {
           unit: data.unit,
           imageUrl: data.imageUrl,
           description: data.description,
-          categoryId: Number(data.categoryID),
+          categoryId: Number(data.categoryId),
         });
 
         if (response) {
@@ -130,7 +130,7 @@ const ProductManagementPage = () => {
           unit: data.unit,
           imageUrl: data.imageUrl,
           description: data.description,
-          categoryId: Number(data.categoryID),
+          categoryId: Number(data.categoryId),
         });
         if (response) {
           getProducts();
@@ -363,7 +363,7 @@ const ProductManagementPage = () => {
                     <select
                       id="category_id"
                       className="h-11 w-full rounded-md border border-amber-200 bg-amber-50/40 px-3 text-sm transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
-                      {...register('categoryID', { valueAsNumber: true })}
+                      {...register('categoryId', { valueAsNumber: true })}
                     >
                       {categories.map((c) => (
                         <option key={c.categoryId} value={c.categoryId}>
@@ -371,7 +371,7 @@ const ProductManagementPage = () => {
                         </option>
                       ))}
                     </select>
-                    {errors.categoryID && <FieldError errors={[errors.categoryID]} />}
+                    {errors.categoryId && <FieldError errors={[errors.categoryId]} />}
                   </FieldContent>
                 </Field>
               </div>
