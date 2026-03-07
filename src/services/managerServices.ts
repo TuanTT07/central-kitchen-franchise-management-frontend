@@ -77,4 +77,8 @@ export const managerServices = {
     const response = await http.post<Response<UnitResponse>>('/api/v1/units', body);
     return response.data;
   },
+  updateUnit: async (id: number, body: { unitName: string; description: string }) => {
+    const response = await http.patch<Response<UnitResponse>>(`/api/v1/units/${id}`, body);
+    return response.data;
+  },
 };

@@ -185,21 +185,34 @@ const ProductManagementPage = () => {
     setEditingUnit(false);
     setUnitDialogOpen(true);
   };
+  const handleEditUnit = (unit: UnitResponse) => {
+    setEditingUnit(unit);
+    resetUnit({
+      unitName: unit.unitName,
+      description: unit.description,
+    });
+  };
+
   const handleSaveUnit = async (data: UnitResponse) => {
-    if (editingUnit) {
-      console.log('phần cho edit');
-    } else {
-      try {
+    try {
+      if (editingUnit) {
+        const response = await managerServices.updateUnit(editingUnit.unitId, {
+          unitName: data.unitName,
+          description: data.description,
+        });
+        if (response) {
+          getUnits();
+          setEditingUnit(null);
+          resetUnit({ unitName: '', description: '' });
+        }
+      } else {
         const response = await managerServices.createUnit({ unitName: data.unitName, description: data.description });
         if (response) {
           getUnits();
-          resetUnit({
-            unitName: '',
-            description: '',
-          });
+          resetUnit({ unitName: '', description: '' });
         }
-      } catch (error) {}
-    }
+      }
+    } catch (error) {}
   };
 
   const statusLabel: Record<Exclude<ProductStatus, null>, string> = {
@@ -600,7 +613,20 @@ const ProductManagementPage = () => {
                     />
                     {errorsUnit.description && <FieldError errors={[errorsUnit.description]} />}
                   </div>
-                  <div className="flex justify-end pt-2">
+                  <div className="flex justify-end gap-2 pt-2">
+                    {editingUnit && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingUnit(null);
+                          resetUnit({ unitName: '', description: '', status: 'ACTIVE' });
+                        }}
+                        className="h-10 border-stone-300 text-stone-600"
+                      >
+                        Hủy sửa
+                      </Button>
+                    )}
                     <Button className="h-10 bg-gradient-to-r from-amber-500 to-orange-500 px-6 text-white shadow-md hover:from-amber-600 hover:to-orange-600">
                       {editingUnit ? 'Cập nhật đơn vị' : 'Thêm đơn vị mới'}
                     </Button>
@@ -640,7 +666,12 @@ const ProductManagementPage = () => {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="size-8 text-amber-600 hover:bg-amber-100">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-amber-600 hover:bg-amber-100"
+                              onClick={() => handleEditUnit(u)}
+                            >
                               <Pencil className="size-3.5" />
                             </Button>
                             <Button variant="ghost" size="icon" className="size-8 text-rose-500 hover:bg-rose-100">
