@@ -21,25 +21,31 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field';
 import { cn } from '@/lib/utils';
 
-import { managerServices, type categoryResponse, type productsResponse } from '@/services/managerServices';
+import {
+  managerServices,
+  type CategoryResponse,
+  type ProductsResponse,
+  type UnitResponse,
+} from '@/services/managerServices';
 
 type ProductStatus = 'ACTIVE' | 'INACTIVE' | null;
 
 const UNIT_OPTIONS = ['phần', 'kg', 'lít', 'hộp', 'chai', 'bịch'];
 
 const ProductManagementPage = () => {
-  const [products, setProducts] = useState<productsResponse[]>([]);
-  const [categories, setCategories] = useState<categoryResponse[]>([]);
+  const [products, setProducts] = useState<ProductsResponse[]>([]);
+  const [categories, setCategories] = useState<CategoryResponse[]>([]);
 
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<productsResponse | null>(null);
-  const [productToDelete, setProductToDelete] = useState<productsResponse | null>(null);
-  const [editingUnit, setEditingUnit] = useState<any>(null);
+  const [editingProduct, setEditingProduct] = useState<ProductsResponse | null>(null);
+  const [productToDelete, setProductToDelete] = useState<ProductsResponse | null>(null);
 
-  // Unit management UI states
+  // Unit states
+  const [units, setUnits] = useState<UnitResponse[]>([]);
   const [unitDialogOpen, setUnitDialogOpen] = useState(false);
+  const [editingUnit, setEditingUnit] = useState<any>(null);
   const [unitForm, setUnitForm] = useState({
     unitName: '',
     description: '',
@@ -51,7 +57,7 @@ const ProductManagementPage = () => {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<productsResponse>();
+  } = useForm<ProductsResponse>();
 
   const getProducts = async () => {
     try {
@@ -61,9 +67,18 @@ const ProductManagementPage = () => {
       }
     } catch (error) {}
   };
+  const getUnits = async () => {
+    try {
+      const response = (await managerServices.getAllUnits()).data;
+      if (response) {
+        setUnits(response);
+      }
+    } catch (error) {}
+  };
 
   useEffect(() => {
     getProducts();
+    getUnits();
   }, []);
 
   const filteredProducts = useMemo(() => {
@@ -102,7 +117,7 @@ const ProductManagementPage = () => {
     setUnitDialogOpen(true);
   };
 
-  const openEdit = (product: productsResponse) => {
+  const openEdit = (product: ProductsResponse) => {
     setEditingProduct(product);
     getCategories();
     reset({
@@ -116,12 +131,12 @@ const ProductManagementPage = () => {
     setDialogOpen(true);
   };
 
-  const openDelete = (product: productsResponse) => {
+  const openDelete = (product: ProductsResponse) => {
     setProductToDelete(product);
     setDeleteConfirmOpen(true);
   };
 
-  const handleSave = async (data: productsResponse) => {
+  const handleSave = async (data: ProductsResponse) => {
     if (editingProduct) {
       try {
         const response = await managerServices.updateProduct(data.productId, {
@@ -590,25 +605,21 @@ const ProductManagementPage = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-amber-50">
-                    {[
-                      { id: 1, name: 'phần', desc: 'Đơn vị tính cho suất ăn đơn lẻ', status: 'ACTIVE' },
-                      { id: 2, name: 'kg', desc: 'Đơn vị đo khối lượng nguyên liệu', status: 'ACTIVE' },
-                      { id: 3, name: 'hộp', desc: 'Đóng gói theo hộp nhựa/giấy', status: 'INACTIVE' },
-                    ].map((m, idx) => (
-                      <tr key={m.id} className="hover:bg-amber-50/30 transition-colors">
+                    {units.map((u, idx) => (
+                      <tr key={u.unitId} className="hover:bg-amber-50/30 transition-colors">
                         <td className="px-4 py-3 text-amber-600/70 font-mono text-xs">{idx + 1}</td>
-                        <td className="px-4 py-3 font-bold text-stone-900">{m.name}</td>
-                        <td className="px-4 py-3 text-xs text-stone-500 italic">{m.desc}</td>
+                        <td className="px-4 py-3 font-bold text-stone-900">{u.unitName}</td>
+                        <td className="px-4 py-3 text-xs text-stone-500 italic">{u.description}</td>
                         <td className="px-4 py-3">
                           <span
                             className={cn(
                               'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase border shadow-sm',
-                              m.status === 'ACTIVE'
+                              u.status === 'ACTIVE'
                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
                                 : 'bg-stone-50 text-stone-600 border-stone-200'
                             )}
                           >
-                            {m.status === 'ACTIVE' ? 'Hoạt động' : 'Ngưng dùng'}
+                            {u.status === 'ACTIVE' ? 'Hoạt động' : 'Ngưng dùng'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
