@@ -5,8 +5,18 @@ export interface categoryResponse {
   categoryId: number;
   categoryName: string;
 }
+export interface productsResponse {
+  productId: number;
+  productName: string;
+  unit: string;
+  imageUrl: string;
+  description: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  categoryName: string;
+}
 
 export const managerServices = {
+  // API cho Categories
   getAllCategories: async () => {
     const res = await http.get<Response<categoryResponse[]>>('/api/v1/categories');
     return res.data;
@@ -22,5 +32,11 @@ export const managerServices = {
   deleteCategory: async (id: number) => {
     const res = await http.delete<Response<string>>(`/api/v1/categories/${id}`);
     return res.data;
+  },
+
+  // API cho Products
+  getAllProducts: async () => {
+    const response = await http.get<Response<productsResponse[]>>('/api/v1/products');
+    return response.data;
   },
 };
