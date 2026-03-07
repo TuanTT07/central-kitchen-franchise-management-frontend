@@ -16,6 +16,12 @@ export interface productsResponse {
   categoryName: string;
   categoryId?: number;
 }
+export interface unitResponse {
+  unitId: number;
+  unitName: string;
+  description?: string;
+  status: 'ACTIVE' | 'INACTIVE';
+}
 
 export const managerServices = {
   // API cho Categories
@@ -62,4 +68,5 @@ export const managerServices = {
     const response = await http.delete<Response<null>>(`/api/v1/products/${id}`);
     return response.data;
   },
+
 };

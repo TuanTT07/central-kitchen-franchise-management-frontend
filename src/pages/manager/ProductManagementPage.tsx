@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, use } from 'react';
 import { useForm } from 'react-hook-form';
 import {
   Plus,
@@ -36,6 +36,15 @@ const ProductManagementPage = () => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<productsResponse | null>(null);
   const [productToDelete, setProductToDelete] = useState<productsResponse | null>(null);
+  const [editingUnit, setEditingUnit] = useState<any>(null);
+
+  // Unit management UI states
+  const [unitDialogOpen, setUnitDialogOpen] = useState(false);
+  const [unitForm, setUnitForm] = useState({
+    unitName: '',
+    description: '',
+    status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE',
+  });
 
   const {
     register,
@@ -87,6 +96,10 @@ const ProductManagementPage = () => {
       status: 'ACTIVE',
     });
     setDialogOpen(true);
+  };
+
+  const openSettingUnit = () => {
+    setUnitDialogOpen(true);
   };
 
   const openEdit = (product: productsResponse) => {
@@ -192,6 +205,13 @@ const ProductManagementPage = () => {
             >
               <Plus className="size-4" />
               Thêm sản phẩm
+            </Button>
+            <Button
+              onClick={openSettingUnit}
+              className="h-10 gap-2 bg-gradient-to-r from-amber-500 to-orange-500 px-5 text-white shadow-md hover:from-amber-600 hover:to-orange-600"
+            >
+              <Scale className="size-4" />
+              Thiết lập đơn vị
             </Button>
           </div>
         </CardHeader>
@@ -307,6 +327,7 @@ const ProductManagementPage = () => {
         </CardContent>
       </Card>
 
+      {/* Thêm và sửa sản phẩm */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent
           onClose={() => setDialogOpen(false)}
@@ -472,6 +493,7 @@ const ProductManagementPage = () => {
         </DialogContent>
       </Dialog>
 
+      {/*xác nhận  Xoá sản phẩm */}
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent
           onClose={() => setDeleteConfirmOpen(false)}
@@ -500,6 +522,122 @@ const ProductManagementPage = () => {
               Xóa
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Thiết lập Đơn vị (Chỉ UI) */}
+      <Dialog open={unitDialogOpen} onOpenChange={setUnitDialogOpen}>
+        <DialogContent className="max-w-2xl border-none p-0 shadow-2xl">
+          <div className="flex flex-col overflow-hidden rounded-2xl bg-white text-stone-900">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4 text-white">
+              <DialogTitle className="flex items-center gap-2 font-bold">
+                <Scale className="size-5" />
+                Thiết lập Đơn vị tính
+              </DialogTitle>
+            </div>
+
+            <div className="p-6">
+              {/* Form Input UI */}
+              <div className="mb-8 grid gap-4 rounded-xl border border-amber-100 bg-amber-50/30 p-4 shadow-sm">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-[13px] font-semibold text-amber-900">Tên đơn vị</label>
+                    <Input
+                      placeholder="Ví dụ: kg, lít, phần..."
+                      value={unitForm.unitName}
+                      onChange={(e) => setUnitForm({ ...unitForm, unitName: e.target.value })}
+                      className="h-10 border-amber-200 focus:border-amber-500 focus:ring-amber-200"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[13px] font-semibold text-amber-900">Trạng thái</label>
+                    <select
+                      value={unitForm.status}
+                      onChange={(e) => setUnitForm({ ...unitForm, status: e.target.value as any })}
+                      className="h-10 w-full rounded-md border border-amber-200 bg-white px-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200"
+                    >
+                      <option value="ACTIVE">Hoạt động</option>
+                      <option value="INACTIVE">Ngưng dùng</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-semibold text-amber-900">Mô tả chi tiết</label>
+                  <Input
+                    placeholder="Ghi chú về cách tính hoặc quy đổi..."
+                    value={unitForm.description}
+                    onChange={(e) => setUnitForm({ ...unitForm, description: e.target.value })}
+                    className="h-10 border-amber-200 focus:border-amber-500 focus:ring-amber-200"
+                  />
+                </div>
+                <div className="flex justify-end pt-2">
+                  <Button className="h-10 bg-gradient-to-r from-amber-500 to-orange-500 px-6 text-white shadow-md hover:from-amber-600 hover:to-orange-600">
+                    {editingUnit ? 'Cập nhật đơn vị' : 'Thêm đơn vị mới'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Table UI with Mock Data */}
+              <div className="max-h-[300px] overflow-y-auto rounded-xl border border-amber-100 shadow-sm">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-amber-50 text-xs font-bold uppercase tracking-wider text-amber-900">
+                    <tr>
+                      <th className="px-4 py-3 text-left">STT</th>
+                      <th className="px-4 py-3 text-left">Đơn vị tính</th>
+                      <th className="px-4 py-3 text-left">Mô tả</th>
+                      <th className="px-4 py-3 text-left">Status</th>
+                      <th className="px-4 py-3 text-right">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-amber-50">
+                    {[
+                      { id: 1, name: 'phần', desc: 'Đơn vị tính cho suất ăn đơn lẻ', status: 'ACTIVE' },
+                      { id: 2, name: 'kg', desc: 'Đơn vị đo khối lượng nguyên liệu', status: 'ACTIVE' },
+                      { id: 3, name: 'hộp', desc: 'Đóng gói theo hộp nhựa/giấy', status: 'INACTIVE' },
+                    ].map((m, idx) => (
+                      <tr key={m.id} className="hover:bg-amber-50/30 transition-colors">
+                        <td className="px-4 py-3 text-amber-600/70 font-mono text-xs">{idx + 1}</td>
+                        <td className="px-4 py-3 font-bold text-stone-900">{m.name}</td>
+                        <td className="px-4 py-3 text-xs text-stone-500 italic">{m.desc}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase border shadow-sm',
+                              m.status === 'ACTIVE'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                : 'bg-stone-50 text-stone-600 border-stone-200'
+                            )}
+                          >
+                            {m.status === 'ACTIVE' ? 'Hoạt động' : 'Ngưng dùng'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="size-8 text-amber-600 hover:bg-amber-100">
+                              <Pencil className="size-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="size-8 text-rose-500 hover:bg-rose-100">
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <DialogFooter className="bg-stone-50 px-6 py-4">
+              <Button
+                variant="outline"
+                onClick={() => setUnitDialogOpen(false)}
+                className="h-10 border-stone-300 text-stone-700 font-medium hover:bg-white"
+              >
+                Đóng
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
