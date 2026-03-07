@@ -58,18 +58,11 @@ const ProductManagementPage = () => {
   }, []);
 
   const filteredProducts = useMemo(() => {
-    // if (!search.trim()) return products;
-    // // const keyword = search.toLowerCase();
-    // return products.filter((p) => {
-    //   const categoryName =
-    //     p.category_id !== null
-    //       ? (MOCK_CATEGORIES.find((c) => c.category_id === p.category_id)?.category_name ?? '')
-    //       : '';
-    //   return ;
-    //     p.product_name.toLowerCase().includes(keyword) ||
-    //     categoryName.toLowerCase().includes(keyword) ||
-    //     (p.unit && p.unit.toLowerCase().includes(keyword))
-    // });
+    if (!search.trim()) return products;
+    const keyword = search.toLowerCase();
+    return products.filter((p) => {
+      return p.productName.toLowerCase().includes(keyword);
+    });
   }, [products, search]);
 
   // lấy ra danh sách category
@@ -229,7 +222,7 @@ const ProductManagementPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-100/60">
-                {products.map((product, index) => (
+                {filteredProducts.map((product, index) => (
                   <tr key={product.productId} className="group transition hover:bg-amber-50/40">
                     <td className="px-6 py-4 text-xs font-mono text-amber-600/70">{index + 1}</td>
                     <td className="px-6 py-4">
@@ -254,14 +247,7 @@ const ProductManagementPage = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      {/**
-                       * <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 border border-amber-200">
-                        <Tag className="size-3" />
-                        {MOCK_CATEGORIES.find((c) => c.category_id === product.category_id)?.category_name ?? 'N/A'}
-                      </div>
-                       */}
-                    </td>
+                    <td className="px-6 py-4"></td>
                     <td className="px-6 py-4">
                       <div className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-700">
                         <Scale className="size-3 text-amber-500" />
@@ -310,13 +296,13 @@ const ProductManagementPage = () => {
               </tbody>
             </table>
 
-            {/* filteredProducts.length === 0 && (
+            {filteredProducts.length === 0 && (
               <div className="flex flex-col items-center justify-center gap-2 py-16 text-amber-700/70">
                 <Search className="mb-1 size-10 opacity-30" />
                 <p className="text-sm font-medium">Không tìm thấy sản phẩm nào phù hợp</p>
                 <p className="text-xs text-amber-700/70">Hãy thử lại với từ khóa khác hoặc thêm sản phẩm mới.</p>
               </div>
-            ) */}
+            )}
           </div>
         </CardContent>
       </Card>
@@ -519,13 +505,5 @@ const ProductManagementPage = () => {
     </div>
   );
 };
-
-{
-  /**
-  function prevMaxId(items: Product[]): number {
-  if (!items.length) return 0;
-  return items.reduce((max, item) => (item.product_id > max ? item.product_id : max), items[0].product_id);
-} */
-}
 
 export default ProductManagementPage;
