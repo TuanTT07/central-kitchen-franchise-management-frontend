@@ -8,28 +8,28 @@ import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/fie
 import { cn } from '@/lib/utils';
 import { Tag, Plus, Pencil, Trash2, Search, CheckCircle2, XCircle } from 'lucide-react';
 
-import { managerServices, type categoryResponse, type productsResponse } from '@/services/managerServices';
+import { managerServices, type CategoryResponse, type ProductsResponse } from '@/services/managerServices';
 
 type CategoryStatus = 'ACTIVE' | 'INACTIVE';
 type CategoryFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
 function CategoryManager() {
-  const [categories, setCategories] = useState<categoryResponse[]>([]);
-  const [products, setProducts] = useState<productsResponse[]>([]);
+  const [categories, setCategories] = useState<CategoryResponse[]>([]);
+  const [products, setProducts] = useState<ProductsResponse[]>([]);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<CategoryFilter>('ALL');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<categoryResponse | null>(null);
-  const [categoryToDelete, setCategoryToDelete] = useState<categoryResponse | null>(null);
+  const [editingCategory, setEditingCategory] = useState<CategoryResponse | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<CategoryResponse | null>(null);
 
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<categoryResponse>();
+  } = useForm<CategoryResponse>();
 
   // Lấy tất cả các categories
   const getCategories = async () => {
@@ -66,7 +66,7 @@ function CategoryManager() {
     setDialogOpen(true);
   };
 
-  const openEdit = (category: categoryResponse) => {
+  const openEdit = (category: CategoryResponse) => {
     setEditingCategory(category);
     reset({
       categoryId: category.categoryId,
@@ -110,12 +110,12 @@ function CategoryManager() {
     return list;
   }, [categories, search, statusFilter]);
 
-  const openDelete = (category: categoryResponse) => {
+  const openDelete = (category: CategoryResponse) => {
     setCategoryToDelete(category);
     setDeleteConfirmOpen(true);
   };
 
-  const handleSave = async (data: categoryResponse) => {
+  const handleSave = async (data: CategoryResponse) => {
     if (editingCategory) {
       try {
         const response = await managerServices.updateCategory(data.categoryId, { categoryName: data.categoryName });
