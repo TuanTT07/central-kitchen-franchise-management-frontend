@@ -76,19 +76,18 @@ function CategoryManager() {
   };
 
   const categoryStats = useMemo(() => {
-    
-    const stats: Record<number, { total: number; active: number }> = {};
+    const stats: Record<string, { total: number; active: number }> = {};
 
     products.forEach((p) => {
-      const catId = p.categoryId;
-      if (catId === undefined) return;
+      const cateName = p.categoryName;
+      if (cateName === undefined) return;
 
-      if (!stats[catId]) {
-        stats[catId] = { total: 0, active: 0 };
+      if (!stats[cateName]) {
+        stats[cateName] = { total: 0, active: 0 };
       }
-      stats[catId].total += 1;
+      stats[cateName].total += 1;
       if (p.status === 'ACTIVE') {
-        stats[catId].active += 1;
+        stats[cateName].active += 1;
       }
     });
     return stats;
@@ -280,62 +279,66 @@ function CategoryManager() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-100/60">
-                {categories.map((category, index) => (
-                  <tr key={category.categoryId} className="group transition hover:bg-amber-50/40">
-                    <td className="px-6 py-4 font-mono text-xs text-amber-700">#{index + 1}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-semibold text-stone-900">{category.categoryName}</span>
+                {categories.map((category, index) => {
+                  return (
+                    <tr key={category.categoryId} className="group transition hover:bg-amber-50/40">
+                      <td className="px-6 py-4 font-mono text-xs text-amber-700">#{index + 1}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-sm font-semibold text-stone-900">{category.categoryName}</span>
 
-                        {categoryStats[category.categoryId] && (
-                          <span className="text-[11px] text-stone-500">
-                            {categoryStats[category.categoryId].total} sản phẩm (
-                            {categoryStats[category.categoryId].active} đang kinh doanh)
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {
-                        <div
-                          className={cn(
-                            'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold border shadow-sm',
-                            statusColor[(category.status ?? 'INACTIVE') as CategoryStatus]
+                          {categoryStats[category.categoryName] && (
+                            <span className="text-[11px] text-stone-500">
+                              {categoryStats[category.categoryName].total} sản phẩm (
+                              {categoryStats[category.categoryName].active} đang kinh doanh)
+                            </span>
                           )}
-                        >
-                          {(category.status ?? 'INACTIVE') === 'ACTIVE' ? (
-                            <CheckCircle2 className="size-3" />
-                          ) : (
-                            <XCircle className="size-3" />
-                          )}
-                          {statusLabel[(category.status ?? 'INACTIVE') as CategoryStatus]}
                         </div>
-                      }
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 transition group-hover:opacity-100">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-9 rounded-full text-amber-600 hover:bg-amber-100 hover:text-amber-700"
-                          onClick={() => openEdit(category)}
-                          title="Chỉnh sửa"
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-9 rounded-full text-rose-500 hover:bg-rose-100 hover:text-rose-600"
-                          onClick={() => openDelete(category)}
-                          title="Xóa danh mục"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-6 py-4">
+                        {
+                          <div
+                            className={cn(
+                              'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold border shadow-sm',
+                              statusColor[(category.status ?? 'INACTIVE') as CategoryStatus]
+                            )}
+                          >
+                            {(category.status ?? 'INACTIVE') === 'ACTIVE' ? (
+                              <CheckCircle2 className="size-3" />
+                            ) : (
+                              <XCircle className="size-3" />
+                            )}
+                            {statusLabel[(category.status ?? 'INACTIVE') as CategoryStatus]}
+                          </div>
+                        }
+                      </td>
+
+                      {/* 2 nút bấm */}
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2 ">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-9 rounded-full text-amber-600 hover:bg-amber-100 hover:text-amber-700 hover:cursor-pointer"
+                            onClick={() => openEdit(category)}
+                            title="Chỉnh sửa"
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-9 rounded-full text-rose-500 hover:bg-rose-100 hover:text-rose-600 hover:cursor-pointer"
+                            onClick={() => openDelete(category)}
+                            title="Xóa danh mục"
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {/**xử lí sau
