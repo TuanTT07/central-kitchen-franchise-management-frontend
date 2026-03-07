@@ -1,12 +1,12 @@
 import http from '../lib/axios';
 import type { Response } from '../Types/utils.type';
 
-export interface categoryResponse {
+export interface CategoryResponse {
   categoryId: number;
   categoryName: string;
   status: 'ACTIVE' | 'INACTIVE';
 }
-export interface productsResponse {
+export interface ProductsResponse {
   productId: number;
   productName: string;
   unit: string;
@@ -16,19 +16,25 @@ export interface productsResponse {
   categoryName: string;
   categoryId?: number;
 }
+export interface UnitResponse {
+  unitId: number;
+  unitName: string;
+  description: string;
+  status?: 'ACTIVE' | 'INACTIVE';
+}
 
 export const managerServices = {
   // API cho Categories
   getAllCategories: async () => {
-    const res = await http.get<Response<categoryResponse[]>>('/api/v1/categories');
+    const res = await http.get<Response<CategoryResponse[]>>('/api/v1/categories');
     return res.data;
   },
   creatCategory: async (body: { categoryName: string }) => {
-    const response = await http.post<Response<categoryResponse>>('/api/v1/categories', body);
+    const response = await http.post<Response<CategoryResponse>>('/api/v1/categories', body);
     return response.data;
   },
   updateCategory: async (id: number, body: { categoryName: string }) => {
-    const response = await http.put<Response<categoryResponse>>(`/api/v1/categories/${id}`, body);
+    const response = await http.put<Response<CategoryResponse>>(`/api/v1/categories/${id}`, body);
     return response.data;
   },
   deleteCategory: async (id: number) => {
@@ -38,7 +44,7 @@ export const managerServices = {
 
   // API cho Products
   getAllProducts: async () => {
-    const response = await http.get<Response<productsResponse[]>>('/api/v1/products');
+    const response = await http.get<Response<ProductsResponse[]>>('/api/v1/products');
     return response.data;
   },
   createProduct: async (body: {
@@ -48,7 +54,7 @@ export const managerServices = {
     description: string;
     categoryId: number;
   }) => {
-    const response = await http.post<Response<productsResponse>>('/api/v1/products', body);
+    const response = await http.post<Response<ProductsResponse>>('/api/v1/products', body);
     return response.data;
   },
   updateProduct: async (
@@ -60,6 +66,23 @@ export const managerServices = {
   },
   deleteProduct: async (id: number) => {
     const response = await http.delete<Response<null>>(`/api/v1/products/${id}`);
+    return response.data;
+  },
+  // API của Unit
+  getAllUnits: async () => {
+    const response = await http.get<Response<UnitResponse[]>>('/api/v1/units');
+    return response.data;
+  },
+  createUnit: async (body: { unitName: string; description: string }) => {
+    const response = await http.post<Response<UnitResponse>>('/api/v1/units', body);
+    return response.data;
+  },
+  updateUnit: async (id: number, body: { unitName: string; description: string }) => {
+    const response = await http.patch<Response<UnitResponse>>(`/api/v1/units/${id}`, body);
+    return response.data;
+  },
+  deleteUnit: async (id: number) => {
+    const response = await http.delete<Response<null>>(`/api/v1/units/${id}`);
     return response.data;
   },
 };

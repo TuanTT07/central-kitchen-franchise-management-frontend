@@ -21,28 +21,45 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field';
 import { cn } from '@/lib/utils';
 
-import { managerServices, type categoryResponse, type productsResponse } from '@/services/managerServices';
+import {
+  managerServices,
+  type CategoryResponse,
+  type ProductsResponse,
+  type UnitResponse,
+} from '@/services/managerServices';
 
 type ProductStatus = 'ACTIVE' | 'INACTIVE' | null;
 
-const UNIT_OPTIONS = ['phần', 'kg', 'lít', 'hộp', 'chai', 'bịch'];
-
 const ProductManagementPage = () => {
-  const [products, setProducts] = useState<productsResponse[]>([]);
-  const [categories, setCategories] = useState<categoryResponse[]>([]);
+  const [products, setProducts] = useState<ProductsResponse[]>([]);
+  const [categories, setCategories] = useState<CategoryResponse[]>([]);
 
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<productsResponse | null>(null);
-  const [productToDelete, setProductToDelete] = useState<productsResponse | null>(null);
+  const [editingProduct, setEditingProduct] = useState<ProductsResponse | null>(null);
+  const [productToDelete, setProductToDelete] = useState<ProductsResponse | null>(null);
+
+  // Unit states
+  const [units, setUnits] = useState<UnitResponse[]>([]);
+  const [unitDialogOpen, setUnitDialogOpen] = useState(false);
+  const [editingUnit, setEditingUnit] = useState<any>(null);
+  const [unitToDelete, setUnitToDelete] = useState<UnitResponse | null>(null);
+  const [unitDeleteConfirmOpen, setUnitDeleteConfirmOpen] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<productsResponse>();
+  } = useForm<ProductsResponse>();
+
+  const {
+    register: registerUnit,
+    handleSubmit: handleSubmitUnit,
+    reset: resetUnit,
+    formState: { errors: errorsUnit },
+  } = useForm<UnitResponse>();
 
   const getProducts = async () => {
     try {
@@ -52,9 +69,18 @@ const ProductManagementPage = () => {
       }
     } catch (error) {}
   };
+  const getUnits = async () => {
+    try {
+      const response = (await managerServices.getAllUnits()).data;
+      if (response) {
+        setUnits(response);
+      }
+    } catch (error) {}
+  };
 
   useEffect(() => {
     getProducts();
+    getUnits();
   }, []);
 
   const filteredProducts = useMemo(() => {
@@ -89,7 +115,7 @@ const ProductManagementPage = () => {
     setDialogOpen(true);
   };
 
-  const openEdit = (product: productsResponse) => {
+  const openEdit = (product: ProductsResponse) => {
     setEditingProduct(product);
     getCategories();
     reset({
@@ -103,12 +129,12 @@ const ProductManagementPage = () => {
     setDialogOpen(true);
   };
 
-  const openDelete = (product: productsResponse) => {
+  const openDelete = (product: ProductsResponse) => {
     setProductToDelete(product);
     setDeleteConfirmOpen(true);
   };
 
-  const handleSave = async (data: productsResponse) => {
+  const handleSave = async (data: ProductsResponse) => {
     if (editingProduct) {
       try {
         const response = await managerServices.updateProduct(data.productId, {
@@ -152,6 +178,56 @@ const ProductManagementPage = () => {
     setDeleteConfirmOpen(false);
     setProductToDelete(null);
   };
+  const openSettingUnit = () => {
+    setEditingUnit(false);
+    setUnitDialogOpen(true);
+  };
+  const handleEditUnit = (unit: UnitResponse) => {
+    setEditingUnit(unit);
+    resetUnit({
+      unitName: unit.unitName,
+      description: unit.description,
+    });
+  };
+
+  const handleSaveUnit = async (data: UnitResponse) => {
+    try {
+      if (editingUnit) {
+        const response = await managerServices.updateUnit(editingUnit.unitId, {
+          unitName: data.unitName,
+          description: data.description,
+        });
+        if (response) {
+          getUnits();
+          setEditingUnit(null);
+          resetUnit({ unitName: '', description: '' });
+        }
+      } else {
+        const response = await managerServices.createUnit({ unitName: data.unitName, description: data.description });
+        if (response) {
+          getUnits();
+          resetUnit({ unitName: '', description: '' });
+        }
+      }
+    } catch (error) {}
+  };
+
+  const openDeleteUnit = (unit: UnitResponse) => {
+    setUnitToDelete(unit);
+    setUnitDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteUnit = async () => {
+    if (!unitToDelete) return;
+    try {
+      const response = await managerServices.deleteUnit(unitToDelete.unitId);
+      if (response.success) {
+        getUnits();
+      }
+    } catch (error) {}
+    setUnitDeleteConfirmOpen(false);
+    setUnitToDelete(null);
+  };
 
   const statusLabel: Record<Exclude<ProductStatus, null>, string> = {
     ACTIVE: 'Đang kinh doanh',
@@ -192,6 +268,13 @@ const ProductManagementPage = () => {
             >
               <Plus className="size-4" />
               Thêm sản phẩm
+            </Button>
+            <Button
+              onClick={openSettingUnit}
+              className="h-10 gap-2 bg-gradient-to-r from-amber-500 to-orange-500 px-5 text-white shadow-md hover:from-amber-600 hover:to-orange-600"
+            >
+              <Scale className="size-4" />
+              Thiết lập đơn vị
             </Button>
           </div>
         </CardHeader>
@@ -307,6 +390,7 @@ const ProductManagementPage = () => {
         </CardContent>
       </Card>
 
+      {/* Thêm và sửa sản phẩm */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent
           onClose={() => setDialogOpen(false)}
@@ -388,9 +472,9 @@ const ProductManagementPage = () => {
                       className="h-11 w-full rounded-md border border-amber-200 bg-amber-50/40 px-3 text-sm transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
                       {...register('unit', { required: 'Đơn vị là bắt buộc' })}
                     >
-                      {UNIT_OPTIONS.map((u) => (
-                        <option key={u} value={u}>
-                          {u}
+                      {units.map((u) => (
+                        <option key={u.unitId} value={u.unitName}>
+                          {u.unitName}
                         </option>
                       ))}
                     </select>
@@ -472,6 +556,7 @@ const ProductManagementPage = () => {
         </DialogContent>
       </Dialog>
 
+      {/*xác nhận  Xoá sản phẩm */}
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent
           onClose={() => setDeleteConfirmOpen(false)}
@@ -498,6 +583,169 @@ const ProductManagementPage = () => {
             </Button>
             <Button variant="destructive" className="min-w-[5rem] bg-rose-600 hover:bg-rose-700" onClick={handleDelete}>
               Xóa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Thiết lập Đơn vị (Chỉ UI) */}
+      <Dialog open={unitDialogOpen} onOpenChange={setUnitDialogOpen}>
+        <DialogContent className="max-w-2xl border-none p-0 shadow-2xl">
+          <div className="flex flex-col overflow-hidden rounded-2xl bg-white text-stone-900">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4 text-white">
+              <DialogTitle className="flex items-center gap-2 font-bold">
+                <Scale className="size-5" />
+                Thiết lập Đơn vị tính
+              </DialogTitle>
+            </div>
+
+            <div className="p-6">
+              {/* Form Input UI */}
+              <form noValidate onSubmit={handleSubmitUnit(handleSaveUnit)}>
+                <div className="mb-8 grid gap-4 rounded-xl border border-amber-100 bg-amber-50/30 p-4 shadow-sm">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="text-[13px] font-semibold text-amber-900">Tên đơn vị</label>
+                      <Input
+                        placeholder="Ví dụ: kg, lít, phần..."
+                        className="h-10 border-amber-200 focus:border-amber-500 focus:ring-amber-200"
+                        {...registerUnit('unitName', {
+                          required: 'Tên đơn vị không được để trống',
+                        })}
+                      />
+                      {errorsUnit.unitName && <FieldError errors={[errorsUnit.unitName]} />}
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[13px] font-semibold text-amber-900">Mô tả chi tiết</label>
+                    <Input
+                      placeholder="Ghi chú về cách tính hoặc quy đổi..."
+                      className="h-10 border-amber-200 focus:border-amber-500 focus:ring-amber-200"
+                      {...registerUnit('description', {
+                        required: 'Mô tả là bắt buộc',
+                      })}
+                    />
+                    {errorsUnit.description && <FieldError errors={[errorsUnit.description]} />}
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    {editingUnit && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingUnit(null);
+                          resetUnit({ unitName: '', description: '', status: 'ACTIVE' });
+                        }}
+                        className="h-10 border-stone-300 text-stone-600"
+                      >
+                        Hủy sửa
+                      </Button>
+                    )}
+                    <Button className="h-10 bg-gradient-to-r from-amber-500 to-orange-500 px-6 text-white shadow-md hover:from-amber-600 hover:to-orange-600">
+                      {editingUnit ? 'Cập nhật đơn vị' : 'Thêm đơn vị mới'}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+
+              {/* Table UI  */}
+              <div className="max-h-[300px] overflow-y-auto rounded-xl border border-amber-100 shadow-sm">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-amber-50 text-xs font-bold uppercase tracking-wider text-amber-900">
+                    <tr>
+                      <th className="px-4 py-3 text-left">STT</th>
+                      <th className="px-4 py-3 text-left">Đơn vị tính</th>
+                      <th className="px-4 py-3 text-left">Mô tả</th>
+                      <th className="px-4 py-3 text-left">Status</th>
+                      <th className="px-4 py-3 text-right">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-amber-50">
+                    {units.map((u, idx) => (
+                      <tr key={u.unitId} className="hover:bg-amber-50/30 transition-colors">
+                        <td className="px-4 py-3 text-amber-600/70 font-mono text-xs">{idx + 1}</td>
+                        <td className="px-4 py-3 font-bold text-stone-900">{u.unitName}</td>
+                        <td className="px-4 py-3 text-xs text-stone-500 italic">{u.description}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase border shadow-sm',
+                              u.status === 'ACTIVE'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                : 'bg-stone-50 text-stone-600 border-stone-200'
+                            )}
+                          >
+                            {u.status === 'ACTIVE' ? 'Hoạt động' : 'Ngưng dùng'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-amber-600 hover:bg-amber-100"
+                              onClick={() => handleEditUnit(u)}
+                            >
+                              <Pencil className="size-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-rose-500 hover:bg-rose-100"
+                              onClick={() => openDeleteUnit(u)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <DialogFooter className="bg-stone-50 px-6 py-4">
+              <Button
+                variant="outline"
+                onClick={() => setUnitDialogOpen(false)}
+                className="h-10 border-stone-300 text-stone-700 font-medium hover:bg-white"
+              >
+                Đóng
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Xác nhận xóa đơn vị */}
+      <Dialog open={unitDeleteConfirmOpen} onOpenChange={setUnitDeleteConfirmOpen}>
+        <DialogContent className="max-w-md border-amber-200/60 bg-white p-8 shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-semibold text-stone-900">
+              <Trash2 className="size-5 text-rose-500" />
+              Xác nhận xóa đơn vị
+            </DialogTitle>
+          </DialogHeader>
+          <p className="py-4 text-sm text-stone-700">
+            Bạn có chắc muốn xóa đơn vị{' '}
+            <span className="font-semibold text-amber-800">{unitToDelete?.unitName}</span>? Việc này có thể ảnh hưởng đến
+            các sản phẩm đang sử dụng đơn vị này.
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              className="min-w-[5rem] border-stone-300 text-stone-700 hover:bg-stone-50"
+              onClick={() => setUnitDeleteConfirmOpen(false)}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="destructive"
+              className="min-w-[5rem] bg-rose-600 hover:bg-rose-700"
+              onClick={handleDeleteUnit}
+            >
+              Xác nhận xóa
             </Button>
           </DialogFooter>
         </DialogContent>
