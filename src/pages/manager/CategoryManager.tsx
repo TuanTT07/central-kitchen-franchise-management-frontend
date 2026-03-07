@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,15 +6,17 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field';
 import { cn } from '@/lib/utils';
-import { Tag, Plus, Pencil, Trash2, Search, CheckCircle2 } from 'lucide-react';
+import { Tag, Plus, Pencil, Trash2, Search, CheckCircle2, XCircle } from 'lucide-react';
 
-import { managerServices, type categoryResponse } from '@/services/managerServices';
+import { managerServices, type categoryResponse, type productsResponse } from '@/services/managerServices';
 
-// type CategoryStatus = 'ACTIVE' | 'INACTIVE';
+type CategoryStatus = 'ACTIVE' | 'INACTIVE';
 type CategoryFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
 function CategoryManager() {
   const [categories, setCategories] = useState<categoryResponse[]>([]);
+  const [products, setProducts] = useState<productsResponse[]>([]);
+
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<CategoryFilter>('ALL');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -41,8 +43,19 @@ function CategoryManager() {
     }
   };
 
+  // Lấy ra sản phẩm
+  const getProducts = async () => {
+    try {
+      const response = (await managerServices.getAllProducts()).data;
+      if (response) {
+        setProducts(response);
+      }
+    } catch (error) {}
+  };
+
   useEffect(() => {
     getCategories();
+    getProducts();
   }, []);
 
   const openAdd = () => {
@@ -62,21 +75,24 @@ function CategoryManager() {
     setDialogOpen(true);
   };
 
-  // const categoryStats = useMemo(() => {
-  //   const stats: Record<number, { total: number; active: number }> = {};
+  const categoryStats = useMemo(() => {
+    
+    const stats: Record<number, { total: number; active: number }> = {};
 
-  //   for (const p of MOCK_PRODUCTS_FOR_CATEGORY) {
-  //     if (!stats[p.category_id]) {
-  //       stats[p.category_id] = { total: 0, active: 0 };
-  //     }
-  //     stats[p.category_id].total += 1;
-  //     if (p.status === 'ACTIVE') {
-  //       stats[p.category_id].active += 1;
-  //     }
-  //   }
+    products.forEach((p) => {
+      const catId = p.categoryId;
+      if (catId === undefined) return;
 
-  //   return stats;
-  // }, []);
+      if (!stats[catId]) {
+        stats[catId] = { total: 0, active: 0 };
+      }
+      stats[catId].total += 1;
+      if (p.status === 'ACTIVE') {
+        stats[catId].active += 1;
+      }
+    });
+    return stats;
+  }, [products]);
 
   // const filteredCategories = useMemo(() => {
   //   let list = categories;
@@ -92,7 +108,7 @@ function CategoryManager() {
   //     list = list.filter((c) => c.category_name.toLowerCase().includes(keyword));
   //   }
 
-  //   return list;
+  // return list;
   // }, [categories, search, statusFilter]);
 
   const openDelete = (category: categoryResponse) => {
@@ -145,15 +161,15 @@ function CategoryManager() {
     setDeleteConfirmOpen(false);
   };
 
-  // const statusLabel: Record<CategoryStatus, string> = {
-  //   ACTIVE: 'Đang sử dụng',
-  //   INACTIVE: 'Ngưng dùng',
-  // };
+  const statusLabel: Record<CategoryStatus, string> = {
+    ACTIVE: 'Đang sử dụng',
+    INACTIVE: 'Ngưng dùng',
+  };
 
-  // const statusColor: Record<CategoryStatus, string> = {
-  //   ACTIVE: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  //   INACTIVE: 'bg-stone-100 text-stone-600 border-stone-200',
-  // };
+  const statusColor: Record<CategoryStatus, string> = {
+    ACTIVE: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    INACTIVE: 'bg-stone-100 text-stone-600 border-stone-200',
+  };
 
   return (
     <div className="h-full w-full">
@@ -270,30 +286,31 @@ function CategoryManager() {
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-0.5">
                         <span className="text-sm font-semibold text-stone-900">{category.categoryName}</span>
-                        {/* Response from getCategories trả lên thiếu nên chưa làm được  */}
-                        {/* {categoryStats[category.categoryId] && (
+
+                        {categoryStats[category.categoryId] && (
                           <span className="text-[11px] text-stone-500">
                             {categoryStats[category.categoryId].total} sản phẩm (
                             {categoryStats[category.categoryId].active} đang kinh doanh)
                           </span>
-                        )} */}
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      {/* Response from getCategories trả lên thiếu nên chưa làm được  
-                       <div
-                        className={cn(
-                          'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold border shadow-sm',
-                          statusColor[(category.status ?? 'INACTIVE') as CategoryStatus]
-                        )}
-                      >
-                        {(category.status ?? 'INACTIVE') === 'ACTIVE' ? (
-                          <CheckCircle2 className="size-3" />
-                        ) : (
-                          <XCircle className="size-3" />
-                        )}
-                        {statusLabel[(category.status ?? 'INACTIVE') as CategoryStatus]}
-                      </div>*/}
+                      {
+                        <div
+                          className={cn(
+                            'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold border shadow-sm',
+                            statusColor[(category.status ?? 'INACTIVE') as CategoryStatus]
+                          )}
+                        >
+                          {(category.status ?? 'INACTIVE') === 'ACTIVE' ? (
+                            <CheckCircle2 className="size-3" />
+                          ) : (
+                            <XCircle className="size-3" />
+                          )}
+                          {statusLabel[(category.status ?? 'INACTIVE') as CategoryStatus]}
+                        </div>
+                      }
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2 opacity-0 transition group-hover:opacity-100">

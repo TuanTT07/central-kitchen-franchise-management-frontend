@@ -4,6 +4,7 @@ import type { Response } from '../Types/utils.type';
 export interface categoryResponse {
   categoryId: number;
   categoryName: string;
+  status: 'ACTIVE' | 'INACTIVE';
 }
 export interface productsResponse {
   productId: number;
@@ -13,7 +14,7 @@ export interface productsResponse {
   description: string;
   status: 'ACTIVE' | 'INACTIVE';
   categoryName: string;
-  categoryID?: number;
+  categoryId?: number;
 }
 
 export const managerServices = {
