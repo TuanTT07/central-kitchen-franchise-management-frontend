@@ -13,6 +13,7 @@ export interface productsResponse {
   description: string;
   status: 'ACTIVE' | 'INACTIVE';
   categoryName: string;
+  categoryID?: number;
 }
 
 export const managerServices = {
@@ -37,6 +38,16 @@ export const managerServices = {
   // API cho Products
   getAllProducts: async () => {
     const response = await http.get<Response<productsResponse[]>>('/api/v1/products');
+    return response.data;
+  },
+  createProduct: async (body: {
+    productName: string;
+    unit: string;
+    imageUrl: string;
+    description: string;
+    categoryId: number;
+  }) => {
+    const response = await http.post<Response<productsResponse>>('/api/v1/products', body);
     return response.data;
   },
 };

@@ -103,7 +103,7 @@ function CategoryManager() {
   const handleSave = async (data: categoryResponse) => {
     if (editingCategory) {
       try {
-        const response = await managerServices.updateCategory(data.categoryId, {categoryName: data.categoryName});
+        const response = await managerServices.updateCategory(data.categoryId, { categoryName: data.categoryName });
 
         if (response.success) {
           setCategories((prev) =>

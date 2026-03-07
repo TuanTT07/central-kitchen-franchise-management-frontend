@@ -21,14 +21,17 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field';
 import { cn } from '@/lib/utils';
 
-import { managerServices, type productsResponse } from '@/services/managerServices';
+import { managerServices, type categoryResponse, type productsResponse } from '@/services/managerServices';
+import http from '@/lib/axios';
 
 type ProductStatus = 'ACTIVE' | 'INACTIVE' | null;
 
-// const UNIT_OPTIONS = ['phần', 'kg', 'lít', 'hộp', 'chai', 'bịch'];
+const UNIT_OPTIONS = ['phần', 'kg', 'lít', 'hộp', 'chai', 'bịch'];
 
 const ProductManagementPage = () => {
   const [products, setProducts] = useState<productsResponse[]>([]);
+  const [categories, setCategories] = useState<categoryResponse[]>([]);
+
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -70,17 +73,28 @@ const ProductManagementPage = () => {
     // });
   }, [products, search]);
 
+  // lấy ra danh sách category
+  const getCategories = async () => {
+    try {
+      const response = (await managerServices.getAllCategories()).data;
+      if (response) {
+        setCategories(response);
+      }
+    } catch (error) {}
+  };
+
   const openAdd = () => {
-    //   setEditingProduct(null);
-    //   reset({
-    //     product_name: '',
-    //     unit: 'phần',
-    //     image_url: '',
-    //     description: '',
-    //     category_id: MOCK_CATEGORIES[0]?.category_id ?? 1,
-    //     status: 'ACTIVE',
-    //   });
-    //   setDialogOpen(true);
+    setEditingProduct(null);
+    getCategories();
+    reset({
+      productName: '',
+      unit: '',
+      imageUrl: '',
+      description: '',
+      categoryID: 0,
+      status: 'ACTIVE',
+    });
+    setDialogOpen(true);
   };
 
   const openEdit = (product: productsResponse) => {
@@ -101,46 +115,47 @@ const ProductManagementPage = () => {
     //   setDeleteConfirmOpen(true);
   };
 
-  const handleSave = (data: productsResponse) => {
-    //   if (editingProduct) {
-    //     setProducts((prev) =>
-    //       prev.map((p) =>
-    //         p.product_id === editingProduct.product_id
-    //           ? {
-    //               ...p,
-    //               product_name: data.product_name,
-    //               unit: data.unit,
-    //               image_url: data.image_url ?? null,
-    //               description: data.description ?? null,
-    //               category_id: data.category_id,
-    //               status: data.status ?? 'ACTIVE',
-    //             }
-    //           : p
-    //       )
-    //     );
-    //   } else {
-    //     const nextId = prevMaxId(products) + 1;
-    //     setProducts((prev) => [
-    //       ...prev,
-    //       {
-    //         product_id: nextId,
-    //         product_name: data.product_name,
-    //         unit: data.unit,
-    //         image_url: data.image_url ?? null,
-    //         description: data.description ?? null,
-    //         category_id: data.category_id,
-    //         status: data.status ?? 'ACTIVE',
-    //       },
-    //     ]);
-    //   }
-    //   setDialogOpen(false);
+  const handleSave = async (data: productsResponse) => {
+    if (editingProduct) {
+      //     setProducts((prev) =>
+      //       prev.map((p) =>
+      //         p.product_id === editingProduct.product_id
+      //           ? {
+      //               ...p,
+      //               product_name: data.product_name,
+      //               unit: data.unit,
+      //               image_url: data.image_url ?? null,
+      //               description: data.description ?? null,
+      //               category_id: data.category_id,
+      //               status: data.status ?? 'ACTIVE',
+      //             }
+      //           : p
+      //       )
+      // );
+    } else {
+      try {
+        console.log(data.categoryID);
+        const response = await managerServices.createProduct({
+          productName: data.productName,
+          unit: data.unit,
+          imageUrl: data.imageUrl,
+          description: data.description,
+          categoryId: Number(data.categoryID),
+        });
+        console.log(response);
+        if (response) {
+          getProducts();
+        }
+      } catch (error) {}
+    }
+    setDialogOpen(false);
   };
 
   const handleDelete = () => {
-    //   if (!productToDelete) return;
-    //   setProducts((prev) => prev.filter((p) => p.product_id !== productToDelete.product_id));
-    //   setDeleteConfirmOpen(false);
-    //   setProductToDelete(null);
+    // if (!productToDelete) return;
+    // setProducts((prev) => prev.filter((p) => p.productId !== productToDelete.productId));
+    // setDeleteConfirmOpen(false);
+    // setProductToDelete(null);
   };
 
   const statusLabel: Record<Exclude<ProductStatus, null>, string> = {
@@ -360,15 +375,15 @@ const ProductManagementPage = () => {
                     <select
                       id="category_id"
                       className="h-11 w-full rounded-md border border-amber-200 bg-amber-50/40 px-3 text-sm transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
-                      {...register('categoryName', { valueAsNumber: true })}
+                      {...register('categoryID', { valueAsNumber: true })}
                     >
-                      {/* products.map((c) => (
-                          <option key={} value={c.category_id}>
-                            {c.category_id} - {c.category_name}
-                          </option>
-                        ))*/}
+                      {categories.map((c) => (
+                        <option key={c.categoryId} value={c.categoryId}>
+                          {c.categoryId} - {c.categoryName}
+                        </option>
+                      ))}
                     </select>
-                    {errors.categoryName && <FieldError errors={[errors.categoryName]} />}
+                    {errors.categoryID && <FieldError errors={[errors.categoryID]} />}
                   </FieldContent>
                 </Field>
               </div>
@@ -385,11 +400,11 @@ const ProductManagementPage = () => {
                       className="h-11 w-full rounded-md border border-amber-200 bg-amber-50/40 px-3 text-sm transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
                       {...register('unit', { required: 'Đơn vị là bắt buộc' })}
                     >
-                      {/*UNIT_OPTIONS.map((u) => (
+                      {UNIT_OPTIONS.map((u) => (
                         <option key={u} value={u}>
                           {u}
                         </option>
-                      ))*/}
+                      ))}
                     </select>
                     {errors.unit && <FieldError errors={[errors.unit]} />}
                   </FieldContent>
