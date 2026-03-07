@@ -81,4 +81,8 @@ export const managerServices = {
     const response = await http.patch<Response<UnitResponse>>(`/api/v1/units/${id}`, body);
     return response.data;
   },
+  deleteUnit: async (id: number) => {
+    const response = await http.delete<Response<null>>(`/api/v1/units/${id}`);
+    return response.data;
+  },
 };

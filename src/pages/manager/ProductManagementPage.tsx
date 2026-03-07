@@ -44,11 +44,8 @@ const ProductManagementPage = () => {
   const [units, setUnits] = useState<UnitResponse[]>([]);
   const [unitDialogOpen, setUnitDialogOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState<any>(null);
-  const [unitForm, setUnitForm] = useState({
-    unitName: '',
-    description: '',
-    status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE',
-  });
+  const [unitToDelete, setUnitToDelete] = useState<UnitResponse | null>(null);
+  const [unitDeleteConfirmOpen, setUnitDeleteConfirmOpen] = useState(false);
 
   const {
     register,
@@ -213,6 +210,23 @@ const ProductManagementPage = () => {
         }
       }
     } catch (error) {}
+  };
+
+  const openDeleteUnit = (unit: UnitResponse) => {
+    setUnitToDelete(unit);
+    setUnitDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteUnit = async () => {
+    if (!unitToDelete) return;
+    try {
+      const response = await managerServices.deleteUnit(unitToDelete.unitId);
+      if (response.success) {
+        getUnits();
+      }
+    } catch (error) {}
+    setUnitDeleteConfirmOpen(false);
+    setUnitToDelete(null);
   };
 
   const statusLabel: Record<Exclude<ProductStatus, null>, string> = {
@@ -674,7 +688,12 @@ const ProductManagementPage = () => {
                             >
                               <Pencil className="size-3.5" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="size-8 text-rose-500 hover:bg-rose-100">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-rose-500 hover:bg-rose-100"
+                              onClick={() => openDeleteUnit(u)}
+                            >
                               <Trash2 className="size-3.5" />
                             </Button>
                           </div>
@@ -696,6 +715,39 @@ const ProductManagementPage = () => {
               </Button>
             </DialogFooter>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Xác nhận xóa đơn vị */}
+      <Dialog open={unitDeleteConfirmOpen} onOpenChange={setUnitDeleteConfirmOpen}>
+        <DialogContent className="max-w-md border-amber-200/60 bg-white p-8 shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-semibold text-stone-900">
+              <Trash2 className="size-5 text-rose-500" />
+              Xác nhận xóa đơn vị
+            </DialogTitle>
+          </DialogHeader>
+          <p className="py-4 text-sm text-stone-700">
+            Bạn có chắc muốn xóa đơn vị{' '}
+            <span className="font-semibold text-amber-800">{unitToDelete?.unitName}</span>? Việc này có thể ảnh hưởng đến
+            các sản phẩm đang sử dụng đơn vị này.
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              className="min-w-[5rem] border-stone-300 text-stone-700 hover:bg-stone-50"
+              onClick={() => setUnitDeleteConfirmOpen(false)}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="destructive"
+              className="min-w-[5rem] bg-rose-600 hover:bg-rose-700"
+              onClick={handleDeleteUnit}
+            >
+              Xác nhận xóa
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
