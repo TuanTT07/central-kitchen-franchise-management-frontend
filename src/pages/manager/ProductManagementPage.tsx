@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, use } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import {
   Plus,
@@ -30,8 +30,6 @@ import {
 
 type ProductStatus = 'ACTIVE' | 'INACTIVE' | null;
 
-const UNIT_OPTIONS = ['phần', 'kg', 'lít', 'hộp', 'chai', 'bịch'];
-
 const ProductManagementPage = () => {
   const [products, setProducts] = useState<ProductsResponse[]>([]);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
@@ -58,6 +56,13 @@ const ProductManagementPage = () => {
     reset,
     formState: { errors },
   } = useForm<ProductsResponse>();
+
+  const {
+    register: registerUnit,
+    handleSubmit: handleSubmitUnit,
+    reset: resetUnit,
+    formState: { errors: errorsUnit },
+  } = useForm<UnitResponse>();
 
   const getProducts = async () => {
     try {
@@ -111,10 +116,6 @@ const ProductManagementPage = () => {
       status: 'ACTIVE',
     });
     setDialogOpen(true);
-  };
-
-  const openSettingUnit = () => {
-    setUnitDialogOpen(true);
   };
 
   const openEdit = (product: ProductsResponse) => {
@@ -179,6 +180,26 @@ const ProductManagementPage = () => {
 
     setDeleteConfirmOpen(false);
     setProductToDelete(null);
+  };
+  const openSettingUnit = () => {
+    setEditingUnit(false);
+    setUnitDialogOpen(true);
+  };
+  const handleSaveUnit = async (data: UnitResponse) => {
+    if (editingUnit) {
+      console.log('phần cho edit');
+    } else {
+      try {
+        const response = await managerServices.createUnit({ unitName: data.unitName, description: data.description });
+        if (response) {
+          getUnits();
+          resetUnit({
+            unitName: '',
+            description: '',
+          });
+        }
+      } catch (error) {}
+    }
   };
 
   const statusLabel: Record<Exclude<ProductStatus, null>, string> = {
@@ -424,9 +445,9 @@ const ProductManagementPage = () => {
                       className="h-11 w-full rounded-md border border-amber-200 bg-amber-50/40 px-3 text-sm transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
                       {...register('unit', { required: 'Đơn vị là bắt buộc' })}
                     >
-                      {UNIT_OPTIONS.map((u) => (
-                        <option key={u} value={u}>
-                          {u}
+                      {units.map((u) => (
+                        <option key={u.unitId} value={u.unitName}>
+                          {u.unitName}
                         </option>
                       ))}
                     </select>
@@ -553,46 +574,41 @@ const ProductManagementPage = () => {
 
             <div className="p-6">
               {/* Form Input UI */}
-              <div className="mb-8 grid gap-4 rounded-xl border border-amber-100 bg-amber-50/30 p-4 shadow-sm">
-                <div className="grid gap-4 md:grid-cols-2">
+              <form noValidate onSubmit={handleSubmitUnit(handleSaveUnit)}>
+                <div className="mb-8 grid gap-4 rounded-xl border border-amber-100 bg-amber-50/30 p-4 shadow-sm">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="text-[13px] font-semibold text-amber-900">Tên đơn vị</label>
+                      <Input
+                        placeholder="Ví dụ: kg, lít, phần..."
+                        className="h-10 border-amber-200 focus:border-amber-500 focus:ring-amber-200"
+                        {...registerUnit('unitName', {
+                          required: 'Tên đơn vị không được để trống',
+                        })}
+                      />
+                      {errorsUnit.unitName && <FieldError errors={[errorsUnit.unitName]} />}
+                    </div>
+                  </div>
                   <div className="space-y-1.5">
-                    <label className="text-[13px] font-semibold text-amber-900">Tên đơn vị</label>
+                    <label className="text-[13px] font-semibold text-amber-900">Mô tả chi tiết</label>
                     <Input
-                      placeholder="Ví dụ: kg, lít, phần..."
-                      value={unitForm.unitName}
-                      onChange={(e) => setUnitForm({ ...unitForm, unitName: e.target.value })}
+                      placeholder="Ghi chú về cách tính hoặc quy đổi..."
                       className="h-10 border-amber-200 focus:border-amber-500 focus:ring-amber-200"
+                      {...registerUnit('description', {
+                        required: 'Mô tả là bắt buộc',
+                      })}
                     />
+                    {errorsUnit.description && <FieldError errors={[errorsUnit.description]} />}
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[13px] font-semibold text-amber-900">Trạng thái</label>
-                    <select
-                      value={unitForm.status}
-                      onChange={(e) => setUnitForm({ ...unitForm, status: e.target.value as any })}
-                      className="h-10 w-full rounded-md border border-amber-200 bg-white px-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200"
-                    >
-                      <option value="ACTIVE">Hoạt động</option>
-                      <option value="INACTIVE">Ngưng dùng</option>
-                    </select>
+                  <div className="flex justify-end pt-2">
+                    <Button className="h-10 bg-gradient-to-r from-amber-500 to-orange-500 px-6 text-white shadow-md hover:from-amber-600 hover:to-orange-600">
+                      {editingUnit ? 'Cập nhật đơn vị' : 'Thêm đơn vị mới'}
+                    </Button>
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[13px] font-semibold text-amber-900">Mô tả chi tiết</label>
-                  <Input
-                    placeholder="Ghi chú về cách tính hoặc quy đổi..."
-                    value={unitForm.description}
-                    onChange={(e) => setUnitForm({ ...unitForm, description: e.target.value })}
-                    className="h-10 border-amber-200 focus:border-amber-500 focus:ring-amber-200"
-                  />
-                </div>
-                <div className="flex justify-end pt-2">
-                  <Button className="h-10 bg-gradient-to-r from-amber-500 to-orange-500 px-6 text-white shadow-md hover:from-amber-600 hover:to-orange-600">
-                    {editingUnit ? 'Cập nhật đơn vị' : 'Thêm đơn vị mới'}
-                  </Button>
-                </div>
-              </div>
+              </form>
 
-              {/* Table UI with Mock Data */}
+              {/* Table UI  */}
               <div className="max-h-[300px] overflow-y-auto rounded-xl border border-amber-100 shadow-sm">
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 bg-amber-50 text-xs font-bold uppercase tracking-wider text-amber-900">

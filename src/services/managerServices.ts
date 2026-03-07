@@ -19,8 +19,8 @@ export interface ProductsResponse {
 export interface UnitResponse {
   unitId: number;
   unitName: string;
-  description?: string;
-  status: 'ACTIVE' | 'INACTIVE';
+  description: string;
+  status?: 'ACTIVE' | 'INACTIVE';
 }
 
 export const managerServices = {
@@ -71,6 +71,10 @@ export const managerServices = {
   // API của Unit
   getAllUnits: async () => {
     const response = await http.get<Response<UnitResponse[]>>('/api/v1/units');
+    return response.data;
+  },
+  createUnit: async (body: { unitName: string; description: string }) => {
+    const response = await http.post<Response<UnitResponse>>('/api/v1/units', body);
     return response.data;
   },
 };
