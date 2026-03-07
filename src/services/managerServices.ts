@@ -57,4 +57,8 @@ export const managerServices = {
     const response = await http.patch(`/api/v1/products/${id}`, body);
     return response.data;
   },
+  deleteProduct: async (id: number) => {
+    const response = await http.delete<Response<null>>(`/api/v1/products/${id}`);
+    return response.data;
+  },
 };

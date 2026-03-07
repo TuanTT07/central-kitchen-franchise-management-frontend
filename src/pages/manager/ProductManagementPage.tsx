@@ -22,7 +22,6 @@ import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/fie
 import { cn } from '@/lib/utils';
 
 import { managerServices, type categoryResponse, type productsResponse } from '@/services/managerServices';
-import { data } from 'react-router';
 
 type ProductStatus = 'ACTIVE' | 'INACTIVE' | null;
 
@@ -112,8 +111,8 @@ const ProductManagementPage = () => {
   };
 
   const openDelete = (product: productsResponse) => {
-    //   setProductToDelete(product);
-    //   setDeleteConfirmOpen(true);
+    setProductToDelete(product);
+    setDeleteConfirmOpen(true);
   };
 
   const handleSave = async (data: productsResponse) => {
@@ -148,11 +147,17 @@ const ProductManagementPage = () => {
     setDialogOpen(false);
   };
 
-  const handleDelete = () => {
-    // if (!productToDelete) return;
-    // setProducts((prev) => prev.filter((p) => p.productId !== productToDelete.productId));
-    // setDeleteConfirmOpen(false);
-    // setProductToDelete(null);
+  const handleDelete = async () => {
+    if (!productToDelete) return;
+    try {
+      const response = await managerServices.deleteProduct(productToDelete.productId);
+      if (response.success) {
+        getProducts();
+      }
+    } catch (error) {}
+
+    setDeleteConfirmOpen(false);
+    setProductToDelete(null);
   };
 
   const statusLabel: Record<Exclude<ProductStatus, null>, string> = {
