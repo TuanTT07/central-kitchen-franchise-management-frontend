@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -40,17 +40,17 @@ function ManufacturingOrders() {
     getAllManufacturing();
   }, []);
 
-  const filteredOrders = useMemo(() => {
-    // let data = ;
-    // if (statusFilter !== 'ALL') {
-    //   data = data.filter((o) => o.status === statusFilter);
-    // }
-    // if (search.trim()) {
-    //   const q = search.toLowerCase();
-    //   data = data.filter((o) => o.order_code.toLowerCase().includes(q) || o.product_name.toLowerCase().includes(q));
-    // }
-    // return data;
-  }, [search, statusFilter]);
+  // const filteredOrders = useMemo(() => {
+  // let data = ;
+  // if (statusFilter !== 'ALL') {
+  //   data = data.filter((o) => o.status === statusFilter);
+  // }
+  // if (search.trim()) {
+  //   const q = search.toLowerCase();
+  //   data = data.filter((o) => o.order_code.toLowerCase().includes(q) || o.product_name.toLowerCase().includes(q));
+  // }
+  // return data;
+  // }, [search, statusFilter]);
 
   // const activeOrders = useMemo(
   //   () => MOCK_MANUFACTURING_ORDERS.filter((o) => o.status === 'PLANNED' || o.status === 'COOKING'),
@@ -74,7 +74,7 @@ function ManufacturingOrders() {
           <div className="hidden items-center gap-6 md:flex">
             <div className="flex flex-col text-right">
               <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Tổng lệnh</span>
-              <span className="text-lg font-semibold text-amber-900">{manufacturingOrder.length}</span>
+              <span className="text-lg font-semibold text-amber-900">{}</span>
             </div>
             <div className="h-10 w-px bg-amber-200/70" />
             <div className="flex flex-col text-right">

@@ -347,10 +347,9 @@ const CreateOrderPage = () => {
                       {...register('deliveryDate', {
                         required: 'Ngày giao dự kiến là bắt buộc',
                         validate: (value) => {
-                          const selectedDate = new Date(value);
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
-                          return selectedDate >= today || 'Ngày giao phải từ hôm nay trở đi';
+                          const todayStr = new Date().toLocaleDateString('en-CA');
+                          if (!value) return true; // Để 'required' xử lý nếu trống
+                          return value >= todayStr || 'Ngày giao phải từ hôm nay trở đi';
                         },
                       })}
                     />
