@@ -91,13 +91,6 @@ function SummaryOrdersPage() {
   async function autoConsolidate() {
     try {
       const response = await supplyServices.consolidateAuto();
-      // Debug: Log ra các sản phẩm sau khi đã mapping
-      console.log(
-        'hihihihi',
-        response.data.products.map((p) => {
-          return (p.quantity = 50); // Đây là ví dụ set cứng, thực tế sẽ lấy từ API
-        })
-      );
 
       if (response.success) {
         setConsolidationResult(response.data);
