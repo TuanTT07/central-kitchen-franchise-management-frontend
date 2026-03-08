@@ -18,7 +18,7 @@ export interface StoreResponse {
   storeName: string;
   address: string;
   phone: string;
-  isActive: boolean;
+  status: 'ACTIVE' | 'INACTIVE';
 }
 
 /**
@@ -124,13 +124,10 @@ export const adminService = {
    *
    * @returns Promise<any>
    */
-  createStore: async (body: {
-    storeName: string;
-    address: string;
-    phone: string;
-    managerUserId: number;
-    isActive: boolean;
-  }) => {
+  createStore: async (body: { storeName: string; address: string; phone: string; status: 'ACTIVE' | 'INACTIVE' }) => {
     return await http.post('/admin/stores', body);
   },
 };
+
+{
+}
