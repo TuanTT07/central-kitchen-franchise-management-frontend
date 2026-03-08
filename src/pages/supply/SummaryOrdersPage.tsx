@@ -1,3 +1,22 @@
+/**
+ * =========================================================
+ * Component: SummaryOrdersPage
+ * Description: Trang tổng hợp đơn hàng từ các chi nhánh (Supply Coordination).
+ *             Cho phép xem danh sách đơn hàng, thực hiện gom đơn tự động/thủ công
+ *             và tạo lệnh sản xuất thực tế.
+ * Author: Tuan Tran
+ * Created: 2026-03-08
+ *
+ * Features:
+ * - Hiển thị danh sách và thống kê đơn hàng từ chi nhánh.
+ * - Gom đơn tự động (Auto Consolidate) các đơn hàng APPROVED.
+ * - Gom đơn thủ công (Manual Consolidate) tùy chọn.
+ * - Chỉnh sửa số lượng sản phẩm sau khi gom.
+ * - Tạo lệnh sản xuất (Manufacturing Order) dựa trên kết quả gom đơn.
+ * =========================================================
+ */
+
+// ================= IMPORT =================
 import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,10 +27,12 @@ import type { OrderDetailResponse, OrderResponse } from '@/services/franchiseSer
 import type { ConsolidationProduct, ConsolidationResponse } from '@/services/supplyServices';
 import { supplyServices } from '@/services/supplyServices';
 
+// ================= COMPONENT =================
 function SummaryOrdersPage() {
+  // ================= STATE =================
   // State lưu trữ danh sách đơn hàng lấy từ API
   const [orders, setOrders] = useState<OrderResponse<OrderDetailResponse[]>[]>([]);
-  // State phục vụ việc tìm kiếm (hiện tại chưa dùng trong filter nhưng để sẵn)
+  // State phục vụ việc tìm kiếm
   const [search, setSearch] = useState('');
 
   // State quản lý Dialog thông báo kết quả gom đơn
@@ -23,27 +44,35 @@ function SummaryOrdersPage() {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
 
-  // Hàm gọi API lấy danh sách đơn hàng
+  // State quản lý trạng thái đang gửi API
+  const [isFinalizing, setIsFinalizing] = useState(false);
+
+  // ================= API =================
+  /**
+   * Gọi API lấy danh sách đơn hàng từ chi nhánh
+   * Kiểm tra và cập nhật state orders dựa trên phân trang
+   */
   const getAllOrders = async () => {
     try {
       const response = await supplyServices.getAllOrders();
-      // Kiểm tra nếu API trả về thành công và có dữ liệu trong items (do cấu trúc phân trang)
       if (response.success && response.data.items) {
-        setOrders(response.data.items); // Cập nhật state orders
+        setOrders(response.data.items);
       }
     } catch (error) {
       console.error('Failed to fetch orders:', error);
     }
   };
 
-  // Chạy duy nhất 1 lần khi component được render lần đầu tiên
+  // ================= EFFECT =================
   useEffect(() => {
     getAllOrders();
   }, []);
 
+  // ================= UTIL =================
   /**
    * Component con hiển thị Badge trạng thái với màu sắc tương ứng
-   * @param status Chuỗi trạng thái từ API (ví dụ: PENDING, APPROVED)
+   *
+   * @param status Chuỗi trạng thái từ API (PENDING, APPROVED, CONSOLIDATED, CANCELLED)
    */
   function OrderStatusBadge({ status }: { status: string | undefined }) {
     if (!status)
@@ -87,13 +116,10 @@ function SummaryOrdersPage() {
     }
   }
 
-  // State quản lý trạng thái đang gửi API tạo lệnh sản xuất
-  const [isFinalizing, setIsFinalizing] = useState(false);
-
+  // ================= HANDLER =================
   /**
-   * NGHIỆP VỤ: Gom đơn tự động (Auto Consolidate)
-   * Hệ thống sẽ gọi API để tự động lấy các đơn hàng ở trạng thái APPROVED
-   * và gom lại theo từng ID sản phẩm.
+   * Nghiệp vụ: Gom đơn tự động (Auto Consolidate)
+   * Gọi API để tự động gộp các đơn hàng đã APPROVED
    */
   async function autoConsolidate() {
     try {
@@ -101,10 +127,9 @@ function SummaryOrdersPage() {
 
       if (response.success) {
         setConsolidationResult(response.data);
-        // Lưu danh sách sản phẩm gom được vào state để người dùng có thể chỉnh sửa số lượng
         setEditedProducts(response.data.products);
-        setIsModalOpen(true); // Hiển thị Dialog kết quả & chỉnh sửa
-        getAllOrders(); // Reload danh sách để cập nhật trạng thái đơn sang CONSOLIDATED
+        setIsModalOpen(true);
+        getAllOrders();
       }
     } catch (error) {
       console.error('Gom đơn tự động thất bại:', error);
@@ -112,40 +137,44 @@ function SummaryOrdersPage() {
   }
 
   /**
-   * NGHIỆP VỤ: Chỉnh sửa số lượng sản phẩm sau khi gom
-   * Cho phép SUPPLY_COORDINATOR thay đổi số lượng tổng hợp trước khi tạo lệnh sản xuất thực tế.
+   * Cập nhật số lượng sản phẩm tổng hợp trong state editedProducts
+   *
+   * @param productId ID sản phẩm cần chỉnh sửa
+   * @param newQuantity Số lượng mới
    */
   const handleQuantityChange = (productId: number, newQuantity: number) => {
     setEditedProducts((prev) => prev.map((p) => (p.productId === productId ? { ...p, quantity: newQuantity } : p)));
   };
 
   /**
-   * NGHIỆP VỤ: Gom đơn thủ công (Manual Consolidate)
-   * Mở Dialog để người dùng tự chọn các đơn hàng muốn gom.
+   * Mở Dialog để người dùng tự chọn các đơn hàng muốn gom thủ công
    */
   function manuConsolidate() {
-    setSelectedOrderIds([]); // Reset danh sách chọn
+    setSelectedOrderIds([]);
     setIsManualModalOpen(true);
   }
 
-  // Hàm xử lý chọn/bỏ chọn đơn hàng trong danh sách thủ công
+  /**
+   * Xử lý chọn/bỏ chọn đơn hàng trong danh sách thủ công
+   *
+   * @param orderId ID của đơn hàng
+   */
   const toggleOrderSelection = (orderId: number) => {
     setSelectedOrderIds((prev) => (prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]));
   };
 
   /**
-   * NGHIỆP VỤ: Thực hiện gom các đơn đã chọn thủ công
+   * Nghiệp vụ: Thực hiện gom các đơn đã chọn thủ công qua API
    */
   const handleManualConsolidate = async () => {
-    console.log('đã chạy');
     if (selectedOrderIds.length === 0) return;
     try {
       const response = await supplyServices.consolidateManual(selectedOrderIds);
       if (response.success) {
         setConsolidationResult(response.data);
         setEditedProducts(response.data.products);
-        setIsManualModalOpen(false); // Đóng dialog chọn đơn
-        setIsModalOpen(true); // Mở dialog kết quả & chỉnh sửa số lượng
+        setIsManualModalOpen(false);
+        setIsModalOpen(true);
         getAllOrders();
       }
     } catch (error) {
@@ -154,65 +183,49 @@ function SummaryOrdersPage() {
   };
 
   /**
-   * NGHIỆP VỤ: Tạo lệnh sản xuất
-   * Kết thúc quá trình gom đơn và chuyển sang giai đoạn sản xuất thực tế.
+   * Nghiệp vụ: Tạo lệnh sản xuất (Finalize)
+   * Chuyển đổi dữ liệu đã gom thành lệnh sản xuất thực tế tại bếp
    */
   const handleFinalize = async () => {
-    // 1. Chuẩn bị dữ liệu theo yêu cầu của Backend
-    // Cấu trúc yêu cầu: { items: [ { batchId: number, quantity: number } ] }
-    // CHÚ Ý: batchId hiện tại được map từ productId do bên Backend thiết kế sai (theo yêu cầu của bạn)
     const requestBody = {
       items: editedProducts.map((product) => ({
-        productId: product.productId, //
-        quantity: product.quantity, // Lấy số lượng đã được điều chỉnh (nếu có)
+        productId: product.productId,
+        quantity: product.quantity,
       })),
     };
-    console.log(requestBody.items);
 
-    setIsFinalizing(true); // Bật trạng thái loading để tránh bấm đúp
+    setIsFinalizing(true);
 
     try {
-      // 2. Gọi API tạo lệnh sản xuất
       const response = await supplyServices.createManufacturingOrder(requestBody);
 
       if (response.success) {
-        console.log('Tạo lệnh sản xuất thành công:', response.data);
-        // Ở đây bạn có thể thêm Toast thông báo thành công nếu dự án đã có thư viện phù hợp
-
-        // 3. Đóng Modal và clear dữ liệu
         setIsModalOpen(false);
         setConsolidationResult(null);
         setEditedProducts([]);
-
-        // Cập nhật lại danh sách đơn hàng để đồng bộ trạng thái mới
         getAllOrders();
-      } else {
-        console.error('Lỗi từ API:', response.message);
       }
     } catch (error) {
       console.error('Thực hiện tạo lệnh sản xuất thất bại:', error);
     } finally {
-      setIsFinalizing(false); // Tắt trạng thái loading
+      setIsFinalizing(false);
     }
   };
 
-  // Tự động tính toán lại các con số thống kê mỗi khi danh sách 'orders' thay đổi
+  // Tính toán thống kê từ danh sách orders hiện tại
   const stats = useMemo(() => {
-    const total = orders.length; // Tổng số đơn hàng
-    // Đếm số đơn hàng có trạng thái là PENDING
+    const total = orders.length;
     const pending = orders.filter((o) => o.status === 'PENDING').length;
-    // Tính tổng số lượng tất cả sản phẩm trong tất cả các đơn hàng
     const totalProducts = orders.reduce((acc, current) => {
-      // Mỗi đơn hàng có 1 mảng details, chúng ta cộng dồn quantity trong đó
       return acc + current.details.reduce((sum, item) => sum + item.quantity, 0);
     }, 0);
     return { total, pending, totalProducts };
   }, [orders]);
 
+  // ================= RENDER =================
   return (
     <div className="h-full w-full">
       <Card className="border-amber-200/60 bg-white shadow-md">
-        {/* Header: Hiển thị tiêu đề và các con số thống kê nhanh */}
         <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
           <div className="flex flex-col gap-1">
             <CardTitle className="flex items-center gap-2 text-xl font-bold text-amber-900">
@@ -223,7 +236,6 @@ function SummaryOrdersPage() {
               Danh sách các đơn hàng từ chi nhánh gửi về bếp trung tâm.
             </CardDescription>
           </div>
-          {/* Khu vực hiển thị con số thống kê (Stats) */}
           <div className="hidden items-center gap-6 md:flex">
             <div className="flex flex-col text-right">
               <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Tổng đơn</span>
@@ -243,7 +255,6 @@ function SummaryOrdersPage() {
         </CardHeader>
 
         <CardContent className="space-y-5 p-6">
-          {/* Thanh công cụ lọc / tìm kiếm */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-1 items-center gap-2">
               <div className="relative flex-1 max-w-md">
@@ -310,7 +321,6 @@ function SummaryOrdersPage() {
           </div>
 
           <div className="grid gap-5 lg:grid-cols-3">
-            {/* Bảng đơn chi tiết */}
             <Card className="border-amber-100 bg-white shadow-sm lg:col-span-2">
               <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
                 <CardTitle className="text-sm font-bold text-amber-900">Danh sách đơn hàng</CardTitle>
@@ -358,7 +368,6 @@ function SummaryOrdersPage() {
               </CardContent>
             </Card>
 
-            {/* Thống kê theo loại đơn / chi nhánh */}
             <Card className="border-amber-100 bg-white shadow-sm">
               <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
                 <CardTitle className="text-sm font-bold text-amber-900">Thống kê nhanh</CardTitle>
@@ -368,7 +377,6 @@ function SummaryOrdersPage() {
               </CardHeader>
               <CardContent className="space-y-4 pt-4 text-xs">
                 <div className="space-y-2">
-                  {/* Dùng dữ liệu thực tế cho thống kê */}
                   {Array.from(new Set(orders.map((o) => o.storeName)))
                     .slice(0, 5)
                     .map((storeName) => {
@@ -417,6 +425,8 @@ function SummaryOrdersPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialog kết quả gom đơn & Chỉnh sửa số lượng */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent onClose={() => setIsModalOpen(false)}>
           <DialogHeader>
@@ -481,6 +491,8 @@ function SummaryOrdersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog Chọn đơn hàng tủ công */}
       <Dialog open={isManualModalOpen} onOpenChange={setIsManualModalOpen}>
         <DialogContent className="max-w-2xl" onClose={() => setIsManualModalOpen(false)}>
           <DialogHeader>
@@ -522,7 +534,7 @@ function SummaryOrdersPage() {
                           <input
                             type="checkbox"
                             checked={selectedOrderIds.includes(o.orderId)}
-                            onChange={() => {}} // Handle via tr onClick
+                            onChange={() => {}}
                             className="rounded border-amber-300 text-amber-600 focus:ring-amber-500"
                           />
                         </td>

@@ -21,12 +21,37 @@ export interface OrderResponse<T> {
   details: T;
 }
 
+/**
+ * =========================================================
+ * API: Franchise Service (Quản lý đơn hàng Chi nhánh)
+ *
+ * Endpoints:
+ * GET    /orders  -> Lấy danh sách tất cả đơn hàng
+ * POST   /orders  -> Tạo đơn hàng mới từ chi nhánh
+ *
+ * Authorization:
+ * Bearer Token
+ * =========================================================
+ */
+
 export const franchiseServices = {
-  // Đơn hàng
+  /**
+   * Lấy danh sách tất cả các đơn hàng trong hệ thống (dành cho chi nhánh hoặc quản lý)
+   *
+   * @returns Promise<OrderResponse<OrderDetailResponse[]>[]>
+   */
   getAllOrders: async () => {
     const response = await http.get<Response<OrderResponse<OrderDetailResponse[]>[]>>('/orders');
     return response.data;
   },
+
+  /**
+   * Tạo đơn hàng mới từ chi nhánh gửi về bếp trung tâm
+   *
+   * @param body Thông tin đơn hàng (storeId, deliveryDate, details)
+   *
+   * @returns Promise<OrderResponse<OrderDetailResponse[]>[]>
+   */
   createOrders: async (body: {
     storeId: number;
     deliveryDate: string;
