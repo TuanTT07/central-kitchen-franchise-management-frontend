@@ -1,3 +1,20 @@
+/**
+ * =========================================================
+ * Component: ManufacturingOrders
+ * Description: Trang quản lý danh sách lệnh sản xuất của bếp trung tâm.
+ *             Cho phép xem, tìm kiếm và lọc các lệnh sản xuất theo trạng thái.
+ * Author: Tuan Tran
+ * Created: 2026-03-08
+ *
+ * Features:
+ * - Hiển thị danh sách manufacturing_orders từ API.
+ * - Tìm kiếm theo mã lệnh hoặc tên sản phẩm.
+ * - Lọc theo trạng thái (PLANNED, COOKING, COMPLETED, CANCELLED).
+ * - Hiển thị tóm tắt tình hình sản xuất.
+ * =========================================================
+ */
+
+// ================= IMPORT =================
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,10 +23,18 @@ import { AlertTriangle, CalendarClock, ChefHat, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { kitchenServices, type ManufacturingOrderResponse } from '@/services/kitchenServices';
 
+// ================= TYPES =================
 type ManuOrderStatus = 'PLANNED' | 'COOKING' | 'COMPLETED' | 'CANCELLED';
 
 const FILTER_OPTIONS: (ManuOrderStatus | 'ALL')[] = ['ALL', 'PLANNED', 'COOKING', 'COMPLETED', 'CANCELLED'];
 
+// ================= UTIL =================
+/**
+ * Định dạng chuỗi ngày tháng sang dạng vi-VN (HH:mm dd/mm)
+ *
+ * @param value Chuỗi ngày tháng từ API hoặc null
+ * @returns Chuỗi đã định dạng hoặc '—' nếu null
+ */
 const formatDateTime = (value: string | null) => {
   if (!value) return '—';
   return new Date(value).toLocaleString('vi-VN', {
@@ -21,12 +46,18 @@ const formatDateTime = (value: string | null) => {
   });
 };
 
+// ================= COMPONENT =================
 function ManufacturingOrders() {
-  // state của manufacturing order
+  // ================= STATE =================
   const [manufacturingOrder, setManufacturingOrder] = useState<ManufacturingOrderResponse[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ManuOrderStatus | 'ALL'>('ALL');
 
+  // ================= API =================
+  /**
+   * Gọi API lấy danh sách tất cả các lệnh sản xuất
+   * Cập nhật state manufacturingOrder khi thành công
+   */
   const getAllManufacturing = async () => {
     try {
       const response = await kitchenServices.getAllOrders();
@@ -36,27 +67,12 @@ function ManufacturingOrders() {
     } catch (error) {}
   };
 
+  // ================= EFFECT =================
   useEffect(() => {
     getAllManufacturing();
   }, []);
 
-  // const filteredOrders = useMemo(() => {
-  // let data = ;
-  // if (statusFilter !== 'ALL') {
-  //   data = data.filter((o) => o.status === statusFilter);
-  // }
-  // if (search.trim()) {
-  //   const q = search.toLowerCase();
-  //   data = data.filter((o) => o.order_code.toLowerCase().includes(q) || o.product_name.toLowerCase().includes(q));
-  // }
-  // return data;
-  // }, [search, statusFilter]);
-
-  // const activeOrders = useMemo(
-  //   () => MOCK_MANUFACTURING_ORDERS.filter((o) => o.status === 'PLANNED' || o.status === 'COOKING'),
-  //   []
-  // );
-
+  // ================= RENDER =================
   return (
     <div className="h-full w-full">
       <Card className="border-amber-200/60 bg-white shadow-md">

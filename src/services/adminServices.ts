@@ -21,12 +21,31 @@ export interface StoreResponse {
   isActive: boolean;
 }
 
+/**
+ * =========================================================
+ * API: Admin Service
+ *
+ * Endpoints:
+ * GET    /admin/users          -> Danh sách người dùng (phân trang)
+ * POST   /admin/users          -> Đăng ký tài khoản mới
+ * PUT    /admin/users/{id}     -> Cập nhật thông tin tài khoản
+ * DELETE /admin/users/{id}/active -> Xóa/Ngừng kích hoạt tài khoản
+ * GET    /admin/stores         -> Danh sách cửa hàng (phân trang)
+ * POST   /admin/stores         -> Tạo cửa hàng mới
+ *
+ * Authorization:
+ * Bearer Token
+ * =========================================================
+ */
+
 export const adminService = {
   /**
    * Lấy danh sách người dùng có phân trang
+   *
    * @param page Trang hiện tại (bắt đầu từ 0)
    * @param size Số lượng item trên mỗi trang
-   * @returns PaginatedResponse chứa danh sách UserResponse
+   *
+   * @returns Promise<Response<PaginatedResponse<UserResponse[]>>>
    */
   getAllUsers: async (page: number = 0, size: number = 10) => {
     return await http.get<Response<PaginatedResponse<UserResponse[]>>>('/admin/users', {
@@ -34,7 +53,13 @@ export const adminService = {
     });
   },
 
-  // Đăng ký tài khoản mới
+  /**
+   * Đăng ký tài khoản mới vào hệ thống
+   *
+   * @param body Thông tin tài khoản (username, password, fullName, email, role, isActive)
+   *
+   * @returns Promise<any>
+   */
   registerAccount: async (body: {
     username: string;
     password: string;
@@ -46,7 +71,14 @@ export const adminService = {
     return await http.post('/admin/users', body);
   },
 
-  // Cập nhật tài khoản
+  /**
+   * Cập nhật thông tin tài khoản hiện có
+   *
+   * @param id ID của người dùng cần cập nhật
+   * @param body Các trường thông tin cần thay đổi
+   *
+   * @returns Promise<any>
+   */
   updateAccount: async (
     id: number,
     body: {
@@ -60,17 +92,38 @@ export const adminService = {
     return await http.put(`/admin/users/${id}`, body);
   },
 
-  // Xóa tài khoản
+  /**
+   * Xóa hoặc ngừng kích hoạt tài khoản người dùng
+   *
+   * @param id ID của người dùng
+   *
+   * @returns Promise<any>
+   */
   deleteAccount: async (id: number) => {
     return await http.delete(`/admin/users/${id}/active`);
   },
 
-  // lấy ra tất cả các cửa hàng
+  /**
+   * Lấy danh sách tất cả các cửa hàng có phân trang
+   *
+   * @param page Trang hiện tại (bắt đầu từ 0)
+   * @param size Số lượng cửa hàng mỗi trang
+   *
+   * @returns Promise<Response<PaginatedResponse<StoreResponse[]>>>
+   */
   getAllStores: async (page: number = 0, size: number = 10) => {
     return await http.get<Response<PaginatedResponse<StoreResponse[]>>>('/admin/stores', {
       params: { page, size },
     });
   },
+
+  /**
+   * Tạo mới một cửa hàng trong hệ thống
+   *
+   * @param body Thông tin cửa hàng (storeName, address, phone, managerUserId, isActive)
+   *
+   * @returns Promise<any>
+   */
   createStore: async (body: {
     storeName: string;
     address: string;
