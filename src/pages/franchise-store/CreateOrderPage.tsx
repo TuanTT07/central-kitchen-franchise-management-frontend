@@ -1,8 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, ShoppingCart, Package, Tag, Minus, Plus, Trash2, Calendar } from 'lucide-react';
+import { Search, ShoppingCart, Package, Tag, Minus, Plus, Trash2, Calendar, ClipboardList } from 'lucide-react';
+import { managerServices, type ProductsResponse } from '@/services/managerServices';
+import { franchiseServices, type OrderResponse, type OrderDetailResponse } from '@/services/franchiseServices';
+import { cn } from '@/lib/utils';
 
 /**
  * Mapping với DB:
@@ -14,136 +17,11 @@ import { Search, ShoppingCart, Package, Tag, Minus, Plus, Trash2, Calendar } fro
  * - order_details → order_id (sau khi tạo store_orders), product_id, quantity
  */
 
-type ProductStatus = 'ACTIVE' | 'INACTIVE' | null;
-type BatchStatus = 'WAITING_FOR_STOCK' | 'AVAILABLE' | 'OUT_OF_STOCK' | 'EXPIRED';
-
-interface Category {
-  category_id: number;
-  category_name: string;
-  status: ProductStatus;
-}
-
-interface Product {
-  product_id: number;
-  product_name: string;
-  unit: string;
-  description: string | null;
-  image_url: string | null;
-  status: ProductStatus;
-  category_id: number | null;
-}
-
-interface ProductBatch {
-  batch_id: number;
-  batch_code: string;
-  product_id: number;
-  manu_order_id: number | null;
-  initial_quantity: number;
-  current_quantity: number;
-  manufacturing_date: string;
-  expiry_date: string;
-  status: BatchStatus;
-}
-
 /** Mỗi dòng = 1 bản ghi order_details (product_id, quantity); order_id gán khi tạo store_orders */
 interface DraftOrderItem {
   product_id: number;
   quantity: number;
 }
-
-const MOCK_CATEGORIES: Category[] = [
-  { category_id: 1, category_name: 'Món chính', status: 'ACTIVE' },
-  { category_id: 2, category_name: 'Món nước', status: 'ACTIVE' },
-  { category_id: 3, category_name: 'Khai vị', status: 'ACTIVE' },
-  { category_id: 4, category_name: 'Đồ uống', status: 'ACTIVE' },
-];
-
-const MOCK_PRODUCTS: Product[] = [
-  {
-    product_id: 1,
-    product_name: 'Cơm gà xối mỡ',
-    unit: 'phần',
-    description: 'Suất cơm gà bán tại cửa hàng',
-    image_url: null,
-    status: 'ACTIVE',
-    category_id: 1,
-  },
-  {
-    product_id: 2,
-    product_name: 'Phở bò tái',
-    unit: 'tô',
-    description: 'Món nước bán chạy',
-    image_url: null,
-    status: 'ACTIVE',
-    category_id: 2,
-  },
-  {
-    product_id: 3,
-    product_name: 'Trà chanh sả',
-    unit: 'ly',
-    description: 'Đồ uống giải khát',
-    image_url: null,
-    status: 'ACTIVE',
-    category_id: 4,
-  },
-  {
-    product_id: 4,
-    product_name: 'Thịt bò phi lê',
-    unit: 'kg',
-    description: 'Nguyên liệu kho lạnh',
-    image_url: null,
-    status: 'ACTIVE',
-    category_id: 1,
-  },
-];
-
-const MOCK_PRODUCT_BATCHES: ProductBatch[] = [
-  {
-    batch_id: 1,
-    batch_code: 'LOT-COMGA-001',
-    product_id: 1,
-    manu_order_id: 1,
-    initial_quantity: 200,
-    current_quantity: 120,
-    manufacturing_date: '2026-03-01',
-    expiry_date: '2026-03-05',
-    status: 'AVAILABLE',
-  },
-  {
-    batch_id: 2,
-    batch_code: 'LOT-PHO-001',
-    product_id: 2,
-    manu_order_id: 2,
-    initial_quantity: 100,
-    current_quantity: 70,
-    manufacturing_date: '2026-03-02',
-    expiry_date: '2026-03-06',
-    status: 'AVAILABLE',
-  },
-  {
-    batch_id: 3,
-    batch_code: 'LOT-TRACHANH-001',
-    product_id: 3,
-    manu_order_id: 3,
-    initial_quantity: 300,
-    current_quantity: 260,
-    manufacturing_date: '2026-03-01',
-    expiry_date: '2026-03-10',
-    status: 'AVAILABLE',
-  },
-  {
-    batch_id: 4,
-    batch_code: 'LOT-THITBO-001',
-    product_id: 4,
-    manu_order_id: 4,
-    initial_quantity: 60,
-    current_quantity: 25,
-    manufacturing_date: '2026-02-28',
-    expiry_date: '2026-03-04',
-    status: 'AVAILABLE',
-  },
-];
-
 const CreateOrderPage = () => {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<number | 'ALL'>('ALL');
@@ -155,48 +33,85 @@ const CreateOrderPage = () => {
     return d.toISOString().slice(0, 10);
   });
 
-  const productsWithStock = useMemo(() => {
-    return MOCK_PRODUCTS.filter((p) => p.status === 'ACTIVE').map((p) => {
-      const totalAvailable = MOCK_PRODUCT_BATCHES.filter(
-        (b) => b.product_id === p.product_id && b.status === 'AVAILABLE'
-      ).reduce((sum, b) => sum + b.current_quantity, 0);
+  // Quản lí state của products
+  const [products, setProducts] = useState<ProductsResponse[]>([]);
+  // Quản lý danh sách toàn bộ đơn hàng (getAllOrders)
+  const [orders, setOrders] = useState<OrderResponse<OrderDetailResponse[]>[]>([]);
 
-      return {
-        ...p,
-        available_quantity: totalAvailable,
-        category_name:
-          p.category_id !== null
-            ? MOCK_CATEGORIES.find((c) => c.category_id === p.category_id)?.category_name ?? 'N/A'
-            : 'N/A',
-      };
-    });
+  const getAllProducts = async () => {
+    try {
+      const response = await managerServices.getAllProducts();
+      if (response && response.success) {
+        // Handle both direct array and paginated response
+        const data = response.data;
+        if (Array.isArray(data)) {
+          setProducts(data);
+        } else if (data && typeof data === 'object' && 'content' in data) {
+          setProducts((data as any).content || []);
+        } else if (data && typeof data === 'object' && 'items' in data) {
+          setProducts((data as any).items || []);
+        } else {
+          setProducts([]);
+        }
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy danh sách sản phẩm:', error);
+      setProducts([]);
+    }
+  };
+
+  const getAllOrders = async () => {
+    try {
+      const response = await franchiseServices.getAllOrders();
+      if (response && response.success) {
+        const data = response.data;
+        if (Array.isArray(data)) {
+          setOrders(data);
+        } else if (data && typeof data === 'object' && 'content' in data) {
+          setOrders((data as any).content || []);
+        } else if (data && typeof data === 'object' && 'items' in data) {
+          setOrders((data as any).items || []);
+        } else {
+          setOrders([]);
+        }
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy danh sách đơn hàng:', error);
+      setOrders([]);
+    }
+  };
+
+  useEffect(() => {
+    getAllProducts();
+    getAllOrders();
   }, []);
 
+  const productsAvaiable = useMemo(() => {
+    return products.filter((p) => p.status === 'ACTIVE');
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
-    let data = productsWithStock;
-
+    let data = productsAvaiable;
     if (categoryFilter !== 'ALL') {
-      data = data.filter((p) => p.category_id === categoryFilter);
+      data = data.filter((p) => p.categoryId === categoryFilter);
     }
-
     if (search.trim()) {
       const q = search.toLowerCase();
       data = data.filter(
         (p) =>
-          p.product_name.toLowerCase().includes(q) ||
-          p.category_name.toLowerCase().includes(q) ||
-          p.unit.toLowerCase().includes(q)
+          p.productName.toLowerCase().includes(q) ||
+          (p.categoryName || '').toLowerCase().includes(q) ||
+          (p.description || '').toLowerCase().includes(q)
       );
     }
-
     return data;
-  }, [productsWithStock, search, categoryFilter]);
+  }, [productsAvaiable, categoryFilter, search]);
 
-  const getItemQuantity = (productId: number) =>
-    items.find((i) => i.product_id === productId)?.quantity ?? 0;
+  const getItemQuantity = (productId: number) => items.find((i) => i.product_id === productId)?.quantity ?? 0;
 
+  //  tăng số lượng
   const upsertItem = (productId: number, delta: number) => {
-    const product = productsWithStock.find((p) => p.product_id === productId);
+    const product = products.find((p) => p.productId === productId);
     if (!product) return;
 
     setItems((prev) => {
@@ -208,10 +123,6 @@ const CreateOrderPage = () => {
         return prev.filter((i) => i.product_id !== productId);
       }
 
-      if (nextQty > product.available_quantity) {
-        nextQty = product.available_quantity;
-      }
-
       if (existing) {
         return prev.map((i) => (i.product_id === productId ? { ...i, quantity: nextQty } : i));
       }
@@ -220,6 +131,7 @@ const CreateOrderPage = () => {
     });
   };
 
+  // giảm số lượng
   const removeItem = (productId: number) => {
     setItems((prev) => prev.filter((i) => i.product_id !== productId));
   };
@@ -239,29 +151,22 @@ const CreateOrderPage = () => {
               Tạo đơn đặt hàng
             </CardTitle>
             <CardDescription className="text-xs font-medium text-amber-700/80">
-              Nhân viên cửa hàng tạo mới store_orders và các dòng order_details gửi lên bếp trung
-              tâm.
+              Nhân viên cửa hàng tạo mới store_orders và các dòng order_details gửi lên bếp trung tâm.
             </CardDescription>
           </div>
           <div className="hidden items-end gap-6 md:flex">
             <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                Mã đơn nháp
-              </span>
+              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Mã đơn nháp</span>
               <span className="text-sm font-semibold text-amber-900">{draftOrderCode}</span>
             </div>
             <div className="h-10 w-px bg-amber-200/70" />
             <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                Dòng chi tiết
-              </span>
+              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Dòng chi tiết</span>
               <span className="text-lg font-semibold text-amber-900">{totalLines}</span>
             </div>
             <div className="h-10 w-px bg-amber-200/70" />
             <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                Tổng số lượng
-              </span>
+              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Tổng số lượng</span>
               <span className="text-lg font-semibold text-amber-900">{totalQuantity}</span>
             </div>
           </div>
@@ -286,14 +191,12 @@ const CreateOrderPage = () => {
               <select
                 className="h-9 rounded-full border border-amber-200 bg-amber-50 px-3 text-xs text-amber-800 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
                 value={categoryFilter}
-                onChange={(e) =>
-                  setCategoryFilter(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))
-                }
+                onChange={(e) => setCategoryFilter(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
               >
                 <option value="ALL">Tất cả</option>
-                {MOCK_CATEGORIES.map((c) => (
-                  <option key={c.category_id} value={c.category_id}>
-                    {c.category_id} - {c.category_name}
+                {products.map((p) => (
+                  <option key={p.categoryId} value={p.categoryId}>
+                    {p.categoryId} - {p.categoryName}
                   </option>
                 ))}
               </select>
@@ -319,45 +222,37 @@ const CreateOrderPage = () => {
                         <th className="px-4 py-2">Mã</th>
                         <th className="px-4 py-2">Sản phẩm</th>
                         <th className="px-4 py-2">Danh mục</th>
-                        <th className="px-2 py-2 text-center">Tồn khả dụng</th>
+                        <th className="px-2 py-2 text-center">Đơn vị</th>
                         <th className="px-2 py-2 text-center">SL đặt</th>
                         <th className="px-4 py-2 text-right">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50">
                       {filteredProducts.map((p) => {
-                        const currentQty = getItemQuantity(p.product_id);
+                        const currentQty = getItemQuantity(p.productId);
                         return (
-                          <tr key={p.product_id} className="hover:bg-amber-50/40">
-                            <td className="px-4 py-2 font-mono text-[11px] text-amber-700">
-                              #{p.product_id}
-                            </td>
+                          <tr key={p.productId} className="hover:bg-amber-50/40">
+                            <td className="px-4 py-2 font-mono text-[11px] text-amber-700">#{p.productId}</td>
                             <td className="px-4 py-2">
                               <div className="flex flex-col">
-                                <span className="text-sm font-semibold text-stone-900">
-                                  {p.product_name}
-                                </span>
+                                <span className="text-sm font-semibold text-stone-900">{p.productName}</span>
                                 {p.description && (
-                                  <span className="line-clamp-1 text-[11px] text-stone-500">
-                                    {p.description}
-                                  </span>
+                                  <span className="line-clamp-1 text-[11px] text-stone-500">{p.description}</span>
                                 )}
                               </div>
                             </td>
                             <td className="px-4 py-2">
                               <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-0.5 text-[11px] font-semibold text-amber-800">
                                 <Tag className="size-3" />
-                                {p.category_name}
+                                {p.categoryName}
                               </span>
                             </td>
-                            <td className="px-2 py-2 text-center text-[11px] text-stone-800">
-                              {p.available_quantity.toLocaleString()} {p.unit}
-                            </td>
+                            <td className="px-2 py-2 text-center text-[11px] text-stone-800">{p.unitName || p.unit}</td>
                             <td className="px-2 py-2">
                               <div className="flex items-center justify-center gap-1.5">
                                 <button
                                   type="button"
-                                  onClick={() => upsertItem(p.product_id, -1)}
+                                  onClick={() => upsertItem(p.productId, -1)}
                                   className="flex size-7 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-amber-700 transition hover:bg-amber-100 disabled:opacity-40"
                                   disabled={currentQty === 0}
                                 >
@@ -368,9 +263,8 @@ const CreateOrderPage = () => {
                                 </span>
                                 <button
                                   type="button"
-                                  onClick={() => upsertItem(p.product_id, 1)}
-                                  className="flex size-7 items-center justify-center rounded-full border border-amber-400 bg-amber-500 text-white shadow-sm transition hover:bg-amber-600 disabled:opacity-40"
-                                  disabled={currentQty >= p.available_quantity}
+                                  onClick={() => upsertItem(p.productId, 1)}
+                                  className="flex size-7 items-center justify-center rounded-full border border-amber-400 bg-amber-500 text-white shadow-sm transition hover:bg-amber-600"
                                 >
                                   <Plus className="size-3" />
                                 </button>
@@ -382,9 +276,7 @@ const CreateOrderPage = () => {
                                 variant="outline"
                                 size="sm"
                                 className="h-8 border-amber-300 px-3 text-xs text-amber-800 hover:bg-amber-50"
-                                onClick={() =>
-                                  currentQty ? removeItem(p.product_id) : upsertItem(p.product_id, 1)
-                                }
+                                onClick={() => (currentQty ? removeItem(p.productId) : upsertItem(p.productId, 1))}
                               >
                                 {currentQty ? 'Xóa khỏi đơn' : 'Thêm vào đơn'}
                               </Button>
@@ -396,11 +288,11 @@ const CreateOrderPage = () => {
                   </table>
                 </div>
 
-                {filteredProducts.length === 0 && (
+                {/* {filteredProducts.length === 0 && (
                   <div className="py-10 text-center text-xs text-amber-700/80">
                     Không có sản phẩm nào phù hợp với bộ lọc.
                   </div>
-                )}
+                )} */}
               </CardContent>
             </Card>
 
@@ -441,7 +333,7 @@ const CreateOrderPage = () => {
                   )}
 
                   {items.map((i) => {
-                    const product = productsWithStock.find((p) => p.product_id === i.product_id);
+                    const product = products.find((p) => p.productId === i.product_id);
                     if (!product) return null;
 
                     return (
@@ -450,19 +342,16 @@ const CreateOrderPage = () => {
                         className="flex items-center justify-between gap-3 rounded-lg border border-amber-100 bg-amber-50/50 px-3 py-2"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-stone-900">
-                            {product.product_name}
-                          </p>
+                          <p className="truncate text-sm font-semibold text-stone-900">{product.productName}</p>
                           <p className="text-[11px] text-stone-600">
-                            {product.category_name} · Tồn:{' '}
-                            {product.available_quantity.toLocaleString()} {product.unit}
+                            {product.categoryName} · Đơn vị: {product.unitName || product.unit}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="flex items-center gap-1.5">
                             <button
                               type="button"
-                              onClick={() => upsertItem(product.product_id, -1)}
+                              onClick={() => upsertItem(product.productId, -1)}
                               className="flex size-7 items-center justify-center rounded-full border border-amber-200 bg-white text-amber-700 hover:bg-amber-50"
                             >
                               <Minus className="size-3" />
@@ -472,16 +361,15 @@ const CreateOrderPage = () => {
                             </span>
                             <button
                               type="button"
-                              onClick={() => upsertItem(product.product_id, 1)}
-                              className="flex size-7 items-center justify-center rounded-full border border-amber-400 bg-amber-500 text-white shadow-sm hover:bg-amber-600 disabled:opacity-40"
-                              disabled={i.quantity >= product.available_quantity}
+                              onClick={() => upsertItem(product.productId, 1)}
+                              className="flex size-7 items-center justify-center rounded-full border border-amber-400 bg-amber-500 text-white shadow-sm hover:bg-amber-600"
                             >
                               <Plus className="size-3" />
                             </button>
                           </div>
                           <button
                             type="button"
-                            onClick={() => removeItem(product.product_id)}
+                            onClick={() => removeItem(product.productId)}
                             className="flex size-8 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
                             title="Xóa dòng"
                           >
@@ -526,6 +414,74 @@ const CreateOrderPage = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Phần hiển thị danh sách toàn bộ Đơn hàng (getAllOrder) */}
+          <Card className="mt-8 border-amber-200/60 bg-white shadow-md">
+            <CardHeader className="border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4">
+              <CardTitle className="flex items-center gap-2 text-lg font-bold text-amber-900">
+                <ClipboardList className="size-5 text-amber-500" />
+                Danh sách tất cả đơn hàng đã tạo (getAllOrders)
+              </CardTitle>
+              <CardDescription className="text-[11px] text-amber-700/80">
+                Dữ liệu được lấy từ franchiseServices.getAllOrders()
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] font-semibold uppercase tracking-wide text-amber-900">
+                      <th className="px-4 py-3">Mã đơn</th>
+                      <th className="px-4 py-3">Ngày đặt</th>
+                      <th className="px-4 py-3 text-center">Ngày giao</th>
+                      <th className="px-4 py-3 text-right">Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-amber-50">
+                    {!Array.isArray(orders) || orders.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="py-10 text-center text-amber-700/60">
+                          Chưa có đơn hàng nào được tìm thấy.
+                        </td>
+                      </tr>
+                    ) : (
+                      orders.map((order) => (
+                        <tr key={order.orderId} className="hover:bg-amber-50/30">
+                          <td className="px-4 py-3 font-semibold text-stone-900">{order.orderCode}</td>
+                          <td className="px-4 py-3 text-stone-600">
+                            {new Date(order.orderDate).toLocaleDateString('vi-VN', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </td>
+                          <td className="px-4 py-3 text-center text-stone-600">
+                            {order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('vi-VN') : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span
+                              className={cn(
+                                'inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-semibold',
+                                order.status === 'PENDING'
+                                  ? 'border-amber-200 bg-amber-100 text-amber-800'
+                                  : order.status === 'APPROVED'
+                                    ? 'border-emerald-200 bg-emerald-100 text-emerald-800'
+                                    : 'border-stone-200 bg-stone-100 text-stone-600'
+                              )}
+                            >
+                              {order.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </CardContent>
       </Card>
     </div>

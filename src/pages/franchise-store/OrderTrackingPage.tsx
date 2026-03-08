@@ -172,23 +172,17 @@ const OrderTrackingPage = () => {
           </div>
           <div className="hidden items-center gap-6 md:flex">
             <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                Tổng đơn
-              </span>
+              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Tổng đơn</span>
               <span className="text-lg font-semibold text-amber-900">{ordersWithExport.length}</span>
             </div>
             <div className="h-10 w-px bg-amber-200/70" />
             <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                Chờ duyệt
-              </span>
+              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Chờ duyệt</span>
               <span className="text-lg font-semibold text-amber-900">{pendingCount}</span>
             </div>
             <div className="h-10 w-px bg-amber-200/70" />
             <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                Đã duyệt
-              </span>
+              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Đã duyệt</span>
               <span className="text-lg font-semibold text-amber-900">{approvedCount}</span>
             </div>
           </div>
@@ -215,9 +209,7 @@ const OrderTrackingPage = () => {
                     className={cn(
                       'px-3 py-1.5 transition',
                       opt !== 'ALL' && 'border-l border-amber-200',
-                      statusFilter === opt
-                        ? 'bg-amber-500 text-white'
-                        : 'text-amber-800 hover:bg-amber-100'
+                      statusFilter === opt ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'
                     )}
                   >
                     {opt === 'ALL' ? 'Tất cả' : STORE_ORDER_STATUS_LABEL[opt]}
@@ -260,9 +252,7 @@ const OrderTrackingPage = () => {
                           <td className="px-4 py-2 text-[11px] text-stone-800">
                             {o.order_date.replace('T', ' ').replace('Z', '')}
                           </td>
-                          <td className="px-2 py-2 text-center text-[11px] text-stone-800">
-                            {o.delivery_date ?? '—'}
-                          </td>
+                          <td className="px-2 py-2 text-center text-[11px] text-stone-800">{o.delivery_date ?? '—'}</td>
                           <td className="px-4 py-2 text-right">
                             <span
                               className={cn(
@@ -276,9 +266,7 @@ const OrderTrackingPage = () => {
                           <td className="px-4 py-2 text-right">
                             {o.export_status ? (
                               <div className="flex flex-col items-end gap-1">
-                                <span className="text-[11px] font-medium text-stone-800">
-                                  {o.export_code}
-                                </span>
+                                <span className="text-[11px] font-medium text-stone-800">{o.export_code}</span>
                                 <span
                                   className={cn(
                                     'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold',
@@ -290,9 +278,7 @@ const OrderTrackingPage = () => {
                                 </span>
                               </div>
                             ) : (
-                              <span className="text-[11px] text-stone-400">
-                                Chưa lập phiếu xuất
-                              </span>
+                              <span className="text-[11px] text-stone-400">Chưa lập phiếu xuất</span>
                             )}
                           </td>
                         </tr>
@@ -301,9 +287,7 @@ const OrderTrackingPage = () => {
                   </table>
                 </div>
                 {filteredOrders.length === 0 && (
-                  <div className="py-10 text-center text-xs text-stone-500">
-                    Không tìm thấy đơn nào phù hợp bộ lọc.
-                  </div>
+                  <div className="py-10 text-center text-xs text-stone-500">Không tìm thấy đơn nào phù hợp bộ lọc.</div>
                 )}
               </CardContent>
             </Card>
@@ -314,9 +298,7 @@ const OrderTrackingPage = () => {
                   <CalendarClock className="size-4 text-amber-500" />
                   Tình hình đơn
                 </CardTitle>
-                <CardDescription className="text-[11px] text-amber-700/80">
-                  store_orders.status
-                </CardDescription>
+                <CardDescription className="text-[11px] text-amber-700/80">store_orders.status</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 pt-4 text-xs">
                 <div className="flex items-center justify-between rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-2">
@@ -359,8 +341,7 @@ const OrderTrackingPage = () => {
                 </div>
 
                 <div className="border-t border-amber-100 pt-2 text-[11px] text-stone-500">
-                  Dữ liệu lọc theo store_store_id = cửa hàng hiện tại. Phiếu xuất từ bảng
-                  export_notes.
+                  Dữ liệu lọc theo store_store_id = cửa hàng hiện tại. Phiếu xuất từ bảng export_notes.
                 </div>
               </CardContent>
             </Card>
