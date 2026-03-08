@@ -25,7 +25,6 @@ import { adminService, type UserResponse } from '@/services/adminServices';
 import { useForm } from 'react-hook-form';
 import { Field, FieldLabel, FieldError, FieldContent } from '@/components/ui/field';
 
-
 const ROLES: { role_id: number; role_name: Role; label: string }[] = [
   { role_id: 1, role_name: 'ADMIN', label: 'Quản trị viên' },
   { role_id: 2, role_name: 'FRANCHISE_STORE_STAFF', label: 'Nhân viên cửa hàng phân phối' },
@@ -263,7 +262,7 @@ const UserManagementPage = () => {
           <CardContent className="p-6">
             <div className="mb-4 flex items-center gap-2">
               <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-600" />
+                <Search className="absolute left-3 top-1/4 size-4 -translate-y-1/4  text-amber-600" />
                 <Input
                   placeholder="Tìm theo username, họ tên, email..."
                   value={search}

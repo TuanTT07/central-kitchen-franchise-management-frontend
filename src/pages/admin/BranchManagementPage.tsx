@@ -1,3 +1,14 @@
+/**
+ * =========================================================
+ * Component: BranchManagementPage
+ * Description: Trang quản lý danh sách các chi nhánh (Store).
+ *             Cho phép xem, thêm, sửa, xóa và phân trang các chi nhánh.
+ * Author:Dat Tran, Tuan Tran
+ * Created: 2026-03-08
+ * =========================================================
+ */
+
+// ================= IMPORT =================
 import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,8 +20,31 @@ import { adminService, type StoreResponse } from '../../services/adminServices';
 import { cn } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
 
+// ================= COMPONENT =================
 const BranchManagementPage = () => {
-  // register, reset... từ useForm
+  // ================= INTERNAL COMPONENTS =================
+  /**
+   * Component hiển thị Badge trạng thái cao cấp
+   * @param status Trạng thái của cửa hàng ('ACTIVE' | 'INACTIVE')
+   */
+  const StatusBadge = ({ status }: { status: string }) => {
+    const isActive = status === 'ACTIVE';
+    return (
+      <div
+        className={cn(
+          'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border transition-all duration-300 shadow-sm',
+          isActive
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60'
+            : 'bg-slate-50 text-slate-500 border-slate-200'
+        )}
+      >
+        <span className={cn('size-1.5 rounded-full', isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400')} />
+        {isActive ? 'Đang hoạt động' : 'Ngừng hoạt động'}
+      </div>
+    );
+  };
+
+  // ================= FORM SETUP =================
   const {
     register,
     handleSubmit,
@@ -18,18 +52,24 @@ const BranchManagementPage = () => {
     formState: { errors },
   } = useForm<StoreResponse>();
 
-  // state
+  // ================= STATE =================
+  // Danh sách cửa hàng lấy từ API
   const [stores, setStores] = useState<StoreResponse[]>([]);
+  // Nội dung tìm kiếm
   const [search, setSearch] = useState('');
+  // Quản lý đóng/mở Dialog thêm/sửa
   const [dialogOpen, setDialogOpen] = useState(false);
+  // Quản lý đóng/mở Dialog xác nhận xóa
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  // Cửa hàng đang được chỉnh sửa
   const [editingStore, setEditingStore] = useState<StoreResponse | null>(null);
+  // Cửa hàng đang được chọn để xóa
   const [storeToDelete, setStoreToDelete] = useState<StoreResponse | null>(null);
 
-  // status page
+  // Trạng thái tải dữ liệu
   const [loading, setLoading] = useState(false);
 
-  // --- STATE QUẢN LÝ PHÂN TRANG (PAGINATION) ---
+  // --- QUẢN LÝ PHÂN TRANG (PAGINATION) ---
   const [currentPage, setCurrentPage] = useState(0); // Trang hiện tại (bắt đầu từ 0)
   const [pageSize] = useState(10); // Số lượng phần tử mỗi trang
   const [pageInfo, setPageInfo] = useState({
@@ -38,6 +78,12 @@ const BranchManagementPage = () => {
     isFirst: true,
     isLast: true,
   });
+
+  // ================= API CALLS =================
+  /**
+   * Gọi API lấy danh sách cửa hàng có phân trang
+   * @param page Số trang cần lấy
+   */
 
   const fetchStore = useCallback(
     async (page: number = 0) => {
@@ -51,7 +97,7 @@ const BranchManagementPage = () => {
             storeName: s.storeName,
             address: s.address,
             phone: s.phone,
-            isActive: s.isActive,
+            status: s.status,
           }));
           setStores(mappedStores);
           setPageInfo({
@@ -70,69 +116,79 @@ const BranchManagementPage = () => {
     [pageSize]
   );
 
+  // ================= EFFECT =================
   useEffect(() => {
     fetchStore(currentPage);
   }, [fetchStore, currentPage]);
 
+  // ================= LOGIC / FILTER =================
+  /**
+   * Lọc danh sách cửa hàng dựa trên từ khóa tìm kiếm
+   */
   const filteredStores = stores.filter(
     (s) =>
       s.storeName.toLowerCase().includes(search.toLowerCase()) || s.address.toLowerCase().includes(search.toLowerCase())
   );
 
-  const openAdd = async () => {
+  // ================= HANDLERS =================
+  /**
+   * Mở Dialog để thêm cửa hàng mới
+   */
+  const openAdd = () => {
     setEditingStore(null);
-    try {
-      const response = (await adminService.getAllUsers()).data;
-      if (response) {
-        // Reset form về giá trị mặc định, managerUserId lấy từ user đầu tiên nếu có
-        reset({
-          storeName: '',
-          address: '',
-          phone: '',
-          isActive: true,
-        });
-      }
-    } catch (error) {
-      console.error('Lỗi khi lấy danh sách Manager:', error);
-    }
+    reset({
+      storeName: '',
+      address: '',
+      phone: '',
+      status: 'ACTIVE',
+    });
     setDialogOpen(true);
   };
 
+  /**
+   * Mở Dialog để chỉnh sửa thông tin cửa hàng
+   * @param store Dữ liệu cửa hàng cần sửa
+   */
   const openEdit = (store: StoreResponse) => {
     setEditingStore(store);
     reset({
       storeName: store.storeName,
       address: store.address,
       phone: store.phone,
-      isActive: store.isActive,
+      status: store.status,
     });
     setDialogOpen(true);
   };
 
+  /**
+   * Mở Dialog xác nhận xóa cửa hàng
+   * @param store Cửa hàng cần xóa
+   */
   const openDelete = (store: StoreResponse) => {
     setStoreToDelete(store);
     setDeleteConfirmOpen(true);
   };
 
+  /**
+   * Xử lý lưu thông tin (Thêm mới hoặc Cập nhật)
+   * @param data Dữ liệu từ form
+   */
   const handleSave = async (data: StoreResponse) => {
     try {
       setLoading(true);
       const payload = {
         ...data,
-        isActive: editingStore ? data.isActive : true,
+        isActive: editingStore ? data.status : true,
       };
 
       if (editingStore) {
-        // Nếu có API updateStore trong adminService thì gọi ở đây
-        // Hiện tại chỉ thấy createStore, tạm thời update local state hoặc đợi API update
+        // TODO: Gọi API updateStore khi adminService hỗ trợ
         setStores((prev) => prev.map((s) => (s.storeId === editingStore.storeId ? { ...s, ...payload } : s)));
         alert('Cập nhật cửa hàng thành công');
       } else {
+        // TODO: Gọi API createStore
         // const response = await adminService.createStore(payload);
-        // if (response) {
-        //   await fetchStore();
-        //   alert('Tạo cửa hàng thành công');
-        // }
+        // if (response) { ... }
       }
       setDialogOpen(false);
     } catch (error: any) {
@@ -143,13 +199,19 @@ const BranchManagementPage = () => {
     }
   };
 
+  /**
+   * Xử lý xóa cửa hàng
+   */
   const handleDelete = () => {
     if (storeToDelete) {
+      // TODO: Gọi API deleteStore
       setStores((prev) => prev.filter((s) => s.storeId !== storeToDelete.storeId));
       setDeleteConfirmOpen(false);
       setStoreToDelete(null);
     }
   };
+
+  // ================= RENDER =================
 
   return (
     <>
@@ -165,7 +227,7 @@ const BranchManagementPage = () => {
           <CardContent className="p-6">
             <div className="mb-4 flex items-center gap-2">
               <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-600" />
+                <Search className="absolute  size-4 left-3 top-1/4  -translate-y-1/4 text-amber-600" />
                 <Input
                   placeholder="Tìm theo tên, địa chỉ..."
                   value={search}
@@ -183,6 +245,7 @@ const BranchManagementPage = () => {
                     <th className="px-5 py-4 font-semibold text-amber-900">Tên cửa hàng</th>
                     <th className="px-5 py-4 font-semibold text-amber-900">Địa chỉ</th>
                     <th className="px-5 py-4 font-semibold text-amber-900">Số điện thoại</th>
+                    <th className="px-5 py-4 font-semibold text-amber-900">Trạng thái</th>
                     <th className="px-5 py-4 text-right font-semibold text-amber-900">Thao tác</th>
                   </tr>
                 </thead>
@@ -206,6 +269,10 @@ const BranchManagementPage = () => {
                         <td className="px-5 py-4 font-medium text-amber-900">{store.storeName}</td>
                         <td className="px-5 py-4 text-stone-700">{store.address}</td>
                         <td className="px-5 py-4 text-stone-700">{store.phone}</td>
+                        <td className="px-5 py-4">
+                          <StatusBadge status={store.status} />
+                        </td>
+
                         <td className="px-5 py-4 text-right">
                           <div className="flex justify-end gap-2">
                             <Button
@@ -332,6 +399,22 @@ const BranchManagementPage = () => {
                   })}
                 />
                 {errors.phone && <p className="text-red-500">{errors.phone.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status" className="text-base font-semibold text-amber-900">
+                  Trạng thái cửa hàng
+                </Label>
+                <select
+                  id="status"
+                  className="w-full h-11 px-3 rounded-md border border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200 outline-none transition-all"
+                  {...register('status')}
+                >
+                  <option value="ACTIVE">Đang hoạt động</option>
+                  <option value="INACTIVE">Ngừng hoạt động</option>
+                </select>
+                <p className="text-xs text-amber-600/70 italic">
+                  * Trạng thái ngừng hoạt động sẽ tạm ẩn cửa hàng khỏi danh sách kinh doanh.
+                </p>
               </div>
             </div>
             <DialogFooter>

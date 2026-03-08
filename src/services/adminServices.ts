@@ -18,7 +18,7 @@ export interface StoreResponse {
   storeName: string;
   address: string;
   phone: string;
-  isActive: boolean;
+  status: 'ACTIVE' | 'INACTIVE';
 }
 
 /**
