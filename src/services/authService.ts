@@ -1,11 +1,11 @@
 import http from '@/lib/axios';
-import type { LoginResponse } from '@/Types/LoginResponse';
+import type { LoginResponse, LoginPayload } from '@/Types/LoginResponse';
 
 export const authService = {
-  signIn: async (username: string, password: string): Promise<LoginResponse> => {
+  signIn: async (username: string, password: string): Promise<LoginPayload> => {
     const response = await http.post<LoginResponse>('/auth/login', { username, password });
-    return response.data;
+    return response.data.data;
   },
-  logout: async (refreshToken: string | null) => await http.post('/auth/logout', { refresh_token: refreshToken }),
-  refreshToken: async (token: string) => await http.post('/auth/refresh', { refreshToken: token }),
+  logout: async (refreshToken: string | null) => await http.post('/auth/logout', { refreshToken }),
+  refreshToken: async (refreshToken: string) => await http.post('/auth/refresh', { refreshToken }),
 };

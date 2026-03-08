@@ -56,18 +56,18 @@ class Http {
             // Gọi API lấy Access Token mới
             const res = await authService.refreshToken(rToken);
             
-            // Backend trả về: { data: { access_token: "...", ... } }
-            const access_token = res.data?.data?.access_token || res.data?.access_token;
+            // Cấu trúc JSON: res.data.data.access_token và res.data.data.refresh_token (nếu có bọc data)
+            const { access_token, refresh_token } = res.data.data || res.data;
 
-            if (!access_token) {
-              console.error('Không tìm thấy access_token trong response refresh');
-              throw new Error('Refresh token failed');
-            }
+            if (!access_token) throw new Error('Refresh token failed');
 
             localStorage.setItem('authToken', access_token);
+            if (refresh_token) {
+              localStorage.setItem('refreshToken', refresh_token);
+            }
 
-            // Chạy lại request cũ với token mới (phải có Bearer)
-            const authHeader = access_token.startsWith('Bearer ') ? access_token : `Bearer ${access_token}`;
+            // Chạy lại request cũ với token mới
+            const authHeader =  (access_token.startsWith("Bearer"))? access_token : `Bearer ${access_token}`;
             originalRequest.headers.set('Authorization', authHeader);
             return this.instance(originalRequest);
           } catch (refreshError) {

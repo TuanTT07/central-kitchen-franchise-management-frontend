@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import {
   Plus,
@@ -21,181 +21,227 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field';
 import { cn } from '@/lib/utils';
 
+import {
+  managerServices,
+  type CategoryResponse,
+  type ProductsResponse,
+  type UnitResponse,
+} from '@/services/managerServices';
+
 type ProductStatus = 'ACTIVE' | 'INACTIVE' | null;
 
-interface Category {
-  category_id: number;
-  category_name: string;
-  status: ProductStatus;
-}
-
-// Bám sát bảng public.products trong DB
-interface Product {
-  product_id: number;
-  product_name: string;
-  unit: string;
-  description: string | null;
-  image_url: string | null;
-  status: ProductStatus;
-  category_id: number | null;
-}
-
-// Dữ liệu form bám theo payload gửi/nhận với API
-interface ProductFormData {
-  product_name: string;
-  unit: string;
-  image_url?: string;
-  description?: string;
-  category_id: number | null;
-  status: ProductStatus;
-}
-
-const MOCK_CATEGORIES: Category[] = [
-  { category_id: 1, category_name: 'Món chính', status: 'ACTIVE' },
-  { category_id: 2, category_name: 'Món nước', status: 'ACTIVE' },
-  { category_id: 3, category_name: 'Khai vị', status: 'ACTIVE' },
-  { category_id: 4, category_name: 'Đồ uống', status: 'ACTIVE' },
-];
-
-const UNIT_OPTIONS = ['phần', 'kg', 'lít', 'hộp', 'chai', 'bịch'];
-
 const ProductManagementPage = () => {
-  const [products, setProducts] = useState<Product[]>([
-    {
-      product_id: 1,
-      product_name: 'Cơm gà xối mỡ',
-      unit: 'phần',
-      image_url:
-        'https://images.pexels.com/photos/6287529/pexels-photo-6287529.jpeg?auto=compress&cs=tinysrgb&w=800',
-      description: 'Suất cơm gà xối mỡ giòn rụm, ăn kèm dưa leo và nước mắm chua ngọt.',
-      category_id: 1,
-      status: 'ACTIVE',
-    },
-    {
-      product_id: 2,
-      product_name: 'Phở bò tái',
-      unit: 'tô',
-      image_url:
-        'https://images.pexels.com/photos/5908229/pexels-photo-5908229.jpeg?auto=compress&cs=tinysrgb&w=800',
-      description: 'Phở bò nước dùng trong, thơm, thịt bò tái mềm.',
-      category_id: 2,
-      status: 'ACTIVE',
-    },
-    {
-      product_id: 3,
-      product_name: 'Trà chanh sả',
-      unit: 'ly',
-      image_url:
-        'https://images.pexels.com/photos/4109993/pexels-photo-4109993.jpeg?auto=compress&cs=tinysrgb&w=800',
-      description: 'Đồ uống giải khát, vị chua nhẹ, thơm mùi sả tươi.',
-      category_id: 4,
-      status: 'INACTIVE',
-    },
-  ]);
+  const [products, setProducts] = useState<ProductsResponse[]>([]);
+  const [categories, setCategories] = useState<CategoryResponse[]>([]);
 
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [editingProduct, setEditingProduct] = useState<ProductsResponse | null>(null);
+  const [productToDelete, setProductToDelete] = useState<ProductsResponse | null>(null);
+
+  // Unit states
+  const [units, setUnits] = useState<UnitResponse[]>([]);
+  const [unitDialogOpen, setUnitDialogOpen] = useState(false);
+  const [editingUnit, setEditingUnit] = useState<any>(null);
+  const [unitToDelete, setUnitToDelete] = useState<UnitResponse | null>(null);
+  const [unitDeleteConfirmOpen, setUnitDeleteConfirmOpen] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<ProductFormData>();
+  } = useForm<ProductsResponse>();
 
-  const filteredProducts = useMemo(() => {
-    if (!search.trim()) return products;
-    const keyword = search.toLowerCase();
+  const {
+    register: registerUnit,
+    handleSubmit: handleSubmitUnit,
+    reset: resetUnit,
+    formState: { errors: errorsUnit },
+  } = useForm<UnitResponse>();
 
-    return products.filter((p) => {
-      const categoryName =
-        p.category_id !== null
-          ? MOCK_CATEGORIES.find((c) => c.category_id === p.category_id)?.category_name ?? ''
-          : '';
+  const getCategories = async () => {
+    try {
+      const response = (await managerServices.getAllCategories()).data;
+      if (response) {
+        setCategories(response);
+      }
+    } catch (error) {}
+  };
+  const getProducts = async () => {
+    try {
+      const response = (await managerServices.getAllProducts()).data;
+      if (response) {
+        setProducts(response);
+      }
+    } catch (error) {}
+  };
+  const getUnits = async () => {
+    try {
+      const response = (await managerServices.getAllUnits()).data;
+      if (response) {
+        setUnits(response);
+      }
+    } catch (error) {}
+  };
 
-      return (
-        p.product_name.toLowerCase().includes(keyword) ||
-        categoryName.toLowerCase().includes(keyword) ||
-        (p.unit && p.unit.toLowerCase().includes(keyword))
-      );
+  useEffect(() => {
+    getProducts();
+    getUnits();
+    getCategories();
+  }, []);
+
+  // Hợp nhất dữ liệu Products với Category Name và Unit Name
+  const displayProducts = useMemo(() => {
+    const rawList = products.map((p: ProductsResponse) => {
+      const category = categories.find((c) => c.categoryId === p.categoryId);
+      // Ép kiểu p.unit về số để so sánh chính xác với u.unitId
+      const unit = units.find((u: UnitResponse) => u.unitId === Number(p.unit));
+      return {
+        ...p,
+        categoryName: category?.categoryName || p.categoryName || 'Chưa phân loại',
+        // Nếu tìm thấy ở local thì dùng unitName, nếu không thì dùng unitName từ API trả về
+        unitName: unit?.unitName || p.unitName || 'Không xác định',
+      };
     });
-  }, [products, search]);
+
+    if (!search.trim()) return rawList;
+    const keyword = search.toLowerCase();
+    return rawList.filter((p) => {
+      const productName = String(p.productName).toLowerCase();
+      const categoryName = String(p.categoryName).toLowerCase();
+      const unitName = String(p.unitName).toLowerCase();
+      return productName.includes(keyword) || categoryName.includes(keyword) || unitName.includes(keyword);
+    });
+  }, [products, categories, units, search]);
 
   const openAdd = () => {
     setEditingProduct(null);
+    getCategories();
     reset({
-      product_name: '',
-      unit: 'phần',
-      image_url: '',
+      productName: '',
+      unit: 0,
+      imageUrl: '',
       description: '',
-      category_id: MOCK_CATEGORIES[0]?.category_id ?? 1,
+      categoryId: 0,
       status: 'ACTIVE',
     });
     setDialogOpen(true);
   };
 
-  const openEdit = (product: Product) => {
+  const openEdit = (product: ProductsResponse) => {
     setEditingProduct(product);
+    getCategories();
     reset({
-      product_name: product.product_name,
-      unit: product.unit,
-      image_url: product.image_url ?? undefined,
+      productId: product.productId,
+      productName: product.productName,
+      unit: Number(product.unit), // Ép kiểu về số để Select khớp giá trị
+      imageUrl: product.imageUrl ?? undefined,
       description: product.description ?? undefined,
-      category_id: product.category_id,
-      status: product.status ?? 'ACTIVE',
+      categoryId: product.categoryId,
     });
     setDialogOpen(true);
   };
 
-  const openDelete = (product: Product) => {
+  const openDelete = (product: ProductsResponse) => {
     setProductToDelete(product);
     setDeleteConfirmOpen(true);
   };
 
-  const handleSave = (data: ProductFormData) => {
+  const handleSave = async (data: ProductsResponse) => {
     if (editingProduct) {
-      setProducts((prev) =>
-        prev.map((p) =>
-          p.product_id === editingProduct.product_id
-            ? {
-                ...p,
-                product_name: data.product_name,
-                unit: data.unit,
-                image_url: data.image_url ?? null,
-                description: data.description ?? null,
-                category_id: data.category_id,
-                status: data.status ?? 'ACTIVE',
-              }
-            : p
-        )
-      );
-    } else {
-      const nextId = prevMaxId(products) + 1;
-      setProducts((prev) => [
-        ...prev,
-        {
-          product_id: nextId,
-          product_name: data.product_name,
-          unit: data.unit,
-          image_url: data.image_url ?? null,
-          description: data.description ?? null,
-          category_id: data.category_id,
-          status: data.status ?? 'ACTIVE',
-        },
-      ]);
-    }
+      try {
+        const response = await managerServices.updateProduct(data.productId, {
+          productName: data.productName,
+          unitId: Number(data.unit), // Gửi đúng key unitId
+          imageUrl: data.imageUrl,
+          description: data.description,
+          categoryId: Number(data.categoryId),
+        });
 
+        if (response) {
+          getProducts();
+        }
+      } catch (error) {}
+    } else {
+      try {
+        const response = await managerServices.createProduct({
+          productName: data.productName,
+          unitId: Number(data.unit), // Gửi đúng key unitId
+          imageUrl: data.imageUrl,
+          description: data.description,
+          categoryId: Number(data.categoryId),
+        });
+        if (response) {
+          getProducts();
+        }
+      } catch (error) {}
+    }
     setDialogOpen(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!productToDelete) return;
-    setProducts((prev) => prev.filter((p) => p.product_id !== productToDelete.product_id));
+    try {
+      const response = await managerServices.deleteProduct(productToDelete.productId);
+      if (response.success) {
+        getProducts();
+      }
+    } catch (error) {}
+
     setDeleteConfirmOpen(false);
     setProductToDelete(null);
+  };
+  const openSettingUnit = () => {
+    setEditingUnit(false);
+    setUnitDialogOpen(true);
+  };
+  const handleEditUnit = (unit: UnitResponse) => {
+    setEditingUnit(unit);
+    resetUnit({
+      unitName: unit.unitName,
+      description: unit.description,
+    });
+  };
+
+  const handleSaveUnit = async (data: UnitResponse) => {
+    try {
+      if (editingUnit) {
+        const response = await managerServices.updateUnit(editingUnit.unitId, {
+          unitName: data.unitName,
+          description: data.description,
+        });
+        if (response) {
+          getUnits();
+          setEditingUnit(null);
+          resetUnit({ unitName: '', description: '' });
+        }
+      } else {
+        const response = await managerServices.createUnit({ unitName: data.unitName, description: data.description });
+        if (response) {
+          getUnits();
+          resetUnit({ unitName: '', description: '' });
+        }
+      }
+    } catch (error) {}
+  };
+
+  const openDeleteUnit = (unit: UnitResponse) => {
+    setUnitToDelete(unit);
+    setUnitDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteUnit = async () => {
+    if (!unitToDelete) return;
+    try {
+      const response = await managerServices.deleteUnit(unitToDelete.unitId);
+      if (response.success) {
+        getUnits();
+      }
+    } catch (error) {}
+    setUnitDeleteConfirmOpen(false);
+    setUnitToDelete(null);
   };
 
   const statusLabel: Record<Exclude<ProductStatus, null>, string> = {
@@ -238,6 +284,13 @@ const ProductManagementPage = () => {
               <Plus className="size-4" />
               Thêm sản phẩm
             </Button>
+            <Button
+              onClick={openSettingUnit}
+              className="h-10 gap-2 bg-gradient-to-r from-amber-500 to-orange-500 px-5 text-white shadow-md hover:from-amber-600 hover:to-orange-600"
+            >
+              <Scale className="size-4" />
+              Thiết lập đơn vị
+            </Button>
           </div>
         </CardHeader>
 
@@ -267,27 +320,23 @@ const ProductManagementPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-100/60">
-                {filteredProducts.map((product, index) => (
-                  <tr key={product.product_id} className="group transition hover:bg-amber-50/40">
+                {displayProducts.map((product, index) => (
+                  <tr key={product.productId} className="group transition hover:bg-amber-50/40">
                     <td className="px-6 py-4 text-xs font-mono text-amber-600/70">{index + 1}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="flex size-12 items-center justify-center overflow-hidden rounded-lg border border-amber-100 bg-amber-50/60">
-                          {product.image_url ? (
-                            <img
-                              src={product.image_url}
-                              alt={product.product_name}
-                              className="size-full object-cover"
-                            />
+                          {product.imageUrl ? (
+                            <img src={product.imageUrl} alt={product.productName} className="size-full object-cover" />
                           ) : (
                             <ImageIcon className="size-5 text-amber-500" />
                           )}
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-semibold text-stone-900">{product.product_name}</span>
+                            <span className="text-sm font-semibold text-stone-900">{product.productName}</span>
                             <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700">
-                              ID #{product.product_id}
+                              ID #{product.productId}
                             </span>
                           </div>
                           {product.description && (
@@ -297,22 +346,22 @@ const ProductManagementPage = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 border border-amber-200">
-                        <Tag className="size-3" />
-                        {MOCK_CATEGORIES.find((c) => c.category_id === product.category_id)?.category_name ?? 'N/A'}
+                      <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                        <Tag className="size-3 text-amber-500" />
+                        {product.categoryName}
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-700">
                         <Scale className="size-3 text-amber-500" />
-                        {product.unit}
+                        {product.unitName}
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div
                         className={cn(
                           'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold border shadow-sm',
-                          statusColor[product.status ?? 'INACTIVE']
+                          statusColor[(product.status as 'ACTIVE' | 'INACTIVE') ?? 'INACTIVE']
                         )}
                       >
                         {(product.status ?? 'INACTIVE') === 'ACTIVE' ? (
@@ -320,7 +369,7 @@ const ProductManagementPage = () => {
                         ) : (
                           <XCircle className="size-3" />
                         )}
-                        {statusLabel[product.status ?? 'INACTIVE']}
+                        {statusLabel[(product.status as 'ACTIVE' | 'INACTIVE') ?? 'INACTIVE']}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -350,27 +399,18 @@ const ProductManagementPage = () => {
               </tbody>
             </table>
 
-            {filteredProducts.length === 0 && (
+            {displayProducts.length === 0 && (
               <div className="flex flex-col items-center justify-center gap-2 py-16 text-amber-700/70">
                 <Search className="mb-1 size-10 opacity-30" />
                 <p className="text-sm font-medium">Không tìm thấy sản phẩm nào phù hợp</p>
-                <p className="text-xs text-amber-700/70">
-                  Hãy thử lại với từ khóa khác hoặc thêm sản phẩm mới.
-                </p>
+                <p className="text-xs text-amber-700/70">Hãy thử lại với từ khóa khác hoặc thêm sản phẩm mới.</p>
               </div>
             )}
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-amber-700/80">
-            <Info className="size-4 text-amber-500" />
-            <span>
-              Đây mới chỉ là giao diện quản lý sản phẩm. Kết nối API thật (CRUD Product, Category) sẽ được thực
-              hiện ở bước backend.
-            </span>
           </div>
         </CardContent>
       </Card>
 
+      {/* Thêm và sửa sản phẩm */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent
           onClose={() => setDialogOpen(false)}
@@ -394,26 +434,32 @@ const ProductManagementPage = () => {
             <div className="flex-1 space-y-6 overflow-y-auto bg-white px-8 py-6">
               <div className="grid gap-6 md:grid-cols-2">
                 <Field>
-                  <FieldLabel htmlFor="product_name" className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold">
+                  <FieldLabel
+                    htmlFor="product_name"
+                    className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold"
+                  >
                     <Package className="size-4 text-amber-500" />
                     Tên sản phẩm
                   </FieldLabel>
                   <FieldContent>
                     <Input
-                      id="product_name"
+                      id="productName"
                       placeholder="Ví dụ: Cơm gà xối mỡ"
                       className="h-11 border-amber-200 bg-amber-50/40 focus:border-amber-500 focus:ring-amber-200"
-                      {...register('product_name', {
+                      {...register('productName', {
                         required: 'Tên sản phẩm là bắt buộc',
                         minLength: { value: 3, message: 'Ít nhất 3 ký tự' },
                       })}
                     />
-                    {errors.product_name && <FieldError errors={[errors.product_name]} />}
+                    {errors.productName && <FieldError errors={[errors.productName]} />}
                   </FieldContent>
                 </Field>
 
                 <Field>
-                  <FieldLabel htmlFor="category_id" className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold">
+                  <FieldLabel
+                    htmlFor="category_id"
+                    className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold"
+                  >
                     <Tag className="size-4 text-amber-500" />
                     Danh mục
                   </FieldLabel>
@@ -421,15 +467,15 @@ const ProductManagementPage = () => {
                     <select
                       id="category_id"
                       className="h-11 w-full rounded-md border border-amber-200 bg-amber-50/40 px-3 text-sm transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
-                      {...register('category_id', { valueAsNumber: true })}
+                      {...register('categoryId', { valueAsNumber: true })}
                     >
-                      {MOCK_CATEGORIES.map((c) => (
-                        <option key={c.category_id} value={c.category_id}>
-                          {c.category_id} - {c.category_name}
+                      {categories.map((c) => (
+                        <option key={c.categoryId} value={c.categoryId}>
+                          {c.categoryId} - {c.categoryName}
                         </option>
                       ))}
                     </select>
-                    {errors.category_id && <FieldError errors={[errors.category_id]} />}
+                    {errors.categoryId && <FieldError errors={[errors.categoryId]} />}
                   </FieldContent>
                 </Field>
               </div>
@@ -444,11 +490,15 @@ const ProductManagementPage = () => {
                     <select
                       id="unit"
                       className="h-11 w-full rounded-md border border-amber-200 bg-amber-50/40 px-3 text-sm transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
-                      {...register('unit', { required: 'Đơn vị là bắt buộc' })}
+                      {...register('unit', {
+                        required: 'Đơn vị là bắt buộc',
+                        valueAsNumber: true,
+                      })}
                     >
-                      {UNIT_OPTIONS.map((u) => (
-                        <option key={u} value={u}>
-                          {u}
+                      <option value="">Chọn đơn vị</option>
+                      {units.map((u) => (
+                        <option key={u.unitId} value={u.unitId}>
+                          {u.unitName}
                         </option>
                       ))}
                     </select>
@@ -481,17 +531,20 @@ const ProductManagementPage = () => {
                 </FieldLabel>
                 <FieldContent>
                   <Input
-                      id="image_url"
+                    id="image_url"
                     placeholder="Dán đường dẫn ảnh minh họa (tùy chọn)"
                     className="h-11 border-amber-200 bg-amber-50/40 focus:border-amber-500 focus:ring-amber-200"
-                    {...register('image_url')}
+                    {...register('imageUrl')}
                   />
-                  {errors.image_url && <FieldError errors={[errors.image_url]} />}
+                  {errors.imageUrl && <FieldError errors={[errors.imageUrl]} />}
                 </FieldContent>
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="description" className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold">
+                <FieldLabel
+                  htmlFor="description"
+                  className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold"
+                >
                   <Info className="size-4 text-amber-500" />
                   Mô tả sản phẩm
                 </FieldLabel>
@@ -527,6 +580,7 @@ const ProductManagementPage = () => {
         </DialogContent>
       </Dialog>
 
+      {/*xác nhận  Xoá sản phẩm */}
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent
           onClose={() => setDeleteConfirmOpen(false)}
@@ -540,8 +594,8 @@ const ProductManagementPage = () => {
           </DialogHeader>
           <p className="py-4 text-sm text-stone-700">
             Bạn có chắc muốn xóa sản phẩm{' '}
-            <span className="font-semibold text-amber-800">{productToDelete?.product_name}</span>? Thao tác này không
-            thể hoàn tác và có thể ảnh hưởng đến các đơn hàng đang sử dụng sản phẩm này.
+            <span className="font-semibold text-amber-800">{productToDelete?.productName}</span>? Thao tác này không thể
+            hoàn tác và có thể ảnh hưởng đến các đơn hàng đang sử dụng sản phẩm này.
           </p>
           <DialogFooter>
             <Button
@@ -551,12 +605,170 @@ const ProductManagementPage = () => {
             >
               Hủy
             </Button>
+            <Button variant="destructive" className="min-w-[5rem] bg-rose-600 hover:bg-rose-700" onClick={handleDelete}>
+              Xóa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Thiết lập Đơn vị (Chỉ UI) */}
+      <Dialog open={unitDialogOpen} onOpenChange={setUnitDialogOpen}>
+        <DialogContent className="max-w-2xl border-none p-0 shadow-2xl">
+          <div className="flex flex-col overflow-hidden rounded-2xl bg-white text-stone-900">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4 text-white">
+              <DialogTitle className="flex items-center gap-2 font-bold">
+                <Scale className="size-5" />
+                Thiết lập Đơn vị tính
+              </DialogTitle>
+            </div>
+
+            <div className="p-6">
+              {/* Form Input UI */}
+              <form noValidate onSubmit={handleSubmitUnit(handleSaveUnit)}>
+                <div className="mb-8 grid gap-4 rounded-xl border border-amber-100 bg-amber-50/30 p-4 shadow-sm">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="text-[13px] font-semibold text-amber-900">Tên đơn vị</label>
+                      <Input
+                        placeholder="Ví dụ: kg, lít, phần..."
+                        className="h-10 border-amber-200 focus:border-amber-500 focus:ring-amber-200"
+                        {...registerUnit('unitName', {
+                          required: 'Tên đơn vị không được để trống',
+                        })}
+                      />
+                      {errorsUnit.unitName && <FieldError errors={[errorsUnit.unitName]} />}
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[13px] font-semibold text-amber-900">Mô tả chi tiết</label>
+                    <Input
+                      placeholder="Ghi chú về cách tính hoặc quy đổi..."
+                      className="h-10 border-amber-200 focus:border-amber-500 focus:ring-amber-200"
+                      {...registerUnit('description', {
+                        required: 'Mô tả là bắt buộc',
+                      })}
+                    />
+                    {errorsUnit.description && <FieldError errors={[errorsUnit.description]} />}
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    {editingUnit && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingUnit(null);
+                          resetUnit({ unitName: '', description: '', status: 'ACTIVE' });
+                        }}
+                        className="h-10 border-stone-300 text-stone-600"
+                      >
+                        Hủy sửa
+                      </Button>
+                    )}
+                    <Button className="h-10 bg-gradient-to-r from-amber-500 to-orange-500 px-6 text-white shadow-md hover:from-amber-600 hover:to-orange-600">
+                      {editingUnit ? 'Cập nhật đơn vị' : 'Thêm đơn vị mới'}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+
+              {/* Table UI  */}
+              <div className="max-h-[300px] overflow-y-auto rounded-xl border border-amber-100 shadow-sm">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-amber-50 text-xs font-bold uppercase tracking-wider text-amber-900">
+                    <tr>
+                      <th className="px-4 py-3 text-left">STT</th>
+                      <th className="px-4 py-3 text-left">Đơn vị tính</th>
+                      <th className="px-4 py-3 text-left">Mô tả</th>
+                      <th className="px-4 py-3 text-left">Status</th>
+                      <th className="px-4 py-3 text-right">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-amber-50">
+                    {units.map((u, idx) => (
+                      <tr key={u.unitId} className="hover:bg-amber-50/30 transition-colors">
+                        <td className="px-4 py-3 text-amber-600/70 font-mono text-xs">{idx + 1}</td>
+                        <td className="px-4 py-3 font-bold text-stone-900">{u.unitName}</td>
+                        <td className="px-4 py-3 text-xs text-stone-500 italic">{u.description}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase border shadow-sm',
+                              u.status === 'ACTIVE'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                : 'bg-stone-50 text-stone-600 border-stone-200'
+                            )}
+                          >
+                            {u.status === 'ACTIVE' ? 'Hoạt động' : 'Ngưng dùng'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-amber-600 hover:bg-amber-100"
+                              onClick={() => handleEditUnit(u)}
+                            >
+                              <Pencil className="size-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-rose-500 hover:bg-rose-100"
+                              onClick={() => openDeleteUnit(u)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <DialogFooter className="bg-stone-50 px-6 py-4">
+              <Button
+                variant="outline"
+                onClick={() => setUnitDialogOpen(false)}
+                className="h-10 border-stone-300 text-stone-700 font-medium hover:bg-white"
+              >
+                Đóng
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Xác nhận xóa đơn vị */}
+      <Dialog open={unitDeleteConfirmOpen} onOpenChange={setUnitDeleteConfirmOpen}>
+        <DialogContent className="max-w-md border-amber-200/60 bg-white p-8 shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-semibold text-stone-900">
+              <Trash2 className="size-5 text-rose-500" />
+              Xác nhận xóa đơn vị
+            </DialogTitle>
+          </DialogHeader>
+          <p className="py-4 text-sm text-stone-700">
+            Bạn có chắc muốn xóa đơn vị <span className="font-semibold text-amber-800">{unitToDelete?.unitName}</span>?
+            Việc này có thể ảnh hưởng đến các sản phẩm đang sử dụng đơn vị này.
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              className="min-w-[5rem] border-stone-300 text-stone-700 hover:bg-stone-50"
+              onClick={() => setUnitDeleteConfirmOpen(false)}
+            >
+              Hủy
+            </Button>
             <Button
               variant="destructive"
               className="min-w-[5rem] bg-rose-600 hover:bg-rose-700"
-              onClick={handleDelete}
+              onClick={handleDeleteUnit}
             >
-              Xóa
+              Xác nhận xóa
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -564,10 +776,5 @@ const ProductManagementPage = () => {
     </div>
   );
 };
-
-function prevMaxId(items: Product[]): number {
-  if (!items.length) return 0;
-  return items.reduce((max, item) => (item.product_id > max ? item.product_id : max), items[0].product_id);
-}
 
 export default ProductManagementPage;
