@@ -15,6 +15,16 @@ export interface ConsolidationResponse {
   orderIds: number[];
   products: ConsolidationProduct[];
 }
+export interface ItemsResponse {
+  manuOrderId: number;
+  orderCode: string;
+  productName: string;
+  quantity: number;
+  unitName: string;
+  status: string;
+  startDate: string;
+  createdBy: string;
+}
 
 export const supplyServices = {
   getAllOrders: async () => {
@@ -27,6 +37,17 @@ export const supplyServices = {
   },
   consolidateManual: async (orderIds: number[]) => {
     const response = await http.post<Response<ConsolidationResponse>>('orders/consolidate/manual', { orderIds });
+    return response.data;
+  },
+
+  // Tạo lệnh sản xuất
+  createManufacturingOrder: async (body: {
+    items: {
+      productId: number;
+      quantity: number;
+    }[];
+  }) => {
+    const response = await http.post<Response<ItemsResponse[]>>('/api/v1/manufacturing-orders', body);
     return response.data;
   },
 };

@@ -87,6 +87,9 @@ function SummaryOrdersPage() {
     }
   }
 
+  // State quản lý trạng thái đang gửi API tạo lệnh sản xuất
+  const [isFinalizing, setIsFinalizing] = useState(false);
+
   /**
    * NGHIỆP VỤ: Gom đơn tự động (Auto Consolidate)
    * Hệ thống sẽ gọi API để tự động lấy các đơn hàng ở trạng thái APPROVED
@@ -152,12 +155,45 @@ function SummaryOrdersPage() {
 
   /**
    * NGHIỆP VỤ: Tạo lệnh sản xuất
-   * Kết thúc quá trình gom đơn và chuyển sang giai đoạn sản xuất.
+   * Kết thúc quá trình gom đơn và chuyển sang giai đoạn sản xuất thực tế.
    */
-  const handleFinalize = () => {
-    // NOTE: Tại đây có thể bổ sung gọi API để lưu lại số lượng đã chỉnh sửa (editedProducts)
-    setIsModalOpen(false);
-    setConsolidationResult(null);
+  const handleFinalize = async () => {
+    // 1. Chuẩn bị dữ liệu theo yêu cầu của Backend
+    // Cấu trúc yêu cầu: { items: [ { batchId: number, quantity: number } ] }
+    // CHÚ Ý: batchId hiện tại được map từ productId do bên Backend thiết kế sai (theo yêu cầu của bạn)
+    const requestBody = {
+      items: editedProducts.map((product) => ({
+        productId: product.productId, //
+        quantity: product.quantity, // Lấy số lượng đã được điều chỉnh (nếu có)
+      })),
+    };
+    console.log(requestBody.items);
+
+    setIsFinalizing(true); // Bật trạng thái loading để tránh bấm đúp
+
+    try {
+      // 2. Gọi API tạo lệnh sản xuất
+      const response = await supplyServices.createManufacturingOrder(requestBody);
+
+      if (response.success) {
+        console.log('Tạo lệnh sản xuất thành công:', response.data);
+        // Ở đây bạn có thể thêm Toast thông báo thành công nếu dự án đã có thư viện phù hợp
+
+        // 3. Đóng Modal và clear dữ liệu
+        setIsModalOpen(false);
+        setConsolidationResult(null);
+        setEditedProducts([]);
+
+        // Cập nhật lại danh sách đơn hàng để đồng bộ trạng thái mới
+        getAllOrders();
+      } else {
+        console.error('Lỗi từ API:', response.message);
+      }
+    } catch (error) {
+      console.error('Thực hiện tạo lệnh sản xuất thất bại:', error);
+    } finally {
+      setIsFinalizing(false); // Tắt trạng thái loading
+    }
   };
 
   // Tự động tính toán lại các con số thống kê mỗi khi danh sách 'orders' thay đổi
@@ -260,7 +296,7 @@ function SummaryOrdersPage() {
               </div>
               <Button
                 className="h-9 rounded-full bg-amber-500 px-4 text-xs text-white hover:bg-amber-600"
-                onClick={autoConsolidate}
+                onClick={() => autoConsolidate()}
               >
                 Tổng hợp đơn giao tự động
               </Button>
@@ -437,9 +473,10 @@ function SummaryOrdersPage() {
             </Button>
             <Button
               onClick={handleFinalize}
-              className="rounded-full bg-amber-500 px-8 text-white hover:bg-amber-600 shadow-md transition-all active:scale-95"
+              disabled={isFinalizing}
+              className="rounded-full bg-amber-500 px-8 text-white hover:bg-amber-600 shadow-md transition-all active:scale-95 disabled:opacity-50"
             >
-              Tạo lệnh sản xuất
+              {isFinalizing ? 'Đang tạo...' : 'Tạo lệnh sản xuất'}
             </Button>
           </DialogFooter>
         </DialogContent>
