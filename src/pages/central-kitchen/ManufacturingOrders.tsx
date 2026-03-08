@@ -156,7 +156,7 @@ function ManufacturingOrders() {
                             {/* <p className="text-[11px] text-stone-500">product_id: {o.}</p> */}
                           </td>
                           <td className="px-2 py-2 text-center text-sm font-semibold text-stone-900">
-                            {o.quantity.toLocaleString('vi-VN')}
+                            {/* {o.quantity.toLocaleString('vi-VN')} */}
                           </td>
                           <td className="px-4 py-2 text-[11px] text-stone-800">
                             {o.startDate ?? 'false'} : (
