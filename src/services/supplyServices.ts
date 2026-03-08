@@ -25,4 +25,8 @@ export const supplyServices = {
     const response = await http.post<Response<ConsolidationResponse>>('orders/consolidate/auto');
     return response.data;
   },
+  consolidateManual: async (orderIds: number[]) => {
+    const response = await http.post<Response<ConsolidationResponse>>('orders/consolidate/manual', { orderIds });
+    return response.data;
+  },
 };
