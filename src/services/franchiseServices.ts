@@ -5,7 +5,8 @@ export interface OrderDetailResponse {
   orderDetailId: number;
   productId: number;
   productName: string;
-  unit: string;
+  unit?: string;
+  unitName?: string;
   quantity: number;
 }
 
@@ -15,7 +16,7 @@ export interface OrderResponse<T> {
   storeId: number;
   storeName: string;
   orderDate: string;
-  deliveryDate: string;
+  deliveryDate?: string;
   status: 'PENDING' | 'APPROVED' | 'CONSOLIDATED' | 'CANCELLED';
   details: T;
 }
