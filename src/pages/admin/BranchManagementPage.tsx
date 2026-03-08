@@ -5,18 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Pencil, Trash2, Search, Loader2, ChevronLeft } from 'lucide-react';
-import { adminService, type StoreResponse, type UserResponse } from '../../services/adminServices';
+import { adminService, type StoreResponse } from '../../services/adminServices';
 import { cn } from '@/lib/utils';
-import { Role } from '../../Types/Role';
 import { useForm } from 'react-hook-form';
-
-interface formData {
-  storeName: string;
-  address: string;
-  phone: string;
-  managerUserId: number;
-  isActive: boolean;
-}
 
 const BranchManagementPage = () => {
   // register, reset... từ useForm
@@ -25,7 +16,7 @@ const BranchManagementPage = () => {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<formData>();
+  } = useForm<StoreResponse>();
 
   // state
   const [stores, setStores] = useState<StoreResponse[]>([]);
@@ -38,9 +29,6 @@ const BranchManagementPage = () => {
   // status page
   const [loading, setLoading] = useState(false);
 
-  // Các user có role Manager
-  const [userRoleManager, setUserRoleManager] = useState<UserResponse[]>([]);
-
   // --- STATE QUẢN LÝ PHÂN TRANG (PAGINATION) ---
   const [currentPage, setCurrentPage] = useState(0); // Trang hiện tại (bắt đầu từ 0)
   const [pageSize] = useState(10); // Số lượng phần tử mỗi trang
@@ -51,30 +39,26 @@ const BranchManagementPage = () => {
     isLast: true,
   });
 
-
-
   const fetchStore = useCallback(
     async (page: number = 0) => {
       setLoading(true);
       try {
-        const response = (await adminService.getAllStores(page, pageSize)).data;
-        if (response) {
-          const mappedStores = response.content.map((s: StoreResponse) => ({
+        const response = await adminService.getAllStores(page, pageSize);
+        if (response && response.data.success) {
+          const paginationData = response.data.data;
+          const mappedStores = paginationData.items.map((s: StoreResponse) => ({
             storeId: s.storeId,
             storeName: s.storeName,
             address: s.address,
             phone: s.phone,
-            managerUserId: s.managerUserId,
-            managerUserName: s.managerUserName,
-            managerFullName: s.managerFullName,
             isActive: s.isActive,
           }));
           setStores(mappedStores);
           setPageInfo({
-            totalPages: response.totalPages,
-            totalElements: response.totalElements,
-            isFirst: response.first,
-            isLast: response.last,
+            totalPages: paginationData.totalPages,
+            totalElements: paginationData.totalElements,
+            isFirst: paginationData.first,
+            isLast: paginationData.last,
           });
         }
       } catch (error) {
@@ -100,20 +84,16 @@ const BranchManagementPage = () => {
     try {
       const response = (await adminService.getAllUsers()).data;
       if (response) {
-        const mappedUserRoleManager = response.content.filter((u: UserResponse) => u.role === Role.MANAGER);
-        setUserRoleManager(mappedUserRoleManager);
-        
         // Reset form về giá trị mặc định, managerUserId lấy từ user đầu tiên nếu có
         reset({
           storeName: '',
           address: '',
           phone: '',
-          managerUserId: mappedUserRoleManager.length > 0 ? mappedUserRoleManager[0].userId : 0,
-          isActive: true
+          isActive: true,
         });
       }
     } catch (error) {
-      console.error("Lỗi khi lấy danh sách Manager:", error);
+      console.error('Lỗi khi lấy danh sách Manager:', error);
     }
     setDialogOpen(true);
   };
@@ -124,7 +104,6 @@ const BranchManagementPage = () => {
       storeName: store.storeName,
       address: store.address,
       phone: store.phone,
-      managerUserId: store.managerUserId,
       isActive: store.isActive,
     });
     setDialogOpen(true);
@@ -135,14 +114,12 @@ const BranchManagementPage = () => {
     setDeleteConfirmOpen(true);
   };
 
-  const handleSave = async (data: formData) => {
+  const handleSave = async (data: StoreResponse) => {
     try {
       setLoading(true);
-      // Ép kiểu managerUserId sang number vì thẻ select trả về string
       const payload = {
         ...data,
-        managerUserId: Number(data.managerUserId),
-        isActive: editingStore ? data.isActive : true
+        isActive: editingStore ? data.isActive : true,
       };
 
       if (editingStore) {
@@ -151,15 +128,15 @@ const BranchManagementPage = () => {
         setStores((prev) => prev.map((s) => (s.storeId === editingStore.storeId ? { ...s, ...payload } : s)));
         alert('Cập nhật cửa hàng thành công');
       } else {
-        const response = await adminService.createStore(payload);
-        if (response) {
-          await fetchStore();
-          alert('Tạo cửa hàng thành công');
-        }
+        // const response = await adminService.createStore(payload);
+        // if (response) {
+        //   await fetchStore();
+        //   alert('Tạo cửa hàng thành công');
+        // }
       }
       setDialogOpen(false);
     } catch (error: any) {
-      console.error("Lỗi khi lưu cửa hàng:", error);
+      console.error('Lỗi khi lưu cửa hàng:', error);
       alert(error.response?.data?.message || 'Có lỗi xảy ra khi lưu cửa hàng');
     } finally {
       setLoading(false);
@@ -206,7 +183,6 @@ const BranchManagementPage = () => {
                     <th className="px-5 py-4 font-semibold text-amber-900">Tên cửa hàng</th>
                     <th className="px-5 py-4 font-semibold text-amber-900">Địa chỉ</th>
                     <th className="px-5 py-4 font-semibold text-amber-900">Số điện thoại</th>
-                    <th className="px-5 py-4 font-semibold text-amber-900">Cửa hàng trưởng</th>
                     <th className="px-5 py-4 text-right font-semibold text-amber-900">Thao tác</th>
                   </tr>
                 </thead>
@@ -230,7 +206,6 @@ const BranchManagementPage = () => {
                         <td className="px-5 py-4 font-medium text-amber-900">{store.storeName}</td>
                         <td className="px-5 py-4 text-stone-700">{store.address}</td>
                         <td className="px-5 py-4 text-stone-700">{store.phone}</td>
-                        <td className="px-5 py-4 text-stone-700">{store.managerFullName}</td>
                         <td className="px-5 py-4 text-right">
                           <div className="flex justify-end gap-2">
                             <Button
@@ -263,7 +238,7 @@ const BranchManagementPage = () => {
               <div className="text-sm text-amber-900/60 font-medium">
                 Hiển thị <span className="text-amber-600">{currentPage * pageSize + 1}</span> -{' '}
                 <span className="text-amber-600">{Math.min((currentPage + 1) * pageSize, pageInfo.totalElements)}</span>{' '}
-                trên tổng số <span className="text-amber-600">{pageInfo.totalElements}</span> người dùng
+                trên tổng số <span className="text-amber-600">{pageInfo.totalElements}</span> cửa hàng
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -357,25 +332,6 @@ const BranchManagementPage = () => {
                   })}
                 />
                 {errors.phone && <p className="text-red-500">{errors.phone.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="manager_id" className="text-base">
-                  Cửa hàng trưởng (User)
-                </Label>
-
-                <select
-                  id="manager_id"
-                  className="h-11 w-full rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-2.5 text-base focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
-                  {...register('managerUserId', {
-                    required: 'Cửa hàng trưởng không được để trống',
-                  })}
-                >
-                  {userRoleManager.map((u) => (
-                    <option key={u.userId} value={u.userId}>
-                      {u.fullName} ({u.username})
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
             <DialogFooter>

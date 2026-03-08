@@ -1,5 +1,5 @@
 import http from '@/lib/axios';
-import type { PaginatedResponse } from '@/Types/utils.type';
+import type { PaginatedResponse, Response, SpringPageResponse } from '@/Types/utils.type';
 
 export interface UserResponse {
   userId: number;
@@ -15,9 +15,6 @@ export interface StoreResponse {
   storeName: string;
   address: string;
   phone: string;
-  managerUserId: number;
-  managerUserName: string;
-  managerFullName: string;
   isActive: boolean;
 }
 
@@ -29,7 +26,7 @@ export const adminService = {
    * @returns PaginatedResponse chứa danh sách UserResponse
    */
   getAllUsers: async (page: number = 0, size: number = 10) => {
-    return await http.get<PaginatedResponse<UserResponse[]>>('/admin/users', {
+    return await http.get<SpringPageResponse<UserResponse[]>>('/admin/users', {
       params: { page, size },
     });
   },
@@ -67,7 +64,7 @@ export const adminService = {
 
   // lấy ra tất cả các cửa hàng
   getAllStores: async (page: number = 0, size: number = 10) => {
-    return await http.get<PaginatedResponse<StoreResponse[]>>('/admin/stores', {
+    return await http.get<Response<PaginatedResponse<StoreResponse[]>>>('/admin/stores', {
       params: { page, size },
     });
   },
