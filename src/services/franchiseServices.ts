@@ -26,4 +26,15 @@ export const franchiseServices = {
     const response = await http.get<Response<OrderResponse<OrderDetailResponse[]>[]>>('/orders');
     return response.data;
   },
+  createOrders: async (body: {
+    storeId: number;
+    deliveryDate: string;
+    details: {
+      productId: number;
+      quantity: number;
+    }[];
+  }) => {
+    const response = await http.post<Response<OrderResponse<OrderDetailResponse[]>[]>>('/orders', body);
+    return response.data;
+  },
 };
