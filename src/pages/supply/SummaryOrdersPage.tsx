@@ -3,7 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Package, Store, Search, Filter } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import type { OrderDetailResponse, OrderResponse } from '@/services/franchiseServices';
+import type { ConsolidationProduct, ConsolidationResponse } from '@/services/supplyServices';
 import { supplyServices } from '@/services/supplyServices';
 
 function SummaryOrdersPage() {
@@ -11,6 +13,11 @@ function SummaryOrdersPage() {
   const [orders, setOrders] = useState<OrderResponse<OrderDetailResponse[]>[]>([]);
   // State phục vụ việc tìm kiếm (hiện tại chưa dùng trong filter nhưng để sẵn)
   const [search, setSearch] = useState('');
+
+  // State quản lý Dialog thông báo kết quả gom đơn
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [consolidationResult, setConsolidationResult] = useState<ConsolidationResponse | null>(null);
+  const [editedProducts, setEditedProducts] = useState<ConsolidationProduct[]>([]);
 
   // Hàm gọi API lấy danh sách đơn hàng
   const getAllOrders = async () => {
@@ -75,6 +82,54 @@ function SummaryOrdersPage() {
         );
     }
   }
+
+  /**
+   * NGHIỆP VỤ: Gom đơn tự động (Auto Consolidate)
+   * Hệ thống sẽ gọi API để tự động lấy các đơn hàng ở trạng thái APPROVED
+   * và gom lại theo từng ID sản phẩm.
+   */
+  async function autoConsolidate() {
+    try {
+      const response = await supplyServices.consolidateAuto();
+      // Debug: Log ra các sản phẩm sau khi đã mapping
+      console.log(
+        'hihihihi',
+        response.data.products.map((p) => {
+          return (p.quantity = 50); // Đây là ví dụ set cứng, thực tế sẽ lấy từ API
+        })
+      );
+
+      if (response.success) {
+        setConsolidationResult(response.data);
+        // Lưu danh sách sản phẩm gom được vào state để người dùng có thể chỉnh sửa số lượng
+        setEditedProducts(response.data.products);
+        setIsModalOpen(true); // Hiển thị Dialog kết quả & chỉnh sửa
+        getAllOrders(); // Reload danh sách để cập nhật trạng thái đơn sang CONSOLIDATED
+      }
+    } catch (error) {
+      console.error('Gom đơn tự động thất bại:', error);
+    }
+  }
+
+  /**
+   * NGHIỆP VỤ: Chỉnh sửa số lượng sản phẩm sau khi gom
+   * Cho phép SUPPLY_COORDINATOR thay đổi số lượng tổng hợp trước khi tạo lệnh sản xuất thực tế.
+   */
+  const handleQuantityChange = (productId: number, newQuantity: number) => {
+    setEditedProducts((prev) => prev.map((p) => (p.productId === productId ? { ...p, quantity: newQuantity } : p)));
+  };
+
+  /**
+   * NGHIỆP VỤ: Tạo lệnh sản xuất
+   * Kết thúc quá trình gom đơn và chuyển sang giai đoạn sản xuất.
+   */
+  const handleFinalize = () => {
+    // NOTE: Tại đây có thể bổ sung gọi API để lưu lại số lượng đã chỉnh sửa (editedProducts)
+    setIsModalOpen(false);
+    setConsolidationResult(null);
+  };
+
+  function manuConsolidate() {}
 
   // Tự động tính toán lại các con số thống kê mỗi khi danh sách 'orders' thay đổi
   const stats = useMemo(() => {
@@ -174,8 +229,17 @@ function SummaryOrdersPage() {
                   Transfer
                 </button> */}
               </div>
-              <Button className="h-9 rounded-full bg-amber-500 px-4 text-xs text-white hover:bg-amber-600">
-                Tổng hợp đơn giao
+              <Button
+                className="h-9 rounded-full bg-amber-500 px-4 text-xs text-white hover:bg-amber-600"
+                onClick={autoConsolidate}
+              >
+                Tổng hợp đơn giao tự động
+              </Button>
+              <Button
+                className="h-9 rounded-full bg-amber-500 px-4 text-xs text-white hover:bg-amber-600"
+                onClick={manuConsolidate}
+              >
+                Tổng hợp đơn giao thủ công
               </Button>
             </div>
           </div>
@@ -288,6 +352,69 @@ function SummaryOrdersPage() {
           </div>
         </CardContent>
       </Card>
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent onClose={() => setIsModalOpen(false)}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-900">
+              <Package className="size-5 text-amber-500" />
+              Xác nhận & Điều chỉnh số lượng
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+              <p className="text-sm text-amber-800">
+                Hệ thống đã gom thành công <strong>{consolidationResult?.totalOrders}</strong> đơn hàng. Bạn có thể điều
+                chỉnh số lượng tổng hợp bên dưới trước khi xác nhận.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-amber-900">Danh sách sản phẩm tổng hợp:</p>
+              <div className="max-h-[400px] space-y-3 overflow-y-auto pr-2">
+                {editedProducts.map((p) => (
+                  <div
+                    key={p.productId}
+                    className="flex items-center justify-between rounded-lg border border-stone-100 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-stone-900">{p.productName}</p>
+                      <p className="text-[10px] text-stone-500">Tổng hợp từ {p.orderIds.length} đơn hàng</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-24">
+                        <Input
+                          type="number"
+                          value={p.quantity}
+                          onChange={(e) => handleQuantityChange(p.productId, Number(e.target.value))}
+                          className="h-9 border-amber-200 bg-amber-50/20 text-right font-bold text-amber-700 focus:border-amber-400 focus:ring-amber-200"
+                        />
+                      </div>
+                      <span className="text-[10px] font-medium text-stone-400 uppercase">Đơn vị</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsModalOpen(false)}
+              className="rounded-full border-amber-200 px-6 text-stone-600 hover:bg-stone-50"
+            >
+              Hủy bỏ
+            </Button>
+            <Button
+              onClick={handleFinalize}
+              className="rounded-full bg-amber-500 px-8 text-white hover:bg-amber-600 shadow-md transition-all active:scale-95"
+            >
+              Tạo lệnh sản xuất
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
