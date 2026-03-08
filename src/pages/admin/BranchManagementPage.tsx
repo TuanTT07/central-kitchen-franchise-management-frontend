@@ -176,19 +176,23 @@ const BranchManagementPage = () => {
   const handleSave = async (data: StoreResponse) => {
     try {
       setLoading(true);
-      const payload = {
-        ...data,
-        isActive: editingStore ? data.status : true,
-      };
 
       if (editingStore) {
         // TODO: Gọi API updateStore khi adminService hỗ trợ
-        setStores((prev) => prev.map((s) => (s.storeId === editingStore.storeId ? { ...s, ...payload } : s)));
+        // setStores((prev) => prev.map((s) => (s.storeId === editingStore.storeId ? { ...s, ...payload } : s)));
         alert('Cập nhật cửa hàng thành công');
       } else {
-        // TODO: Gọi API createStore
-        // const response = await adminService.createStore(payload);
-        // if (response) { ... }
+        try {
+          const response = await adminService.createStore({
+            storeName: data.storeName,
+            address: data.address,
+            phone: data.phone,
+            status: data.status === 'ACTIVE' ? data.status : 'INACTIVE',
+          });
+          if (response) {
+            fetchStore();
+          }
+        } catch (error) {}
       }
       setDialogOpen(false);
     } catch (error: any) {
