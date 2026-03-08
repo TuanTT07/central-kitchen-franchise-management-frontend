@@ -19,6 +19,10 @@ function SummaryOrdersPage() {
   const [consolidationResult, setConsolidationResult] = useState<ConsolidationResponse | null>(null);
   const [editedProducts, setEditedProducts] = useState<ConsolidationProduct[]>([]);
 
+  // State quản lý Gom đơn thủ công
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
+
   // Hàm gọi API lấy danh sách đơn hàng
   const getAllOrders = async () => {
     try {
@@ -113,6 +117,40 @@ function SummaryOrdersPage() {
   };
 
   /**
+   * NGHIỆP VỤ: Gom đơn thủ công (Manual Consolidate)
+   * Mở Dialog để người dùng tự chọn các đơn hàng muốn gom.
+   */
+  function manuConsolidate() {
+    setSelectedOrderIds([]); // Reset danh sách chọn
+    setIsManualModalOpen(true);
+  }
+
+  // Hàm xử lý chọn/bỏ chọn đơn hàng trong danh sách thủ công
+  const toggleOrderSelection = (orderId: number) => {
+    setSelectedOrderIds((prev) => (prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]));
+  };
+
+  /**
+   * NGHIỆP VỤ: Thực hiện gom các đơn đã chọn thủ công
+   */
+  const handleManualConsolidate = async () => {
+    console.log('đã chạy');
+    if (selectedOrderIds.length === 0) return;
+    try {
+      const response = await supplyServices.consolidateManual(selectedOrderIds);
+      if (response.success) {
+        setConsolidationResult(response.data);
+        setEditedProducts(response.data.products);
+        setIsManualModalOpen(false); // Đóng dialog chọn đơn
+        setIsModalOpen(true); // Mở dialog kết quả & chỉnh sửa số lượng
+        getAllOrders();
+      }
+    } catch (error) {
+      console.error('Gom đơn thủ công thất bại:', error);
+    }
+  };
+
+  /**
    * NGHIỆP VỤ: Tạo lệnh sản xuất
    * Kết thúc quá trình gom đơn và chuyển sang giai đoạn sản xuất.
    */
@@ -121,8 +159,6 @@ function SummaryOrdersPage() {
     setIsModalOpen(false);
     setConsolidationResult(null);
   };
-
-  function manuConsolidate() {}
 
   // Tự động tính toán lại các con số thống kê mỗi khi danh sách 'orders' thay đổi
   const stats = useMemo(() => {
@@ -405,6 +441,94 @@ function SummaryOrdersPage() {
             >
               Tạo lệnh sản xuất
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isManualModalOpen} onOpenChange={setIsManualModalOpen}>
+        <DialogContent className="max-w-2xl" onClose={() => setIsManualModalOpen(false)}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-900">
+              <Filter className="size-5 text-amber-500" />
+              Chọn đơn hàng để tổng hợp
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+              <p className="text-sm text-amber-800">
+                Lưu ý: Chỉ các đơn hàng ở trạng thái <strong>Đã duyệt (APPROVED)</strong> mới có thể tham gia tổng hợp
+                thủ công.
+              </p>
+            </div>
+
+            <div className="max-h-[400px] overflow-y-auto pr-2">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
+                    <th className="px-4 py-2 font-semibold w-10">Chọn</th>
+                    <th className="px-4 py-2 font-semibold">Mã đơn</th>
+                    <th className="px-4 py-2 font-semibold">Chi nhánh</th>
+                    <th className="px-4 py-2 font-semibold">Sản phẩm chính</th>
+                    <th className="px-4 py-2 font-semibold text-center">SL</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-amber-50">
+                  {orders
+                    .filter((o) => o.status === 'APPROVED')
+                    .map((o) => (
+                      <tr
+                        key={o.orderId}
+                        className={`hover:bg-amber-50/40 cursor-pointer ${selectedOrderIds.includes(o.orderId) ? 'bg-amber-50' : ''}`}
+                        onClick={() => toggleOrderSelection(o.orderId)}
+                      >
+                        <td className="px-4 py-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedOrderIds.includes(o.orderId)}
+                            onChange={() => {}} // Handle via tr onClick
+                            className="rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                          />
+                        </td>
+                        <td className="px-4 py-2 font-semibold text-stone-900">{o.orderCode}</td>
+                        <td className="px-4 py-2 text-stone-800">{o.storeName}</td>
+                        <td className="px-4 py-2 text-stone-800">{o.details?.[0]?.productName || 'N/A'}</td>
+                        <td className="px-4 py-2 text-center text-stone-800">
+                          {o.details?.reduce((acc, curr) => acc + curr.quantity, 0) || 0}
+                        </td>
+                      </tr>
+                    ))}
+                  {orders.filter((o) => o.status === 'APPROVED').length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-10 text-center text-stone-500">
+                        Không có đơn hàng nào đã duyệt để tổng hợp.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-between sm:justify-between">
+            <p className="text-xs text-stone-500">
+              Đã chọn: <strong>{selectedOrderIds.length}</strong> đơn hàng
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsManualModalOpen(false)}
+                className="rounded-full border-amber-200 px-6 text-stone-600 hover:bg-stone-50"
+              >
+                Đóng
+              </Button>
+              <Button
+                onClick={handleManualConsolidate}
+                disabled={selectedOrderIds.length === 0}
+                className="rounded-full bg-amber-500 px-8 text-white hover:bg-amber-600 shadow-md disabled:opacity-50"
+              >
+                Tiến hành gom đơn
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
