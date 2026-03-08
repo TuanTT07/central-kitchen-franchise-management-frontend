@@ -18,7 +18,7 @@ export interface PaginatedResponse<T> {
 }
 // bởi vì backend trả về content là 1 object chứa các thông tin phân trang
 export interface SpringPageResponse<T> {
-  content: T;
+  data: T;
   totalPages: number;
   totalElements: number;
   size: number;

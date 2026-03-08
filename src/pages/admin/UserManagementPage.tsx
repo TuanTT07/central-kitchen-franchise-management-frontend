@@ -17,12 +17,14 @@ import {
   UserX,
   ChevronLeft,
   ChevronRight,
+  Store,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type User, type Role } from '@/Types';
 import { adminService, type UserResponse } from '@/services/adminServices';
 import { useForm } from 'react-hook-form';
 import { Field, FieldLabel, FieldError, FieldContent } from '@/components/ui/field';
+
 
 const ROLES: { role_id: number; role_name: Role; label: string }[] = [
   { role_id: 1, role_name: 'ADMIN', label: 'Quản trị viên' },
@@ -67,22 +69,24 @@ const UserManagementPage = () => {
     async (page: number = 0) => {
       setLoading(true);
       try {
-        const response = (await adminService.getAllUsers(page, pageSize)).data;
-        if (response) {
-          const mappedUsers = response.content.map((u: UserResponse) => ({
+        const response = await adminService.getAllUsers(page, pageSize);
+        if (response && response.data.success) {
+          const mappedUsers: UserResponse[] = response.data.data.items.map((u: UserResponse) => ({
             userId: u.userId,
             username: u.username,
             fullName: u.fullName,
             email: u.email,
-            isActive: u.isActive,
+            storeId: u.storeId,
+            storeName: u.storeName,
+            status: u.status,
             role: u.role,
           }));
           setUsers(mappedUsers);
           setPageInfo({
-            totalPages: response.totalPages,
-            totalElements: response.totalElements,
-            isFirst: response.first,
-            isLast: response.last,
+            totalPages: response.data.data.totalPages,
+            totalElements: response.data.data.totalElements,
+            isFirst: response.data.data.first,
+            isLast: response.data.data.last,
           });
         }
       } catch (error) {
@@ -134,14 +138,14 @@ const UserManagementPage = () => {
   const openEdit = (user: UserResponse) => {
     // Chuyển đổi dữ liệu tạm thời sang interface User để dùng cho state editingUser
     const tempUser: any = {
-      isActive: user.isActive,
+      isActive: user.status === 'ACTIVE',
       roles: [user.role], // Chuyển "ADMIN" sang ["ADMIN"]
     };
 
     setEditingUser(tempUser);
     reset({
       role_id: ROLES.find((r) => r.role_name === user.role)?.role_id || 1,
-      is_active: user.isActive,
+      is_active: user.status === 'ACTIVE',
     });
     setDialogOpen(true);
   };
@@ -284,6 +288,7 @@ const UserManagementPage = () => {
                       Thông tin cá nhân
                     </th>
                     <th className="px-6 py-4 font-bold text-amber-900 uppercase tracking-wider text-xs">Vai trò</th>
+                    <th className="px-6 py-4 font-bold text-amber-900 uppercase tracking-wider text-xs">Cửa hàng</th>
                     <th className="px-6 py-4 font-bold text-amber-900 uppercase tracking-wider text-xs">Trạng thái</th>
                     <th className="px-6 py-4 text-right font-bold text-amber-900 uppercase tracking-wider text-xs">
                       Thao tác
@@ -316,16 +321,22 @@ const UserManagementPage = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-600 font-bold text-[10px] uppercase border border-amber-200 shadow-sm">
+                          <Store className="size-3" />
+                          {user.storeName ? user.storeName : 'Chưa có cửa hàng'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
                         <div
                           className={cn(
                             'inline-flex items-center gap-1 py-1 px-3 rounded-full text-[11px] font-bold shadow-sm border transition-all',
-                            user.isActive
+                            user.status === 'ACTIVE'
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : 'bg-rose-50 text-rose-700 border-rose-200'
                           )}
                         >
-                          {user.isActive ? <UserCheck className="size-3" /> : <UserX className="size-3" />}
-                          {user.isActive ? 'Hoạt động' : 'Đã khóa'}
+                          {user.status === 'ACTIVE' ? <UserCheck className="size-3" /> : <UserX className="size-3" />}
+                          {user.status === 'ACTIVE' ? 'Hoạt động' : 'Đã khóa'}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right flex justify-end gap-2">
@@ -339,7 +350,7 @@ const UserManagementPage = () => {
                           <Pencil className="size-4" />
                         </Button>
 
-                        {user.isActive ? (
+                        {user.status === 'ACTIVE' ? (
                           <Button
                             variant="ghost"
                             size="icon"
