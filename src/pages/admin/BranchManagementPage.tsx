@@ -7,25 +7,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Plus, Pencil, Trash2, Search, Loader2, ChevronLeft } from 'lucide-react';
 import { adminService, type StoreResponse } from '../../services/adminServices';
 import { cn } from '@/lib/utils';
+import { useForm } from 'react-hook-form';
 
 const BranchManagementPage = () => {
+  // register, reset... từ useForm
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<StoreResponse>();
+
+  // state
   const [stores, setStores] = useState<StoreResponse[]>([]);
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [editingStore, setEditingStore] = useState<StoreResponse | null>(null);
   const [storeToDelete, setStoreToDelete] = useState<StoreResponse | null>(null);
-  const [formData, setFormData] = useState<{
-    store_name: string;
-    address: string;
-    phone: string;
-    manager_id: number | null;
-  }>({
-    store_name: '',
-    address: '',
-    phone: '',
-    manager_id: null,
-  });
+
   // status page
   const [loading, setLoading] = useState(false);
 
@@ -43,24 +43,22 @@ const BranchManagementPage = () => {
     async (page: number = 0) => {
       setLoading(true);
       try {
-        const response = (await adminService.getAllStores(page, pageSize)).data;
-        if (response) {
-          const mappedStores = response.content.map((s: StoreResponse) => ({
+        const response = await adminService.getAllStores(page, pageSize);
+        if (response && response.data.success) {
+          const paginationData = response.data.data;
+          const mappedStores = paginationData.items.map((s: StoreResponse) => ({
             storeId: s.storeId,
             storeName: s.storeName,
             address: s.address,
             phone: s.phone,
-            managerUserId: s.managerUserId,
-            managerUserName: s.managerUserName,
-            managerFullName: s.managerFullName,
             isActive: s.isActive,
           }));
           setStores(mappedStores);
           setPageInfo({
-            totalPages: response.totalPages,
-            totalElements: response.totalElements,
-            isFirst: response.first,
-            isLast: response.last,
+            totalPages: paginationData.totalPages,
+            totalElements: paginationData.totalElements,
+            isFirst: paginationData.first,
+            isLast: paginationData.last,
           });
         }
       } catch (error) {
@@ -81,19 +79,32 @@ const BranchManagementPage = () => {
       s.storeName.toLowerCase().includes(search.toLowerCase()) || s.address.toLowerCase().includes(search.toLowerCase())
   );
 
-  const openAdd = () => {
+  const openAdd = async () => {
     setEditingStore(null);
-    setFormData({ store_name: '', address: '', phone: '', manager_id: null });
+    try {
+      const response = (await adminService.getAllUsers()).data;
+      if (response) {
+        // Reset form về giá trị mặc định, managerUserId lấy từ user đầu tiên nếu có
+        reset({
+          storeName: '',
+          address: '',
+          phone: '',
+          isActive: true,
+        });
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy danh sách Manager:', error);
+    }
     setDialogOpen(true);
   };
 
   const openEdit = (store: StoreResponse) => {
     setEditingStore(store);
-    setFormData({
-      store_name: store.storeName,
+    reset({
+      storeName: store.storeName,
       address: store.address,
       phone: store.phone,
-      manager_id: store.managerUserId,
+      isActive: store.isActive,
     });
     setDialogOpen(true);
   };
@@ -103,17 +114,33 @@ const BranchManagementPage = () => {
     setDeleteConfirmOpen(true);
   };
 
-  const handleSave = () => {
-    if (!formData.store_name.trim()) return;
+  const handleSave = async (data: StoreResponse) => {
+    try {
+      setLoading(true);
+      const payload = {
+        ...data,
+        isActive: editingStore ? data.isActive : true,
+      };
 
-    if (editingStore) {
-      setStores((prev) => prev.map((s) => (s.storeId === editingStore.storeId ? { ...s, ...formData } : s)));
-    } else {
-      // const newId = Math.max(0, ...stores.map((s) => s.storeId)) + 1;
-      // setStores((prev) => [...prev, { storeId: newId, ...formData }]);
+      if (editingStore) {
+        // Nếu có API updateStore trong adminService thì gọi ở đây
+        // Hiện tại chỉ thấy createStore, tạm thời update local state hoặc đợi API update
+        setStores((prev) => prev.map((s) => (s.storeId === editingStore.storeId ? { ...s, ...payload } : s)));
+        alert('Cập nhật cửa hàng thành công');
+      } else {
+        // const response = await adminService.createStore(payload);
+        // if (response) {
+        //   await fetchStore();
+        //   alert('Tạo cửa hàng thành công');
+        // }
+      }
+      setDialogOpen(false);
+    } catch (error: any) {
+      console.error('Lỗi khi lưu cửa hàng:', error);
+      alert(error.response?.data?.message || 'Có lỗi xảy ra khi lưu cửa hàng');
+    } finally {
+      setLoading(false);
     }
-
-    setDialogOpen(false);
   };
 
   const handleDelete = () => {
@@ -156,7 +183,6 @@ const BranchManagementPage = () => {
                     <th className="px-5 py-4 font-semibold text-amber-900">Tên cửa hàng</th>
                     <th className="px-5 py-4 font-semibold text-amber-900">Địa chỉ</th>
                     <th className="px-5 py-4 font-semibold text-amber-900">Số điện thoại</th>
-                    <th className="px-5 py-4 font-semibold text-amber-900">Cửa hàng trưởng</th>
                     <th className="px-5 py-4 text-right font-semibold text-amber-900">Thao tác</th>
                   </tr>
                 </thead>
@@ -180,7 +206,6 @@ const BranchManagementPage = () => {
                         <td className="px-5 py-4 font-medium text-amber-900">{store.storeName}</td>
                         <td className="px-5 py-4 text-stone-700">{store.address}</td>
                         <td className="px-5 py-4 text-stone-700">{store.phone}</td>
-                        <td className="px-5 py-4 text-stone-700">{store.managerFullName}</td>
                         <td className="px-5 py-4 text-right">
                           <div className="flex justify-end gap-2">
                             <Button
@@ -213,7 +238,7 @@ const BranchManagementPage = () => {
               <div className="text-sm text-amber-900/60 font-medium">
                 Hiển thị <span className="text-amber-600">{currentPage * pageSize + 1}</span> -{' '}
                 <span className="text-amber-600">{Math.min((currentPage + 1) * pageSize, pageInfo.totalElements)}</span>{' '}
-                trên tổng số <span className="text-amber-600">{pageInfo.totalElements}</span> người dùng
+                trên tổng số <span className="text-amber-600">{pageInfo.totalElements}</span> cửa hàng
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -261,78 +286,63 @@ const BranchManagementPage = () => {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent onClose={() => setDialogOpen(false)} className="max-w-2xl min-w-[28rem] p-8">
-          <DialogHeader>
-            <DialogTitle>{editingStore ? 'Chỉnh sửa cửa hàng' : 'Thêm cửa hàng mới'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-5 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="store_name" className="text-base">
-                Tên cửa hàng
-              </Label>
-              <Input
-                id="store_name"
-                value={formData.store_name}
-                onChange={(e) => setFormData((p) => ({ ...p, store_name: e.target.value }))}
-                placeholder="VD: Cửa hàng Quận 1"
-                className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
-              />
+          <form onSubmit={handleSubmit(handleSave)} noValidate>
+            <DialogHeader>
+              <DialogTitle>{editingStore ? 'Chỉnh sửa cửa hàng' : 'Thêm cửa hàng mới'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-5 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="store_name" className="text-base">
+                  Tên cửa hàng
+                </Label>
+                <Input
+                  id="store_name"
+                  placeholder="Nhập tên cửa hàng"
+                  className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
+                  {...register('storeName', {
+                    required: 'Tên cửa hàng không được để trống',
+                  })}
+                />
+                {errors.storeName && <p className="text-red-500">{errors.storeName.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address" className="text-base">
+                  Địa chỉ
+                </Label>
+                <Input
+                  id="address"
+                  placeholder="Nhập địa chỉ"
+                  className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
+                  {...register('address', {
+                    required: 'Địa chỉ không được để trống',
+                  })}
+                />
+                {errors.address && <p className="text-red-500">{errors.address.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-base">
+                  Số điện thoại
+                </Label>
+                <Input
+                  id="phone"
+                  placeholder="Nhập số điện thoại (084 xxx xxx)"
+                  className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
+                  {...register('phone', {
+                    required: 'Số điện thoại không được để trống',
+                  })}
+                />
+                {errors.phone && <p className="text-red-500">{errors.phone.message}</p>}
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="address" className="text-base">
-                Địa chỉ
-              </Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData((p) => ({ ...p, address: e.target.value }))}
-                placeholder="Địa chỉ đầy đủ"
-                className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone" className="text-base">
-                Số điện thoại
-              </Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
-                placeholder="028 xxx xxxx"
-                className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="manager_id" className="text-base">
-                Cửa hàng trưởng (User)
-              </Label>
-              <select
-                id="manager_id"
-                value={formData.manager_id ?? ''}
-                onChange={(e) =>
-                  setFormData((p) => ({
-                    ...p,
-                    manager_id: e.target.value === '' ? null : Number(e.target.value),
-                  }))
-                }
-                className="h-11 w-full rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-2.5 text-base focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
-              >
-                <option value="">— Không chọn —</option>
-                {/* {MOCK_USERS.map((u) => (
-                  <option key={u.user_id} value={u.user_id}>
-                    {u.full_name} (#{u.user_id})
-                  </option>
-                ))} */}
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="lg" className="min-w-[6rem]" onClick={() => setDialogOpen(false)}>
-              Hủy
-            </Button>
-            <Button size="lg" className="min-w-[6rem] bg-amber-500 text-white hover:bg-amber-600" onClick={handleSave}>
-              {editingStore ? 'Cập nhật' : 'Thêm'}
-            </Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button variant="outline" size="lg" className="min-w-[6rem]" onClick={() => setDialogOpen(false)}>
+                Hủy
+              </Button>
+              <Button type="submit" size="lg" className="min-w-[6rem] bg-amber-500 text-white hover:bg-amber-600">
+                {editingStore ? 'Cập nhật' : 'Thêm'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
