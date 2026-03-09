@@ -32,6 +32,7 @@ export interface StoreResponse {
  * DELETE /admin/users/{id}/active -> Xóa/Ngừng kích hoạt tài khoản
  * GET    /admin/stores         -> Danh sách cửa hàng (phân trang)
  * POST   /admin/stores         -> Tạo cửa hàng mới
+ * PATCH  /admin/stores/{id}    -> cập nhật thông tin cửa hàng
  *
  * Authorization:
  * Bearer Token
@@ -120,12 +121,26 @@ export const adminService = {
   /**
    * Tạo mới một cửa hàng trong hệ thống
    *
-   * @param body Thông tin cửa hàng (storeName, address, phone, managerUserId, isActive)
+   * @param body Thông tin cửa hàng (storeName, address, phone, status)
    *
    * @returns Promise<any>
    */
   createStore: async (body: { storeName: string; address: string; phone: string; status: 'ACTIVE' | 'INACTIVE' }) => {
     return await http.post('/admin/stores', body);
+  },
+
+  /**
+   * Cập nhật thông tin cửa hàng trong hệ thống
+   *
+   * @param id ID của cửa hàng, body thông tin cửa hàng (storeName, address, phone, status)
+   *
+   * @return Promise<Response<StoreResponse>>
+   */
+  updateStore: async (
+    id: number,
+    body: { storeName: string; address: string; phone: string; status: 'ACTIVE' | 'INACTIVE' }
+  ) => {
+    return await http.patch<Response<StoreResponse>>(`/admin/stores/${id}`, body);
   },
 };
 

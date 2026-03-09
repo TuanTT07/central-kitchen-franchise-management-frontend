@@ -143,9 +143,7 @@ const BranchManagementPage = () => {
     if (search.trim()) {
       const searchLower = search.toLowerCase();
       listStore = listStore.filter(
-        (s) =>
-          s.storeName.toLowerCase().includes(searchLower) ||
-          s.address.toLowerCase().includes(searchLower)
+        (s) => s.storeName.toLowerCase().includes(searchLower) || s.address.toLowerCase().includes(searchLower)
       );
     }
     return listStore;
@@ -158,6 +156,7 @@ const BranchManagementPage = () => {
   const openAdd = () => {
     setEditingStore(null);
     reset({
+      storeId: 0,
       storeName: '',
       address: '',
       phone: '',
@@ -173,6 +172,7 @@ const BranchManagementPage = () => {
   const openEdit = (store: StoreResponse) => {
     setEditingStore(store);
     reset({
+      storeId: store.storeId,
       storeName: store.storeName,
       address: store.address,
       phone: store.phone,
@@ -197,11 +197,20 @@ const BranchManagementPage = () => {
   const handleSave = async (data: StoreResponse) => {
     try {
       setLoading(true);
+      console.log(data.storeId);
 
       if (editingStore) {
-        // TODO: Gọi API updateStore khi adminService hỗ trợ
-        // setStores((prev) => prev.map((s) => (s.storeId === editingStore.storeId ? { ...s, ...payload } : s)));
-        alert('Cập nhật cửa hàng thành công');
+        try {
+          const response = await adminService.updateStore(editingStore.storeId, {
+            storeName: data.storeName,
+            address: data.address,
+            phone: data.phone,
+            status: data.status,
+          });
+          if (response.data.success) {
+            fetchStore();
+          }
+        } catch (error) {}
       } else {
         try {
           const response = await adminService.createStore({
