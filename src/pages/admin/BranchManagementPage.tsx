@@ -9,7 +9,7 @@
  */
 
 // ================= IMPORT =================
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +19,9 @@ import { Plus, Pencil, Trash2, Search, Loader2, ChevronLeft } from 'lucide-react
 import { adminService, type StoreResponse } from '../../services/adminServices';
 import { cn } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
+
+// type của Filter
+type StoreFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
 // ================= COMPONENT =================
 const BranchManagementPage = () => {
@@ -57,6 +60,9 @@ const BranchManagementPage = () => {
   const [stores, setStores] = useState<StoreResponse[]>([]);
   // Nội dung tìm kiếm
   const [search, setSearch] = useState('');
+  // Quản lí status của Filter
+  const [statusFilter, setStatusFilter] = useState<StoreFilter>('ALL');
+
   // Quản lý đóng/mở Dialog thêm/sửa
   const [dialogOpen, setDialogOpen] = useState(false);
   // Quản lý đóng/mở Dialog xác nhận xóa
@@ -123,12 +129,25 @@ const BranchManagementPage = () => {
 
   // ================= LOGIC / FILTER =================
   /**
-   * Lọc danh sách cửa hàng dựa trên từ khóa tìm kiếm
+   * Lọc danh sách cửa hàng dựa trên từ khóa tìm kiếm và theo bộ lọc
    */
-  const filteredStores = stores.filter(
-    (s) =>
-      s.storeName.toLowerCase().includes(search.toLowerCase()) || s.address.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredStores = useMemo(() => {
+    let listStore = [...stores];
+
+    // Lọc theo trạng thái
+    if (statusFilter !== 'ALL') {
+      listStore = listStore.filter((s) => s.status === statusFilter);
+    }
+
+    // Lọc theo từ khóa tìm kiếm
+    if (search.trim()) {
+      const searchLower = search.toLowerCase();
+      listStore = listStore.filter(
+        (s) => s.storeName.toLowerCase().includes(searchLower) || s.address.toLowerCase().includes(searchLower)
+      );
+    }
+    return listStore;
+  }, [stores, statusFilter, search]);
 
   // ================= HANDLERS =================
   /**
@@ -137,6 +156,7 @@ const BranchManagementPage = () => {
   const openAdd = () => {
     setEditingStore(null);
     reset({
+      storeId: 0,
       storeName: '',
       address: '',
       phone: '',
@@ -152,6 +172,7 @@ const BranchManagementPage = () => {
   const openEdit = (store: StoreResponse) => {
     setEditingStore(store);
     reset({
+      storeId: store.storeId,
       storeName: store.storeName,
       address: store.address,
       phone: store.phone,
@@ -176,11 +197,20 @@ const BranchManagementPage = () => {
   const handleSave = async (data: StoreResponse) => {
     try {
       setLoading(true);
+      console.log(data.storeId);
 
       if (editingStore) {
-        // TODO: Gọi API updateStore khi adminService hỗ trợ
-        // setStores((prev) => prev.map((s) => (s.storeId === editingStore.storeId ? { ...s, ...payload } : s)));
-        alert('Cập nhật cửa hàng thành công');
+        try {
+          const response = await adminService.updateStore(editingStore.storeId, {
+            storeName: data.storeName,
+            address: data.address,
+            phone: data.phone,
+            status: data.status,
+          });
+          if (response.data.success) {
+            fetchStore();
+          }
+        } catch (error) {}
       } else {
         try {
           const response = await adminService.createStore({
@@ -206,10 +236,14 @@ const BranchManagementPage = () => {
   /**
    * Xử lý xóa cửa hàng
    */
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (storeToDelete) {
-      // TODO: Gọi API deleteStore
-      setStores((prev) => prev.filter((s) => s.storeId !== storeToDelete.storeId));
+      try {
+        const response = await adminService.deleteStore(storeToDelete.storeId);
+        if (response.data.success) {
+          fetchStore();
+        }
+      } catch (error) {}
       setDeleteConfirmOpen(false);
       setStoreToDelete(null);
     }
@@ -240,7 +274,55 @@ const BranchManagementPage = () => {
                 />
               </div>
             </div>
-
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
+                Bộ lọc trạng thái
+              </span>
+              <div className="flex gap-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={statusFilter === 'ALL' ? 'default' : 'outline'}
+                  className={cn(
+                    'h-8 rounded-full border-amber-200 px-3 text-xs',
+                    statusFilter === 'ALL'
+                      ? 'bg-amber-500 text-white hover:bg-amber-600'
+                      : 'bg-white text-amber-800 hover:bg-amber-50'
+                  )}
+                  onClick={() => setStatusFilter('ALL')}
+                >
+                  Tất cả
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={statusFilter === 'ACTIVE' ? 'default' : 'outline'}
+                  className={cn(
+                    'h-8 rounded-full border-emerald-200 px-3 text-xs',
+                    statusFilter === 'ACTIVE'
+                      ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                      : 'bg-white text-emerald-700 hover:bg-emerald-50'
+                  )}
+                  onClick={() => setStatusFilter('ACTIVE')}
+                >
+                  Đang hoạt động
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={statusFilter === 'INACTIVE' ? 'default' : 'outline'}
+                  className={cn(
+                    'h-8 rounded-full border-stone-300 px-3 text-xs',
+                    statusFilter === 'INACTIVE'
+                      ? 'bg-stone-700 text-white hover:bg-stone-800'
+                      : 'bg-white text-stone-700 hover:bg-stone-50'
+                  )}
+                  onClick={() => setStatusFilter('INACTIVE')}
+                >
+                  Ngừng hoạt động
+                </Button>
+              </div>
+            </div>
             <div className=" overflow-x-auto rounded-xl border border-amber-200/60 shadow-sm">
               <table className="w-full text-sm">
                 <thead>
