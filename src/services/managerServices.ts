@@ -71,7 +71,7 @@ export const managerServices = {
    * @returns Promise<CategoryResponse>
    */
   updateCategory: async (id: number, body: { categoryName: string }) => {
-    const response = await http.put<Response<CategoryResponse>>(`/api/v1/categories/${id}`, body);
+    const response = await http.patch<Response<CategoryResponse>>(`/api/v1/categories/${id}`, body);
     return response.data;
   },
 
