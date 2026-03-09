@@ -11,12 +11,30 @@ export interface ManufacturingOrderResponse {
   startDate: string;
   createdBy: string;
 }
+
+/**
+ * Định nghĩa các trạng thái của Lô hàng (Product Batch)
+ */
+export type ProductBatchStatus = 'WAITING_FOR_STOCK' | 'AVAILABLE' | 'OUT_OF_STOCK' | 'EXPIRED';
+
+export interface ProductBatchesResponse {
+  batchId: number;
+  batchCode: string;
+  productName: string;
+  currentQuantity: number;
+  initialQuantity: number;
+  unitName: string;
+  expiryDate: string;
+  status: ProductBatchStatus;
+}
 /**
  * =========================================================
  * API: Kitchen Service
  *
  * Endpoints:
  * GET    /api/v1/manufacturing-orders -> Danh sách lệnh sản xuất
+ *
+ * GET    /api/v1/product-batches  -> lấy danh sách lô hàng
  *
  * Authorization:
  * Bearer Token
@@ -32,5 +50,15 @@ export const kitchenServices = {
   getAllOrders: async () => {
     const response = await http.get<Response<ManufacturingOrderResponse[]>>('/api/v1/manufacturing-orders');
     return response.data;
+  },
+
+  /**
+   * Lấy danh sách tất cả các lô sản xuất
+   *
+   * @returns  Promise<Response<ProductBatchesResponse[]>>
+   */
+
+  getAllProductBatches: async () => {
+    return await http.get<Response<ProductBatchesResponse[]>>('/api/v1/product-batches');
   },
 };
