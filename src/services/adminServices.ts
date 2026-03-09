@@ -6,6 +6,7 @@ export interface UserResponse {
   userId: number;
   username: string;
   fullName: string;
+  password?: string;
   email: string;
   role: Role;
   storeId: number;
@@ -28,8 +29,9 @@ export interface StoreResponse {
  * Endpoints:
  * GET    /admin/users          -> Danh sách người dùng (phân trang)
  * POST   /admin/users          -> Đăng ký tài khoản mới
- * PUT    /admin/users/{id}     -> Cập nhật thông tin tài khoản
- * DELETE /admin/users/{id}/active -> Xóa/Ngừng kích hoạt tài khoản
+ * PATCH    /admin/users/{id}     -> Cập nhật thông tin tài khoản
+ * DELETE /admin/users/{id} -> Xóa/Ngừng kích hoạt tài khoản
+ *
  * GET    /admin/stores         -> Danh sách cửa hàng (phân trang)
  * POST   /admin/stores         -> Tạo cửa hàng mới
  * PATCH  /admin/stores/{id}    -> cập nhật thông tin cửa hàng và nó có thể điều chỉnh được trạng thái
@@ -67,8 +69,8 @@ export const adminService = {
     password: string;
     fullName: string;
     email: string;
-    role: string;
-    isActive: boolean;
+    role: Role;
+    storeId: number;
   }) => {
     return await http.post('/admin/users', body);
   },
@@ -84,14 +86,15 @@ export const adminService = {
   updateAccount: async (
     id: number,
     body: {
-      fullName?: string;
-      email?: string;
-      role?: string;
-      isActive?: boolean;
+      fullName: string;
+      email: string;
+      role: Role;
+      storeId: number;
+      status: 'ACTIVE' | 'INACTIVE';
       password?: string;
     }
   ) => {
-    return await http.put(`/admin/users/${id}`, body);
+    return await http.patch(`/admin/users/${id}`, body);
   },
 
   /**
@@ -102,7 +105,7 @@ export const adminService = {
    * @returns Promise<any>
    */
   deleteAccount: async (id: number) => {
-    return await http.delete(`/admin/users/${id}/active`);
+    return await http.delete(`/admin/users/${id}`);
   },
 
   /**
@@ -155,6 +158,3 @@ export const adminService = {
     return await http.delete<Response<StoreResponse>>(`/admin/stores/${id}`);
   },
 };
-
-{
-}
