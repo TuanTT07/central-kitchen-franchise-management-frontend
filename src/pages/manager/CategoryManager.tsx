@@ -325,15 +325,19 @@ function CategoryManager() {
                           >
                             <Pencil className="size-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-9 rounded-full text-rose-500 hover:bg-rose-100 hover:text-rose-600 hover:cursor-pointer"
-                            onClick={() => openDelete(category)}
-                            title="Xóa danh mục"
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
+                          {category.status === 'ACTIVE' ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-9 rounded-full text-rose-500 hover:bg-rose-100 hover:text-rose-600 hover:cursor-pointer"
+                              onClick={() => openDelete(category)}
+                              title="Xóa danh mục"
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          ) : (
+                            ''
+                          )}
                         </div>
                       </td>
                     </tr>
