@@ -197,8 +197,6 @@ const BranchManagementPage = () => {
   const handleSave = async (data: StoreResponse) => {
     try {
       setLoading(true);
-      console.log(data.storeId);
-
       if (editingStore) {
         try {
           const response = await adminService.updateStore(editingStore.storeId, {

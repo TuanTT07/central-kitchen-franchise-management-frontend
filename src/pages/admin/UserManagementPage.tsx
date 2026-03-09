@@ -1,3 +1,14 @@
+/**
+ * =========================================================
+ * Component: UserManagementPage
+ * Description: Trang quản lý danh sách người dùng trong hệ thống.
+ *             Cho phép xem, thêm, sửa, khóa (xóa) và phân quyền tài khoản.
+ * Author: Tuan Tran, Dat Tran
+ * Created: 2026-03-08
+ * =========================================================
+ */
+
+// ================= IMPORT =================
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,37 +31,41 @@ import {
   Store,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { type User, type Role } from '@/Types';
-import { adminService, type UserResponse } from '@/services/adminServices';
+import { type Role } from '@/Types';
+import { adminService, type StoreResponse, type UserResponse } from '@/services/adminServices';
 import { useForm } from 'react-hook-form';
 import { Field, FieldLabel, FieldError, FieldContent } from '@/components/ui/field';
 
-const ROLES: { role_id: number; role_name: Role; label: string }[] = [
-  { role_id: 1, role_name: 'ADMIN', label: 'Quản trị viên' },
-  { role_id: 2, role_name: 'FRANCHISE_STORE_STAFF', label: 'Nhân viên cửa hàng phân phối' },
-  { role_id: 3, role_name: 'MANAGER', label: 'Quản lý' },
-  { role_id: 4, role_name: 'SUPPLY_COORDINATOR', label: 'Điều phối nhà cung cấp' },
-  { role_id: 5, role_name: 'CENTRAL_KITCHEN_STAFF', label: 'Nhân viên bếp trung tâm' },
+// ================= CONSTANTS =================
+const ROLES: { roleId: number; roleName: Role; label: string }[] = [
+  { roleId: 1, roleName: 'ADMIN', label: 'Quản trị viên' },
+  { roleId: 2, roleName: 'FRANCHISE_STORE_STAFF', label: 'Nhân viên cửa hàng phân phối' },
+  { roleId: 3, roleName: 'MANAGER', label: 'Quản lý' },
+  { roleId: 4, roleName: 'SUPPLY_COORDINATOR', label: 'Điều phối nhà cung cấp' },
+  { roleId: 5, roleName: 'CENTRAL_KITCHEN_STAFF', label: 'Nhân viên bếp trung tâm' },
 ];
 
-interface UserFormData {
-  username: string;
-  password?: string;
-  full_name: string;
-  email: string;
-  role_id: number;
-  is_active: boolean;
-}
-
+// ================= COMPONENT =================
 const UserManagementPage = () => {
+  // ================= STATE =================
+  // Danh sách người dùng từ API
   const [users, setUsers] = useState<UserResponse[]>([]);
+  // Danh sách cửa hàng còn hoạt động
+  const [stores, setStores] = useState<StoreResponse[]>([]);
+  // Từ khóa tìm kiếm
   const [search, setSearch] = useState('');
+  // Quản lý đóng/mở Dialog thêm/sửa
   const [dialogOpen, setDialogOpen] = useState(false);
+  // Quản lý đóng/mở Dialog xác nhận xóa
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+
+  // Đối tượng người dùng đang được thực hiện thao tác (Sửa/Khóa)
+  const [userToProcess, setUserToProcess] = useState<UserResponse | null>(null);
+
+  // Trạng thái tải dữ liệu
   const [loading, setLoading] = useState(false);
-  // --- STATE QUẢN LÝ PHÂN TRANG (PAGINATION) ---
+
+  // --- QUẢN LÝ PHÂN TRANG (PAGINATION) ---
   const [currentPage, setCurrentPage] = useState(0); // Trang hiện tại (bắt đầu từ 0)
   const [pageSize] = useState(10); // Số lượng phần tử mỗi trang
   const [pageInfo, setPageInfo] = useState({
@@ -60,9 +75,22 @@ const UserManagementPage = () => {
     isLast: true,
   });
 
+  // ================= FORM SETUP =================
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors },
+  } = useForm<UserResponse>();
+
+  // Theo dõi trạng thái active trong form để hiển thị UI động
+  const isActive = watch('status');
+
+  // ================= API CALLS =================
   /**
-   * Hàm lấy danh sách người dùng từ Server
-   * Có thực hiện mapping dữ liệu để tương thích với logic Frontend cũ
+   * Gọi API lấy danh sách người dùng có phân trang
+   * @param page Số trang cần lấy (mặc định 0)
    */
   const fetchUsers = useCallback(
     async (page: number = 0) => {
@@ -70,26 +98,17 @@ const UserManagementPage = () => {
       try {
         const response = await adminService.getAllUsers(page, pageSize);
         if (response && response.data.success) {
-          const mappedUsers: UserResponse[] = response.data.data.items.map((u: UserResponse) => ({
-            userId: u.userId,
-            username: u.username,
-            fullName: u.fullName,
-            email: u.email,
-            storeId: u.storeId,
-            storeName: u.storeName,
-            status: u.status,
-            role: u.role,
-          }));
-          setUsers(mappedUsers);
+          const paginationData = response.data.data;
+          setUsers(paginationData.items);
           setPageInfo({
-            totalPages: response.data.data.totalPages,
-            totalElements: response.data.data.totalElements,
-            isFirst: response.data.data.first,
-            isLast: response.data.data.last,
+            totalPages: paginationData.totalPages,
+            totalElements: paginationData.totalElements,
+            isFirst: paginationData.first,
+            isLast: paginationData.last,
           });
         }
       } catch (error) {
-        console.error('Error fetching users:', error);
+        console.error('Lỗi khi lấy danh sách người dùng:', error);
       } finally {
         setLoading(false);
       }
@@ -97,19 +116,37 @@ const UserManagementPage = () => {
     [pageSize]
   );
 
+  /**
+   * Gọi API lấy danh sách cửa hàng còn hoạt động
+   */
+  const fetchActiveStores = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await adminService.getAllStores();
+      if (response && response.data.success) {
+        const storesData = response.data.data.items.filter((s: StoreResponse) => s.status === 'ACTIVE');
+        setStores(storesData);
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy danh sách cửa hàng:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // ================= EFFECTS =================
   useEffect(() => {
     fetchUsers(currentPage);
   }, [fetchUsers, currentPage]);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    watch,
-    formState: { errors },
-  } = useForm<UserFormData>();
+  useEffect(() => {
+    fetchActiveStores();
+  }, [fetchActiveStores]);
 
-  const isActive = watch('is_active');
+  // ================= LOGIC / FILTER =================
+  /**
+   * Lọc danh sách người dùng dựa trên từ khóa tìm kiếm
+   */
   const filteredUsers = users.filter(
     (u) =>
       (u.username?.toLowerCase() || '').includes(search.toLowerCase()) ||
@@ -117,79 +154,90 @@ const UserManagementPage = () => {
       (u.email?.toLowerCase() || '').includes(search.toLowerCase())
   );
 
+  // ================= HANDLERS =================
+  /**
+   * Mở Dialog để thêm người dùng mới
+   */
   const openAdd = () => {
-    setEditingUser(null);
+    setUserToProcess(null);
     reset({
       username: '',
       password: '',
-      full_name: '',
+      fullName: '',
       email: '',
-      role_id: 1,
-      is_active: true,
+      role: 'ADMIN',
+      storeId: stores[0]?.storeId || 1,
+      status: 'ACTIVE',
     });
     setDialogOpen(true);
   };
 
   /**
-   * Mở Dialog chỉnh sửa người dùng
-   * Chú ý: Cấu trúc UserResponse từ BE khác với interface User cũ (role string vs roles array)
+   * Mở Dialog để chỉnh sửa thông tin người dùng
+   * @param user Đối tượng người dùng cần sửa
    */
   const openEdit = (user: UserResponse) => {
-    // Chuyển đổi dữ liệu tạm thời sang interface User để dùng cho state editingUser
-    const tempUser: any = {
-      isActive: user.status === 'ACTIVE',
-      roles: [user.role], // Chuyển "ADMIN" sang ["ADMIN"]
-    };
-
-    setEditingUser(tempUser);
+    setUserToProcess(user);
     reset({
-      role_id: ROLES.find((r) => r.role_name === user.role)?.role_id || 1,
-      is_active: user.status === 'ACTIVE',
+      username: user.username,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      storeId: user.storeId,
+      status: user.status,
     });
     setDialogOpen(true);
   };
 
   /**
-   * Mở Dialog xác nhận xóa
+   * Mở Dialog xác nhận khóa/xóa người dùng
+   * @param user Đối tượng người dùng cần xóa
    */
   const openDelete = (user: UserResponse) => {
-    // Tương tự, map userId -> id để logic handleDelete phía dưới tìm được ID
-    const tempUser: any = {
-      id: user.userId,
-      username: user.username,
-      fullName: user.fullName,
-    };
-    setUserToDelete(tempUser);
+    setUserToProcess(user);
     setDeleteConfirmOpen(true);
   };
 
-  const handleSave = async (data: UserFormData) => {
+  /**
+   * Xử lý lưu thông tin (Thêm mới hoặc Cập nhật)
+   * @param data Dữ liệu từ form
+   */
+  const handleSave = async (data: UserResponse) => {
     try {
       setLoading(true);
-      const selectedRole = ROLES.find((r) => r.role_id === data.role_id)?.role_name || 'ADMIN';
+      // [QUAN TRỌNG]: Lấy trực tiếp role từ form vì value của select-option là roleName (string)
+      const selectedRole = data.role as Role;
+      
+      // [QUAN TRỌNG]: Vì checkbox 'status' được register trực tiếp, nó trả về boolean (true/false)
+      // Chúng ta cần chuyển boolean này thành chuỗi 'ACTIVE'/'INACTIVE' mà API yêu cầu
+      const statusValue = ((data.status as unknown as boolean) ? 'ACTIVE' : 'INACTIVE') as 'ACTIVE' | 'INACTIVE';
 
-      const payload = {
-        fullName: data.full_name,
-        email: data.email,
-        role: selectedRole,
-        isActive: data.is_active,
-        password: data.password || undefined,
-      };
-
-      if (editingUser) {
-        const response = await adminService.updateAccount(editingUser.id, payload);
-
+      if (userToProcess) {
+        // Trường hợp Cập nhật
+        const payload = {
+          fullName: data.fullName,
+          email: data.email,
+          role: selectedRole,
+          storeId: data.storeId,
+          status: statusValue,
+          password: data.password || undefined,
+        };
+        const response = await adminService.updateAccount(userToProcess.userId, payload);
         if (response.status === 200) {
           await fetchUsers();
           alert('Cập nhật người dùng thành công');
         }
       } else {
-        const response = await adminService.registerAccount({
-          ...payload,
+        // Trường hợp Thêm mới
+        const payload = {
           username: data.username,
           password: data.password || '',
-          isActive: data.is_active, // registerAccount yêu cầu isActive rõ ràng
-        });
+          fullName: data.fullName,
+          email: data.email,
+          role: selectedRole as Role,
+          storeId: data.storeId,
+        };
+        const response = await adminService.registerAccount(payload);
 
         if (response.status === 200 || response.status === 201) {
           await fetchUsers();
@@ -198,33 +246,37 @@ const UserManagementPage = () => {
       }
       setDialogOpen(false);
     } catch (error: any) {
-      console.error('Error saving user:', error);
+      console.error('Lỗi khi lưu người dùng:', error);
       alert(error.response?.data?.message || 'Có lỗi xảy ra khi lưu người dùng');
     } finally {
       setLoading(false);
     }
   };
 
+  /**
+   * Xử lý xóa (ngừng kích hoạt) tài khoản
+   */
   const handleDelete = async () => {
-    if (userToDelete) {
+    if (userToProcess) {
       try {
         setLoading(true);
-        const response = await adminService.deleteAccount(userToDelete.id);
+        const response = await adminService.deleteAccount(userToProcess.userId);
         if (response.status === 200 || response.status === 204) {
           await fetchUsers();
           alert('Xóa người dùng thành công');
         }
       } catch (error: any) {
-        console.error('Error deleting user:', error);
+        console.error('Lỗi khi xóa người dùng:', error);
         alert(error.response?.data?.message || 'Có lỗi xảy ra khi xóa người dùng');
       } finally {
         setLoading(false);
         setDeleteConfirmOpen(false);
-        setUserToDelete(null);
+        setUserToProcess(null);
       }
     }
   };
 
+  // ================= RENDER =================
   return (
     <>
       <div className="h-full w-full">
@@ -297,7 +349,9 @@ const UserManagementPage = () => {
                 <tbody className="divide-y divide-amber-100/50">
                   {filteredUsers.map((user, index) => (
                     <tr key={user.userId} className="transition-all hover:bg-amber-50/40 group">
-                      <td className="px-6 py-4 font-mono text-amber-600/70 text-xs">{index + 1}</td>
+                      <td className="px-6 py-4 font-mono text-amber-600/70 text-xs">
+                        {currentPage * pageSize + index + 1}
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className="font-bold text-amber-900 text-sm">{user.username}</span>
@@ -349,18 +403,16 @@ const UserManagementPage = () => {
                           <Pencil className="size-4" />
                         </Button>
 
-                        {user.status === 'ACTIVE' ? (
+                        {user.status === 'ACTIVE' && (
                           <Button
                             variant="ghost"
                             size="icon"
                             className="size-9 rounded-full text-rose-500 hover:bg-rose-100 hover:text-rose-600 transition-colors"
                             onClick={() => openDelete(user)}
-                            title="Xóa tài khoản"
+                            title="Khóa tài khoản"
                           >
                             <Trash2 className="size-4" />
                           </Button>
-                        ) : (
-                          ''
                         )}
                       </td>
                     </tr>
@@ -431,6 +483,7 @@ const UserManagementPage = () => {
         </Card>
       </div>
 
+      {/* --- DIALOG THÊM/SỬA NGƯỜI DÙNG --- */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent
           onClose={() => setDialogOpen(false)}
@@ -439,81 +492,50 @@ const UserManagementPage = () => {
           <form noValidate onSubmit={handleSubmit(handleSave)} className="flex flex-col">
             <DialogHeader className="px-8 pt-8 pb-6 bg-gradient-to-r from-amber-500 to-orange-500 text-white">
               <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                {editingUser ? <Pencil className="size-6" /> : <Plus className="size-6" />}
-                {editingUser ? 'Chỉnh sửa tài khoản' : 'Tạo tài khoản mới'}
+                {userToProcess ? <Pencil className="size-6" /> : <Plus className="size-6" />}
+                {userToProcess ? 'Chỉnh sửa tài khoản' : 'Tạo tài khoản mới'}
               </DialogTitle>
               <p className="text-amber-50/80 text-sm mt-1">
-                {editingUser
+                {userToProcess
                   ? 'Cập nhật thông tin chi tiết cho người dùng này'
                   : 'Điền thông tin bên dưới để tạo một tài khoản mới'}
               </p>
             </DialogHeader>
 
             <div className="px-8 py-6 space-y-6 max-h-[70vh] overflow-y-auto bg-white">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Username */}
-                <Field>
-                  <FieldLabel
-                    htmlFor="username"
-                    className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2"
-                  >
-                    <UserIcon className="size-4 text-amber-500" />
-                    Tên đăng nhập
-                  </FieldLabel>
-                  <FieldContent>
-                    <div className="relative group/input">
-                      <Input
-                        id="username"
-                        disabled={!!editingUser}
-                        placeholder="Ví dụ: nva2024"
-                        className={cn(
-                          'h-12 border-amber-200 bg-amber-50/30 pl-4 pr-4 transition-all focus:bg-white focus:border-amber-500 focus:ring-amber-200',
-                          !!editingUser && 'opacity-70 bg-stone-100 border-stone-200 cursor-not-allowed'
-                        )}
-                        {...register('username', {
-                          required: 'Tên đăng nhập là bắt buộc',
-                          maxLength: { value: 50, message: 'Tối đa 50 ký tự' },
-                          minLength: { value: 3, message: 'Ít nhất 3 ký tự' },
-                        })}
-                      />
-                    </div>
-                    {errors.username && <FieldError errors={[errors.username]} className="mt-1" />}
-                  </FieldContent>
-                </Field>
-
-                {/* Role selection */}
-                <Field>
-                  <FieldLabel htmlFor="role_id" className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2">
-                    <Shield className="size-4 text-amber-500" />
-                    Vai trò hệ thống
-                  </FieldLabel>
-                  <FieldContent>
-                    <select
-                      id="role_id"
-                      className="h-12 w-full rounded-md border border-amber-200 bg-amber-50/30 px-4 text-[15px] transition-all focus:bg-white focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%23F59E0B%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:20px_20px] bg-[right_12px_center] bg-no-repeat"
-                      {...register('role_id', { valueAsNumber: true })}
-                    >
-                      {ROLES.map((r) => (
-                        <option key={r.role_id} value={r.role_id}>
-                          {r.label}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.role_id && <FieldError errors={[errors.role_id]} className="mt-1" />}
-                  </FieldContent>
-                </Field>
-              </div>
+              {/* Username */}
+              <Field>
+                <FieldLabel htmlFor="username" className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2">
+                  <UserIcon className="size-4 text-amber-500" />
+                  Tên đăng nhập
+                </FieldLabel>
+                <FieldContent>
+                  <div className="relative group/input">
+                    <Input
+                      id="username"
+                      disabled={!!userToProcess}
+                      placeholder="Ví dụ: nva2024"
+                      className={cn(
+                        'h-12 border-amber-200 bg-amber-50/30 pl-4 pr-4 transition-all focus:bg-white focus:border-amber-500 focus:ring-amber-200',
+                        !!userToProcess && 'opacity-70 bg-stone-100 border-stone-200 cursor-not-allowed'
+                      )}
+                      {...register('username', {
+                        required: 'Tên đăng nhập là bắt buộc',
+                        maxLength: { value: 50, message: 'Tối đa 50 ký tự' },
+                        minLength: { value: 3, message: 'Ít nhất 3 ký tự' },
+                      })}
+                    />
+                  </div>
+                  {errors.username && <FieldError errors={[errors.username]} className="mt-1" />}
+                </FieldContent>
+              </Field>
 
               {/* Password */}
               <Field>
-                <FieldLabel
-                  htmlFor="password"
-                  title=""
-                  className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2"
-                >
+                <FieldLabel htmlFor="password" className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2">
                   <Lock className="size-4 text-amber-500" />
                   Mật khẩu{' '}
-                  {editingUser && (
+                  {userToProcess && (
                     <span className="text-xs font-normal text-amber-600/70 italic">(để trống nếu không đổi)</span>
                   )}
                 </FieldLabel>
@@ -521,10 +543,10 @@ const UserManagementPage = () => {
                   <Input
                     id="password"
                     type="password"
-                    placeholder={editingUser ? '••••••••' : 'Nhập mật khẩu ít nhất 6 ký tự'}
+                    placeholder={userToProcess ? '••••••••' : 'Nhập mật khẩu ít nhất 6 ký tự'}
                     className="h-12 border-amber-200 bg-amber-50/30 transition-all focus:bg-white focus:border-amber-500 focus:ring-amber-200"
                     {...register('password', {
-                      required: { value: !editingUser, message: 'Mật khẩu là bắt buộc' },
+                      required: { value: !userToProcess, message: 'Mật khẩu là bắt buộc' },
                       minLength: { value: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự' },
                     })}
                   />
@@ -533,10 +555,60 @@ const UserManagementPage = () => {
               </Field>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Role selection */}
+                <Field>
+                  <FieldLabel htmlFor="roleId" className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2">
+                    <Shield className="size-4 text-amber-500" />
+                    Vai trò hệ thống
+                  </FieldLabel>
+                  <FieldContent>
+                    <select
+                      id="roleId"
+                      className="h-12 w-full rounded-md border border-amber-200 bg-amber-50/30 px-4 text-[15px] transition-all focus:bg-white focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%23F59E0B%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:20px_20px] bg-[right_12px_center] bg-no-repeat"
+                      // Sử dụng trực tiếp role (string) làm value thay vì roleId (number) để khớp với UserResponse
+                      {...register('role')}
+                    >
+                      {ROLES.map((r) => (
+                        <option key={r.roleId} value={r.roleName}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.role && <FieldError errors={[errors.role]} className="mt-1" />}
+                  </FieldContent>
+                </Field>
+                {/* Store selection */}
+                <Field>
+                  <FieldLabel htmlFor="storeId" className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2">
+                    <Shield className="size-4 text-amber-500" />
+                    Cửa hàng
+                  </FieldLabel>
+                  <FieldContent>
+                    <select
+                      id="storeId"
+                      className="h-12 w-full rounded-md border border-amber-200 bg-amber-50/30 px-4 text-[15px] transition-all focus:bg-white focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%23F59E0B%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:20px_20px] bg-[right_12px_center] bg-no-repeat"
+                      {...register('storeId', { 
+                        required: 'Vui lòng chọn cửa hàng',
+                        valueAsNumber: true 
+                      })}
+                    >
+                      <option value="">-- Chọn cửa hàng --</option>
+                      {stores.map((s) => (
+                        <option key={s.storeId} value={s.storeId}>
+                          {s.storeName}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.storeId && <FieldError errors={[errors.storeId]} className="mt-1" />}
+                  </FieldContent>
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Full Name */}
                 <Field>
                   <FieldLabel
-                    htmlFor="full_name"
+                    htmlFor="fullName"
                     className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2"
                   >
                     <UserIcon className="size-4 text-amber-500" />
@@ -544,15 +616,15 @@ const UserManagementPage = () => {
                   </FieldLabel>
                   <FieldContent>
                     <Input
-                      id="full_name"
+                      id="fullName"
                       placeholder="Nguyễn Văn A"
                       className="h-12 border-amber-200 bg-amber-50/30 transition-all focus:bg-white focus:border-amber-500 focus:ring-amber-200"
-                      {...register('full_name', {
+                      {...register('fullName', {
                         required: 'Họ tên là bắt buộc',
                         minLength: { value: 3, message: 'Họ tên phải có ít nhất 3 ký tự' },
                       })}
                     />
-                    {errors.full_name && <FieldError errors={[errors.full_name]} className="mt-1" />}
+                    {errors.fullName && <FieldError errors={[errors.fullName]} className="mt-1" />}
                   </FieldContent>
                 </Field>
 
@@ -581,11 +653,11 @@ const UserManagementPage = () => {
                 </Field>
               </div>
 
-              {/* Status Switch-like */}
+              {/* Status Switch */}
               <div className="pt-2">
                 <label className="flex items-center gap-3 cursor-pointer group w-fit">
                   <div className="relative">
-                    <input type="checkbox" id="is_active" className="sr-only" {...register('is_active')} />
+                    <input type="checkbox" id="isActive" className="sr-only" {...register('status')} />
                     <div
                       className={cn(
                         'w-12 h-6 rounded-full transition-colors border-2',
@@ -630,20 +702,21 @@ const UserManagementPage = () => {
                 type="submit"
                 className="px-8 h-11 bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg hover:shadow-orange-200 hover:from-amber-600 hover:to-orange-600 transition-all"
               >
-                {editingUser ? 'Lưu thay đổi' : 'Tạo người dùng'}
+                {userToProcess ? 'Lưu thay đổi' : 'Tạo người dùng'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
+      {/* --- DIALOG XÁC NHẬN KHÓA/XÓA --- */}
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent onClose={() => setDeleteConfirmOpen(false)} className="max-w-md p-8">
           <DialogHeader>
             <DialogTitle>Xác nhận xóa</DialogTitle>
           </DialogHeader>
           <p className="py-4 text-sm text-stone-700">
-            Bạn có chắc muốn xóa người dùng <strong>{userToDelete?.fullName}</strong> ({userToDelete?.username})? Thao
+            Bạn có chắc muốn xóa người dùng <strong>{userToProcess?.fullName}</strong> ({userToProcess?.username})? Thao
             tác này không thể hoàn tác.
           </p>
           <DialogFooter>
