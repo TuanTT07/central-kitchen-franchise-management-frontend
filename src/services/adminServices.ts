@@ -32,7 +32,8 @@ export interface StoreResponse {
  * DELETE /admin/users/{id}/active -> Xóa/Ngừng kích hoạt tài khoản
  * GET    /admin/stores         -> Danh sách cửa hàng (phân trang)
  * POST   /admin/stores         -> Tạo cửa hàng mới
- * PATCH  /admin/stores/{id}    -> cập nhật thông tin cửa hàng
+ * PATCH  /admin/stores/{id}    -> cập nhật thông tin cửa hàng và nó có thể điều chỉnh được trạng thái
+ * DELETE /admin/stores/{id}    -> chuyển về trạng thái ngừng hạot động
  *
  * Authorization:
  * Bearer Token
@@ -141,6 +142,17 @@ export const adminService = {
     body: { storeName: string; address: string; phone: string; status: 'ACTIVE' | 'INACTIVE' }
   ) => {
     return await http.patch<Response<StoreResponse>>(`/admin/stores/${id}`, body);
+  },
+
+  /**
+   * Chuyển trạng thái về ngừng hoạt động
+   *
+   * @param id ID của cửa hàng
+   *
+   * @returns Promise<Response<StoreResponse>>
+   */
+  deleteStore: async (id: number) => {
+    return await http.delete<Response<StoreResponse>>(`/admin/stores/${id}`);
   },
 };
 

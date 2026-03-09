@@ -236,10 +236,14 @@ const BranchManagementPage = () => {
   /**
    * Xử lý xóa cửa hàng
    */
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (storeToDelete) {
-      // TODO: Gọi API deleteStore
-      setStores((prev) => prev.filter((s) => s.storeId !== storeToDelete.storeId));
+      try {
+        const response = await adminService.deleteStore(storeToDelete.storeId);
+        if (response.data.success) {
+          fetchStore();
+        }
+      } catch (error) {}
       setDeleteConfirmOpen(false);
       setStoreToDelete(null);
     }
