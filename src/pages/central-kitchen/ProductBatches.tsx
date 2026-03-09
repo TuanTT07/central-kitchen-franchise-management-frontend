@@ -1,37 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Boxes, CalendarClock, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-/**
- * Đồng bộ DB (public schema):
- *
- * product_batches:
- *   batch_id (PK, identity),
- *   batch_code (UNIQUE),
- *   product_id (FK products),
- *   initial_quantity (integer),
- *   current_quantity (integer),
- *   manufacturing_date (date, nullable),
- *   expiry_date (date),
- *   status CHECK (WAITING_FOR_STOCK | AVAILABLE | OUT_OF_STOCK | EXPIRED)
- */
-
-type ProductBatchStatus = 'WAITING_FOR_STOCK' | 'AVAILABLE' | 'OUT_OF_STOCK' | 'EXPIRED';
-
-interface ProductBatch {
-  batch_id: number;
-  batch_code: string;
-  product_id: number;
-  product_name: string;
-  initial_quantity: number;
-  current_quantity: number;
-  manufacturing_date: string | null;
-  expiry_date: string;
-  status: ProductBatchStatus;
-}
+import { kitchenServices, type ProductBatchesResponse, type ProductBatchStatus } from '@/services/kitchenServices';
 
 const BATCH_STATUS_LABEL: Record<ProductBatchStatus, string> = {
   WAITING_FOR_STOCK: 'Chờ nhập kho',
@@ -55,64 +28,6 @@ const FILTER_OPTIONS: (ProductBatchStatus | 'ALL')[] = [
   'EXPIRED',
 ];
 
-const MOCK_PRODUCT_BATCHES: ProductBatch[] = [
-  {
-    batch_id: 1,
-    batch_code: 'LOT-COMGA-001',
-    product_id: 1,
-    product_name: 'Cơm gà xối mỡ',
-    initial_quantity: 200,
-    current_quantity: 120,
-    manufacturing_date: '2026-03-01',
-    expiry_date: '2026-03-05',
-    status: 'AVAILABLE',
-  },
-  {
-    batch_id: 2,
-    batch_code: 'LOT-PHO-001',
-    product_id: 2,
-    product_name: 'Phở bò tái',
-    initial_quantity: 80,
-    current_quantity: 0,
-    manufacturing_date: '2026-03-02',
-    expiry_date: '2026-03-04',
-    status: 'OUT_OF_STOCK',
-  },
-  {
-    batch_id: 3,
-    batch_code: 'LOT-TRACHANH-001',
-    product_id: 3,
-    product_name: 'Trà chanh sả',
-    initial_quantity: 300,
-    current_quantity: 45,
-    manufacturing_date: '2026-03-02',
-    expiry_date: '2026-03-02',
-    status: 'EXPIRED',
-  },
-  {
-    batch_id: 4,
-    batch_code: 'LOT-COMGA-002',
-    product_id: 1,
-    product_name: 'Cơm gà xối mỡ',
-    initial_quantity: 150,
-    current_quantity: 150,
-    manufacturing_date: '2026-03-04',
-    expiry_date: '2026-03-08',
-    status: 'WAITING_FOR_STOCK',
-  },
-  {
-    batch_id: 5,
-    batch_code: 'LOT-PHO-002',
-    product_id: 2,
-    product_name: 'Phở bò tái',
-    initial_quantity: 180,
-    current_quantity: 110,
-    manufacturing_date: '2026-03-03',
-    expiry_date: '2026-03-07',
-    status: 'AVAILABLE',
-  },
-];
-
 const formatDate = (value: string | null) => {
   if (!value) return '—';
   return new Date(value).toLocaleDateString('vi-VN', {
@@ -133,39 +48,48 @@ const isNearExpiry = (expiryDate: string, daysThreshold = 3): boolean => {
 };
 
 function ProductBatches() {
+  // Quản lí productBatches từ API
+  const [productBatches, setProductBatches] = useState<ProductBatchesResponse[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProductBatchStatus | 'ALL'>('ALL');
 
-  const availableCount = useMemo(
-    () => MOCK_PRODUCT_BATCHES.filter((b) => b.status === 'AVAILABLE').length,
-    []
-  );
-  const outOfStockCount = useMemo(
-    () => MOCK_PRODUCT_BATCHES.filter((b) => b.status === 'OUT_OF_STOCK').length,
-    []
-  );
-  const expiredCount = useMemo(
-    () => MOCK_PRODUCT_BATCHES.filter((b) => b.status === 'EXPIRED').length,
-    []
-  );
-  const waitingCount = useMemo(
-    () => MOCK_PRODUCT_BATCHES.filter((b) => b.status === 'WAITING_FOR_STOCK').length,
-    []
-  );
+  const availableCount = useMemo(() => productBatches.filter((b) => b.status === 'AVAILABLE').length, []);
+  const outOfStockCount = useMemo(() => productBatches.filter((b) => b.status === 'OUT_OF_STOCK').length, []);
+  const expiredCount = useMemo(() => productBatches.filter((b) => b.status === 'EXPIRED').length, []);
+  const waitingCount = useMemo(() => productBatches.filter((b) => b.status === 'WAITING_FOR_STOCK').length, []);
+
+  // ================= API CALLS =================
+  /**
+   * Gọi API lấy danh sách ProductBatches
+   *
+   */
+  const getAllProductBatches = async () => {
+    try {
+      const response = await kitchenServices.getAllProductBatches();
+      if (response.data.success) {
+        setProductBatches(response.data.data);
+      }
+    } catch (error) {}
+  };
+
+  // ================= EFFECTS =================
+  useEffect(() => {
+    getAllProductBatches();
+  }, []);
 
   const batchesAlert = useMemo(
     () =>
-      MOCK_PRODUCT_BATCHES.filter(
+      productBatches.filter(
         (b) =>
           b.status === 'OUT_OF_STOCK' ||
           b.status === 'EXPIRED' ||
-          (b.status === 'AVAILABLE' && isNearExpiry(b.expiry_date))
+          (b.status === 'AVAILABLE' && isNearExpiry(b.expiryDate))
       ),
     []
   );
 
   const filteredBatches = useMemo(() => {
-    let data = MOCK_PRODUCT_BATCHES;
+    let data = productBatches;
 
     if (statusFilter !== 'ALL') {
       data = data.filter((b) => b.status === statusFilter);
@@ -173,11 +97,7 @@ function ProductBatches() {
 
     if (search.trim()) {
       const q = search.toLowerCase();
-      data = data.filter(
-        (b) =>
-          b.batch_code.toLowerCase().includes(q) ||
-          b.product_name.toLowerCase().includes(q)
-      );
+      data = data.filter((b) => b.batchCode.toLowerCase().includes(q) || b.productName.toLowerCase().includes(q));
     }
 
     return data;
@@ -193,31 +113,23 @@ function ProductBatches() {
               Lô sản phẩm
             </CardTitle>
             <CardDescription className="text-xs font-medium text-amber-700/80">
-              Theo dõi bảng `product_batches` – batch_code, current_quantity, expiry_date, status.
+              Theo dõi danh sách lô sản phẩm
             </CardDescription>
           </div>
 
           <div className="hidden items-center gap-6 md:flex">
             <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                Tổng lô
-              </span>
-              <span className="text-lg font-semibold text-amber-900">
-                {MOCK_PRODUCT_BATCHES.length}
-              </span>
+              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Tổng lô</span>
+              <span className="text-lg font-semibold text-amber-900">{productBatches.length}</span>
             </div>
             <div className="h-10 w-px bg-amber-200/70" />
             <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                Khả dụng
-              </span>
+              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Khả dụng</span>
               <span className="text-lg font-semibold text-emerald-700">{availableCount}</span>
             </div>
             <div className="h-10 w-px bg-amber-200/70" />
             <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                Cần chú ý
-              </span>
+              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Cần chú ý</span>
               <span className="text-lg font-semibold text-rose-700">{batchesAlert.length}</span>
             </div>
           </div>
@@ -226,7 +138,7 @@ function ProductBatches() {
         <CardContent className="space-y-5 p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-600" />
+              <Search className="absolute left-3 top-1/4 size-4 -translate-y-1/4 text-amber-600" />
               <Input
                 placeholder="Tìm theo mã lô, tên sản phẩm..."
                 value={search}
@@ -244,9 +156,7 @@ function ProductBatches() {
                     className={cn(
                       'px-3 py-1.5 transition',
                       opt !== 'ALL' && 'border-l border-amber-200',
-                      statusFilter === opt
-                        ? 'bg-amber-500 text-white'
-                        : 'text-amber-800 hover:bg-amber-100'
+                      statusFilter === opt ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'
                     )}
                   >
                     {opt === 'ALL' ? 'Tất cả' : BATCH_STATUS_LABEL[opt]}
@@ -264,7 +174,7 @@ function ProductBatches() {
                   Danh sách lô sản phẩm
                 </CardTitle>
                 <CardDescription className="text-[11px] text-amber-700/80">
-                  product_batches · batch_code, product_id, initial/current_quantity, expiry_date, status.
+                  Theo dõi danh sách lô sản phẩm
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
@@ -282,32 +192,32 @@ function ProductBatches() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50">
-                      {filteredBatches.map((b) => (
-                        <tr key={b.batch_id} className="hover:bg-amber-50/40">
+                      {productBatches.map((b) => (
+                        <tr key={b.batchId} className="hover:bg-amber-50/40">
                           <td className="px-4 py-2">
-                            <p className="text-sm font-semibold text-stone-900">{b.batch_code}</p>
-                            <p className="text-[11px] text-stone-500">ID: {b.batch_id}</p>
+                            <p className="text-sm font-semibold text-stone-900">{b.batchCode}</p>
+                            <p className="text-[11px] text-stone-500">ID: {b.batchId}</p>
                           </td>
                           <td className="px-4 py-2">
-                            <p className="text-sm font-medium text-stone-900">{b.product_name}</p>
-                            <p className="text-[11px] text-stone-500">product_id: {b.product_id}</p>
+                            <p className="text-sm font-medium text-stone-900">{b.productName}</p>
+                            {/* <p className="text-[11px] text-stone-500">product_id: {b.}</p> */}
                           </td>
                           <td className="px-2 py-2 text-center text-sm font-semibold text-stone-900">
-                            {b.initial_quantity.toLocaleString('vi-VN')}
+                            {b.initialQuantity.toLocaleString('vi-VN')}
                           </td>
                           <td className="px-2 py-2 text-center">
                             <span
                               className={cn(
                                 'font-semibold',
-                                b.current_quantity === 0 ? 'text-rose-600' : 'text-stone-900'
+                                b.currentQuantity === 0 ? 'text-rose-600' : 'text-stone-900'
                               )}
                             >
-                              {b.current_quantity.toLocaleString('vi-VN')}
+                              {b.currentQuantity.toLocaleString('vi-VN')}
                             </span>
                           </td>
                           <td className="px-4 py-2 text-center text-[11px] text-stone-800">
-                            {formatDate(b.expiry_date)}
-                            {b.status === 'AVAILABLE' && isNearExpiry(b.expiry_date) && (
+                            {formatDate(b.expiryDate)}
+                            {b.status === 'AVAILABLE' && isNearExpiry(b.expiryDate) && (
                               <span className="ml-1 text-amber-600" title="Sắp hết hạn">
                                 *
                               </span>
@@ -336,10 +246,7 @@ function ProductBatches() {
                       ))}
                       {filteredBatches.length === 0 && (
                         <tr>
-                          <td
-                            colSpan={7}
-                            className="px-4 py-6 text-center text-xs text-stone-500"
-                          >
+                          <td colSpan={7} className="px-4 py-6 text-center text-xs text-stone-500">
                             Không có lô nào khớp với bộ lọc.
                           </td>
                         </tr>
@@ -357,7 +264,7 @@ function ProductBatches() {
                   Tình hình lô
                 </CardTitle>
                 <CardDescription className="text-[11px] text-amber-700/80">
-                  Tóm tắt product_batches theo status.
+                  Tổng hợp tình hình lô hàng
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 pt-3">
@@ -385,19 +292,17 @@ function ProductBatches() {
                     <AlertTriangle className="size-4 text-amber-500" />
                     <p className="font-semibold text-amber-900">Lô cần chú ý</p>
                   </div>
-                  <p className="mb-2 text-[10px] text-stone-600">
-                    OUT_OF_STOCK · EXPIRED · sắp hết hạn (&lt;4 ngày)
-                  </p>
+                  <p className="mb-2 text-[10px] text-stone-600">Lô hàng sắp hết hạn hoặc hết hàng</p>
                   {batchesAlert.length > 0 ? (
                     <ul className="space-y-1.5">
                       {batchesAlert.map((b) => (
-                        <li key={b.batch_id} className="flex items-center justify-between">
+                        <li key={b.batchId} className="flex items-center justify-between">
                           <div>
                             <p className="text-[11px] font-semibold text-stone-900">
-                              {b.batch_code} · {b.product_name}
+                              {b.batchCode} · {b.productName}
                             </p>
                             <p className="text-[10px] text-stone-500">
-                              SL: {b.current_quantity}/{b.initial_quantity} · HSD: {formatDate(b.expiry_date)}
+                              SL: {b.currentQuantity}/{b.initialQuantity} · HSD: {formatDate(b.expiryDate)}
                             </p>
                           </div>
                           <span
