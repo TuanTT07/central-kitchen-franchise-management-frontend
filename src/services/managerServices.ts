@@ -1,22 +1,73 @@
-import http from '../lib/axios';
-import type { Response } from '../Types/utils.type';
+/**
+ * ========================================================================
+ * COMPONENT: Manager Services
+ * DESCRIPTION: Cung cấp các phương thức gọi API cho phía Manager bao gồm
+ *              Quản lý Danh mục, Sản phẩm, Đơn vị và Tồn kho.
+ * ========================================================================
+ */
 
+import http from '../lib/axios';
+import type { PaginatedResponse, Response } from '../Types/utils.type';
+
+/* ========================================================================
+   [TYPES] - Định nghĩa các Interface và Type cho dữ liệu API
+   ======================================================================== */
+
+/**
+ * Interface cho thông tin chi tiết của một lô sản phẩm
+ */
+export interface ProductBatchDetail {
+  batchId: number;
+  batchCode: string;
+  productName: string;
+  currentQuantity: number;
+  initialQuantity: number;
+  unitName: string;
+  expiryDate: string;
+  status: string;
+}
+
+/**
+ * Interface cho thông tin báo cáo tồn kho của một sản phẩm
+ */
+export interface InventoryReportResponse {
+  productName: string;
+  productId: number;
+  batchId: number;
+  expiryDate: string;
+  warning: string;
+  unit: string;
+  totalStock: number;
+  productBatch: ProductBatchDetail[];
+}
+
+/**
+ * Interface cho danh mục sản phẩm
+ */
 export interface CategoryResponse {
   categoryId: number;
   categoryName: string;
   status: 'ACTIVE' | 'INACTIVE';
 }
+
+/**
+ * Interface cho sản phẩm
+ */
 export interface ProductsResponse {
   productId: number;
   productName: string;
   unit: number;
-  unitName: String | null;
+  unitName: string | null;
   imageUrl: string;
   description: string;
   status: 'ACTIVE' | 'INACTIVE';
   categoryName: string;
   categoryId?: number;
 }
+
+/**
+ * Interface cho đơn vị tính
+ */
 export interface UnitResponse {
   unitId: number;
   unitName: string;
@@ -24,26 +75,16 @@ export interface UnitResponse {
   status?: 'ACTIVE' | 'INACTIVE';
 }
 
-/**
- * =========================================================
- * API: Manager Service (Quản lý Danh mục, Sản phẩm, Đơn vị)
- *
- * Endpoints:
- * Categories: GET, POST, PUT, DELETE /api/v1/categories
- * Products:   GET, POST, PATCH, DELETE /api/v1/products
- * Units:      GET, POST, PATCH, DELETE /api/v1/units
- *
- * Authorization:
- * Bearer Token
- * =========================================================
- */
+/* ========================================================================
+   [API] - Khai báo các đối tượng dịch vụ API
+   ======================================================================== */
 
 export const managerServices = {
-  // API cho Categories
+  /* --- Nhóm API Quản lý Danh mục (Categories) --- */
+
   /**
-   * Lấy danh sách tất cả các danh mục sản phẩm (Categories)
-   *
-   * @returns Promise<CategoryResponse[]>
+   * Lấy danh sách tất cả các danh mục sản phẩm
+   * @returns {Promise<Response<CategoryResponse[]>>}
    */
   getAllCategories: async () => {
     const res = await http.get<Response<CategoryResponse[]>>('/api/v1/categories');
@@ -52,10 +93,8 @@ export const managerServices = {
 
   /**
    * Tạo một danh mục sản phẩm mới
-   *
-   * @param body Thông tin danh mục (categoryName)
-   *
-   * @returns Promise<CategoryResponse>
+   * @param {{ categoryName: string }} body
+   * @returns {Promise<Response<CategoryResponse>>}
    */
   creatCategory: async (body: { categoryName: string }) => {
     const response = await http.post<Response<CategoryResponse>>('/api/v1/categories', body);
@@ -64,11 +103,9 @@ export const managerServices = {
 
   /**
    * Cập nhật thông tin danh mục sản phẩm hiện có
-   *
-   * @param id ID của danh mục
-   * @param body Thông tin cập nhật (categoryName)
-   *
-   * @returns Promise<CategoryResponse>
+   * @param {number} id
+   * @param {{ categoryName: string }} body
+   * @returns {Promise<Response<CategoryResponse>>}
    */
   updateCategory: async (id: number, body: { categoryName: string }) => {
     const response = await http.patch<Response<CategoryResponse>>(`/api/v1/categories/${id}`, body);
@@ -77,21 +114,19 @@ export const managerServices = {
 
   /**
    * Xóa một danh mục sản phẩm khỏi hệ thống
-   *
-   * @param id ID của danh mục
-   *
-   * @returns Promise<string> Thông báo kết quả
+   * @param {number} id
+   * @returns {Promise<Response<string>>}
    */
   deleteCategory: async (id: number) => {
     const res = await http.delete<Response<string>>(`/api/v1/categories/${id}`);
     return res.data;
   },
 
-  // API cho Products
+  /* --- Nhóm API Quản lý Sản phẩm (Products) --- */
+
   /**
-   * Lấy danh sách tất cả các sản phẩm (Products)
-   *
-   * @returns Promise<ProductsResponse[]>
+   * Lấy danh sách tất cả các sản phẩm
+   * @returns {Promise<Response<ProductsResponse[]>>}
    */
   getAllProducts: async () => {
     const response = await http.get<Response<ProductsResponse[]>>('/api/v1/products');
@@ -99,11 +134,9 @@ export const managerServices = {
   },
 
   /**
-   * Tạo một sản phẩm mới trong hệ thống
-   *
-   * @param body Thông tin sản phẩm (name, unit, image, desc, category)
-   *
-   * @returns Promise<ProductsResponse>
+   * Tạo một sản phẩm mới
+   * @param {Object} body
+   * @returns {Promise<Response<ProductsResponse>>}
    */
   createProduct: async (body: {
     productName: string;
@@ -117,12 +150,10 @@ export const managerServices = {
   },
 
   /**
-   * Cập nhật thông tin sản phẩm hiện có (Partial Update)
-   *
-   * @param id ID của sản phẩm
-   * @param body Các trường thông tin cần cập nhật
-   *
-   * @returns Promise<any>
+   * Cập nhật thông tin sản phẩm (Partial Update)
+   * @param {number} id
+   * @param {Object} body
+   * @returns {Promise<any>}
    */
   updateProduct: async (
     id: number,
@@ -134,21 +165,19 @@ export const managerServices = {
 
   /**
    * Xóa một sản phẩm khỏi hệ thống
-   *
-   * @param id ID của sản phẩm
-   *
-   * @returns Promise<null>
+   * @param {number} id
+   * @returns {Promise<Response<null>>}
    */
   deleteProduct: async (id: number) => {
     const response = await http.delete<Response<null>>(`/api/v1/products/${id}`);
     return response.data;
   },
 
-  // API của Unit
+  /* --- Nhóm API Quản lý Đơn vị (Units) --- */
+
   /**
-   * Lấy danh sách tất cả các đơn vị tính (Units)
-   *
-   * @returns Promise<UnitResponse[]>
+   * Lấy danh sách tất cả các đơn vị tính
+   * @returns {Promise<Response<UnitResponse[]>>}
    */
   getAllUnits: async () => {
     const response = await http.get<Response<UnitResponse[]>>('/api/v1/units');
@@ -157,10 +186,8 @@ export const managerServices = {
 
   /**
    * Tạo một đơn vị tính mới
-   *
-   * @param body Thông tin đơn vị (unitName, description)
-   *
-   * @returns Promise<UnitResponse>
+   * @param {{ unitName: string; description: string }} body
+   * @returns {Promise<Response<UnitResponse>>}
    */
   createUnit: async (body: { unitName: string; description: string }) => {
     const response = await http.post<Response<UnitResponse>>('/api/v1/units', body);
@@ -168,12 +195,10 @@ export const managerServices = {
   },
 
   /**
-   * Cập nhật thông tin đơn vị tính (Partial Update)
-   *
-   * @param id ID của đơn vị
-   * @param body Thông tin cập nhật (unitName, description)
-   *
-   * @returns Promise<UnitResponse>
+   * Cập nhật thông tin đơn vị tính
+   * @param {number} id
+   * @param {{ unitName: string; description: string }} body
+   * @returns {Promise<Response<UnitResponse>>}
    */
   updateUnit: async (id: number, body: { unitName: string; description: string }) => {
     const response = await http.patch<Response<UnitResponse>>(`/api/v1/units/${id}`, body);
@@ -182,13 +207,25 @@ export const managerServices = {
 
   /**
    * Xóa một đơn vị tính khỏi hệ thống
-   *
-   * @param id ID của đơn vị
-   *
-   * @returns Promise<null>
+   * @param {number} id
+   * @returns {Promise<Response<null>>}
    */
   deleteUnit: async (id: number) => {
     const response = await http.delete<Response<null>>(`/api/v1/units/${id}`);
     return response.data;
   },
+
+  /* --- Nhóm API Báo cáo Tồn kho (Inventory) --- */
+
+  /**
+   * Lấy báo cáo tổng quan tồn kho của trung tâm
+   * @returns {Promise<Response<PaginatedResponse<InventoryReportResponse>>>}
+   */
+  getInventoryStock: async () => {
+    const response = await http.get<Response<PaginatedResponse<InventoryReportResponse>>>(
+      '/inventory-reports/stock-summary'
+    );
+    return response;
+  },
 };
+
