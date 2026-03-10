@@ -1,6 +1,22 @@
-import http from '@/lib/axios';
-import type { Response } from '@/Types/utils.type';
+/**
+ * File: franchiseServices.ts
+ * Description: Dịch vụ quản lý các hoạt động của chi nhánh (Franchise)
+ * Author: Tuan Tran
+ */
 
+// ================= IMPORTS =================
+
+import http from '@/lib/axios';
+import type { PaginatedResponse, Response } from '@/Types/utils.type';
+
+// ================= TYPES =================
+
+/**
+ * Interface Section
+ * Định nghĩa cấu trúc dữ liệu cho đơn hàng và phiếu xuất kho của chi nhánh
+ */
+
+// Chi tiết sản phẩm trong đơn hàng (Giữ tên cũ cho các page khác)
 export interface OrderDetailResponse {
   orderDetailId: number;
   productId: number;
@@ -10,6 +26,7 @@ export interface OrderDetailResponse {
   quantity: number;
 }
 
+// Thông tin đơn hàng chi nhánh (Giữ tên cũ cho các page khác)
 export interface OrderResponse<T> {
   orderId: number;
   orderCode: string;
@@ -21,24 +38,42 @@ export interface OrderResponse<T> {
   details: T;
 }
 
+// Chi tiết sản phẩm trong phiếu xuất kho (Dựa trên JSON mới)
+export interface ExportNoteItem {
+  productId: number;
+  productName: string;
+  batchCode: string;
+  expiryDate: string;
+  quantity: number;
+  unitName: string;
+}
+
+// Thông tin phiếu xuất kho (Dựa trên JSON mới - Phân trang)
+export interface ExportNotesResponse {
+  items: ExportNoteItem[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+}
+
+// Trạng thái đơn hàng (Legacy)
+export type StoreOrderStatus = 'PENDING' | 'APPROVED' | 'CANCELLED';
+export type ExportStatus = 'READY' | 'SHIPPED' | 'CANCEL';
+
 /**
- * =========================================================
- * API: Franchise Service (Quản lý đơn hàng Chi nhánh)
- *
- * Endpoints:
- * GET    /orders  -> Lấy danh sách tất cả đơn hàng
- * POST   /orders  -> Tạo đơn hàng mới từ chi nhánh
- *
- * Authorization:
- * Bearer Token
- * =========================================================
+ * franchiseServices
+ * - Quản lý đơn hàng (Lấy danh sách, tạo mới)
+ * - Quản lý phiếu xuất kho
  */
 
 export const franchiseServices = {
+  // ================= API =================
+
   /**
-   * Lấy danh sách tất cả các đơn hàng trong hệ thống (dành cho chi nhánh hoặc quản lý)
-   *
-   * @returns Promise<OrderResponse<OrderDetailResponse[]>[]>
+   * Lấy danh sách tất cả các đơn hàng trong hệ thống (Legacy - trả về mảng)
    */
   getAllOrders: async () => {
     const response = await http.get<Response<OrderResponse<OrderDetailResponse[]>[]>>('/orders');
@@ -46,11 +81,15 @@ export const franchiseServices = {
   },
 
   /**
+   * Lấy danh sách đơn hàng chi nhánh (Mới - hỗ trợ phân trang)
+   */
+  getOrders: async () => {
+    const response = await http.get<Response<PaginatedResponse<OrderResponse<OrderDetailResponse[]>[]>>>('/orders');
+    return response.data;
+  },
+
+  /**
    * Tạo đơn hàng mới từ chi nhánh gửi về bếp trung tâm
-   *
-   * @param body Thông tin đơn hàng (storeId, deliveryDate, details)
-   *
-   * @returns Promise<OrderResponse<OrderDetailResponse[]>[]>
    */
   createOrders: async (body: {
     storeId: number;
@@ -63,4 +102,13 @@ export const franchiseServices = {
     const response = await http.post<Response<OrderResponse<OrderDetailResponse[]>[]>>('/orders', body);
     return response.data;
   },
+
+  /**
+   * Lấy danh sách phiếu xuất kho và thông tin lô hàng
+   */
+  getExportNote: async () => {
+    const response = await http.get<Response<ExportNotesResponse>>('/export-notes');
+    return response.data;
+  },
 };
+
