@@ -157,4 +157,20 @@ export const adminService = {
   deleteStore: async (id: number) => {
     return await http.delete<Response<StoreResponse>>(`/admin/stores/${id}`);
   },
+
+  // lấy ra tất cả các cửa hàng
+  getAllStores: async (page: number = 0, size: number = 10) => {
+    return await http.get<Response<PaginatedResponse<StoreResponse[]>>>('/admin/stores', {
+      params: { page, size },
+    });
+  },
+  createStore: async (body: {
+    storeName: string;
+    address: string;
+    phone: string;
+    managerUserId: number;
+    isActive: boolean;
+  }) => {
+    return await http.post('/admin/stores', body);
+  },
 };
