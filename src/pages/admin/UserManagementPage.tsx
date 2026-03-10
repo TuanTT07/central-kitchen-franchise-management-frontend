@@ -85,7 +85,7 @@ const UserManagementPage = () => {
   } = useForm<UserResponse>();
 
   // Theo dõi trạng thái active trong form để hiển thị UI động
-  const isActive = watch('status');
+  const isActive = Boolean(watch('status'));
 
   // ================= API CALLS =================
   /**
@@ -167,7 +167,7 @@ const UserManagementPage = () => {
       email: '',
       role: 'ADMIN',
       storeId: stores[0]?.storeId || 1,
-      status: 'ACTIVE',
+      status: true as any,
     });
     setDialogOpen(true);
   };
@@ -184,7 +184,7 @@ const UserManagementPage = () => {
       email: user.email,
       role: user.role,
       storeId: user.storeId,
-      status: user.status,
+      status: (user.status === 'ACTIVE') as any,
     });
     setDialogOpen(true);
   };
@@ -657,7 +657,7 @@ const UserManagementPage = () => {
               <div className="pt-2">
                 <label className="flex items-center gap-3 cursor-pointer group w-fit">
                   <div className="relative">
-                    <input type="checkbox" id="isActive" className="sr-only" {...register('status')} />
+                    <input type="checkbox" id="isActive" className="peer sr-only" {...register('status')} />
                     <div
                       className={cn(
                         'w-12 h-6 rounded-full transition-colors border-2',

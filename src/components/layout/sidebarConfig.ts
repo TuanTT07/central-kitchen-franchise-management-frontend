@@ -1,11 +1,11 @@
 import {
   LayoutDashboard,
-  ShoppingCart,
   Package,
-  Boxes,
-  UtensilsCrossed,
   Users,
   Settings,
+  ShoppingCart,
+  Boxes,
+  UtensilsCrossed,
   BookOpen,
   BarChart3,
   ReceiptText,
@@ -14,9 +14,6 @@ import {
 
 export const ADMIN_SIDEBAR_ITEMS = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { label: 'Đơn hàng', href: '#', icon: ShoppingCart },
-  { label: 'Tồn kho', href: '#', icon: Boxes },
-  { label: 'Sản phẩm', href: '#', icon: UtensilsCrossed },
   { label: 'Chi nhánh', href: '/admin/stores', icon: Package },
   { label: 'Người dùng', href: '/admin/users', icon: Users },
   { label: 'Cấu hình', href: '/admin/configs', icon: Settings },
