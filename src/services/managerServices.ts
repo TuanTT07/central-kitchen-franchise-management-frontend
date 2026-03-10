@@ -1,17 +1,17 @@
 /**
- * ========================================================================
- * COMPONENT: Manager Services
- * DESCRIPTION: Cung cấp các phương thức gọi API cho phía Manager bao gồm
+ * File: managerServices.ts
+ * Description: Cung cấp các phương thức gọi API cho phía Manager bao gồm
  *              Quản lý Danh mục, Sản phẩm, Đơn vị và Tồn kho.
- * ========================================================================
+ * Author: Tuan Tran
+ * Created: 2026
  */
+
+// ================= IMPORTS =================
 
 import http from '../lib/axios';
 import type { PaginatedResponse, Response } from '../Types/utils.type';
 
-/* ========================================================================
-   [TYPES] - Định nghĩa các Interface và Type cho dữ liệu API
-   ======================================================================== */
+// ================= TYPES =================
 
 /**
  * Interface cho thông tin chi tiết của một lô sản phẩm
@@ -75,9 +75,7 @@ export interface UnitResponse {
   status?: 'ACTIVE' | 'INACTIVE';
 }
 
-/* ========================================================================
-   [API] - Khai báo các đối tượng dịch vụ API
-   ======================================================================== */
+// ================= API =================
 
 export const managerServices = {
   /* --- Nhóm API Quản lý Danh mục (Categories) --- */
