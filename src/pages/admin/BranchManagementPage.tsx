@@ -13,12 +13,12 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Search, Loader2, ChevronLeft } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Loader2, ChevronLeft, Store, MapPin, Phone, Shield } from 'lucide-react';
 import { adminService, type StoreResponse } from '../../services/adminServices';
 import { cn } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
+import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field';
 
 // type của Filter
 type StoreFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
@@ -436,77 +436,107 @@ const BranchManagementPage = () => {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent onClose={() => setDialogOpen(false)} className="max-w-2xl min-w-[28rem] p-8">
-          <form onSubmit={handleSubmit(handleSave)} noValidate>
-            <DialogHeader>
-              <DialogTitle>{editingStore ? 'Chỉnh sửa cửa hàng' : 'Thêm cửa hàng mới'}</DialogTitle>
+        <DialogContent
+          onClose={() => setDialogOpen(false)}
+          className="max-w-2xl min-w-[28rem] p-0 overflow-hidden border-none shadow-2xl"
+        >
+          <form noValidate onSubmit={handleSubmit(handleSave)} className="flex flex-col">
+            <DialogHeader className="px-8 pt-8 pb-6 bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+              <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                {editingStore ? <Pencil className="size-6" /> : <Plus className="size-6" />}
+                {editingStore ? 'Chỉnh sửa cửa hàng' : 'Thêm cửa hàng mới'}
+              </DialogTitle>
+              <p className="text-amber-50/80 text-sm mt-1">
+                {editingStore
+                  ? 'Cập nhật thông tin chi tiết cho cửa hàng này'
+                  : 'Điền thông tin bên dưới để tạo một cửa hàng mới'}
+              </p>
             </DialogHeader>
-            <div className="space-y-5 py-2">
-              <div className="space-y-2">
-                <Label htmlFor="store_name" className="text-base">
+
+            <div className="px-8 py-6 space-y-6 max-h-[70vh] overflow-y-auto bg-white">
+              <Field>
+                <FieldLabel htmlFor="store_name" className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2">
+                  <Store className="size-4 text-amber-500" />
                   Tên cửa hàng
-                </Label>
-                <Input
-                  id="store_name"
-                  placeholder="Nhập tên cửa hàng"
-                  className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
-                  {...register('storeName', {
-                    required: 'Tên cửa hàng không được để trống',
-                  })}
-                />
-                {errors.storeName && <p className="text-red-500">{errors.storeName.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address" className="text-base">
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    id="store_name"
+                    placeholder="Nhập tên cửa hàng"
+                    className="h-12 border-amber-200 bg-amber-50/30 transition-all focus:bg-white focus:border-amber-500 focus:ring-amber-200"
+                    {...register('storeName', { required: 'Tên cửa hàng không được để trống' })}
+                  />
+                  {errors.storeName && <FieldError errors={[errors.storeName]} className="mt-1" />}
+                </FieldContent>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="address" className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2">
+                  <MapPin className="size-4 text-amber-500" />
                   Địa chỉ
-                </Label>
-                <Input
-                  id="address"
-                  placeholder="Nhập địa chỉ"
-                  className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
-                  {...register('address', {
-                    required: 'Địa chỉ không được để trống',
-                  })}
-                />
-                {errors.address && <p className="text-red-500">{errors.address.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone" className="text-base">
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    id="address"
+                    placeholder="Nhập địa chỉ"
+                    className="h-12 border-amber-200 bg-amber-50/30 transition-all focus:bg-white focus:border-amber-500 focus:ring-amber-200"
+                    {...register('address', { required: 'Địa chỉ không được để trống' })}
+                  />
+                  {errors.address && <FieldError errors={[errors.address]} className="mt-1" />}
+                </FieldContent>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="phone" className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2">
+                  <Phone className="size-4 text-amber-500" />
                   Số điện thoại
-                </Label>
-                <Input
-                  id="phone"
-                  placeholder="Nhập số điện thoại (084 xxx xxx)"
-                  className="h-11 border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200"
-                  {...register('phone', {
-                    required: 'Số điện thoại không được để trống',
-                  })}
-                />
-                {errors.phone && <p className="text-red-500">{errors.phone.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="status" className="text-base font-semibold text-amber-900">
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    id="phone"
+                    placeholder="Nhập số điện thoại (084 xxx xxx)"
+                    className="h-12 border-amber-200 bg-amber-50/30 transition-all focus:bg-white focus:border-amber-500 focus:ring-amber-200"
+                    {...register('phone', { required: 'Số điện thoại không được để trống' })}
+                  />
+                  {errors.phone && <FieldError errors={[errors.phone]} className="mt-1" />}
+                </FieldContent>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="status" className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2">
+                  <Shield className="size-4 text-amber-500" />
                   Trạng thái cửa hàng
-                </Label>
-                <select
-                  id="status"
-                  className="w-full h-11 px-3 rounded-md border border-amber-200 bg-amber-50/50 text-base focus:border-amber-400 focus:ring-amber-200 outline-none transition-all"
-                  {...register('status')}
-                >
-                  <option value="ACTIVE">Đang hoạt động</option>
-                  <option value="INACTIVE">Ngừng hoạt động</option>
-                </select>
-                <p className="text-xs text-amber-600/70 italic">
-                  * Trạng thái ngừng hoạt động sẽ tạm ẩn cửa hàng khỏi danh sách kinh doanh.
-                </p>
-              </div>
+                </FieldLabel>
+                <FieldContent>
+                  <select
+                    id="status"
+                    className="h-12 w-full rounded-md border border-amber-200 bg-amber-50/30 px-4 text-[15px] transition-all focus:bg-white focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%23F59E0B%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:20px_20px] bg-[right_12px_center] bg-no-repeat"
+                    {...register('status')}
+                  >
+                    <option value="ACTIVE">Đang hoạt động</option>
+                    <option value="INACTIVE">Ngừng hoạt động</option>
+                  </select>
+                  <p className="mt-2 text-xs text-amber-600/70 italic">
+                    * Trạng thái ngừng hoạt động sẽ tạm ẩn cửa hàng khỏi danh sách kinh doanh.
+                  </p>
+                </FieldContent>
+              </Field>
             </div>
-            <DialogFooter>
-              <Button variant="outline" size="lg" className="min-w-[6rem]" onClick={() => setDialogOpen(false)}>
-                Hủy
+
+            <DialogFooter className="px-8 py-6 bg-stone-50 border-t border-stone-100 gap-3">
+              <Button
+                variant="outline"
+                type="button"
+                className="px-6 h-11 border-stone-300 text-stone-700 hover:bg-white hover:text-stone-900"
+                onClick={() => setDialogOpen(false)}
+              >
+                Hủy bỏ
               </Button>
-              <Button type="submit" size="lg" className="min-w-[6rem] bg-amber-500 text-white hover:bg-amber-600">
-                {editingStore ? 'Cập nhật' : 'Thêm'}
+              <Button
+                type="submit"
+                className="px-8 h-11 bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg hover:shadow-orange-200 hover:from-amber-600 hover:to-orange-600 transition-all"
+              >
+                {editingStore ? 'Cập nhật' : 'Thêm cửa hàng'}
               </Button>
             </DialogFooter>
           </form>
