@@ -53,10 +53,16 @@ function ProductBatches() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProductBatchStatus | 'ALL'>('ALL');
 
-  const availableCount = useMemo(() => productBatches.filter((b) => b.status === 'AVAILABLE').length, []);
-  const outOfStockCount = useMemo(() => productBatches.filter((b) => b.status === 'OUT_OF_STOCK').length, []);
-  const expiredCount = useMemo(() => productBatches.filter((b) => b.status === 'EXPIRED').length, []);
-  const waitingCount = useMemo(() => productBatches.filter((b) => b.status === 'WAITING_FOR_STOCK').length, []);
+  const availableCount = useMemo(() => productBatches.filter((b) => b.status === 'AVAILABLE').length, [productBatches]);
+  const outOfStockCount = useMemo(
+    () => productBatches.filter((b) => b.status === 'OUT_OF_STOCK').length,
+    [productBatches]
+  );
+  const expiredCount = useMemo(() => productBatches.filter((b) => b.status === 'EXPIRED').length, [productBatches]);
+  const waitingCount = useMemo(
+    () => productBatches.filter((b) => b.status === 'WAITING_FOR_STOCK').length,
+    [productBatches]
+  );
 
   // ================= API CALLS =================
   /**
@@ -263,9 +269,7 @@ function ProductBatches() {
                   <CalendarClock className="size-4 text-amber-500" />
                   Tình hình lô
                 </CardTitle>
-                <CardDescription className="text-[11px] text-amber-700/80">
-                  Tổng hợp tình hình lô hàng
-                </CardDescription>
+                <CardDescription className="text-[11px] text-amber-700/80">Tổng hợp tình hình lô hàng</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 pt-3">
                 <div className="grid grid-cols-2 gap-3 text-[11px]">
