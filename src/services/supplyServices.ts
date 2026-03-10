@@ -1,6 +1,11 @@
+// ================= IMPORT =================
 import http from '@/lib/axios';
 import { type OrderResponse, type OrderDetailResponse } from './franchiseServices';
 import type { Response, PaginatedResponse } from '@/Types/utils.type';
+// ================= TYPES =================
+/**
+ * Đại diện cho một sản phẩm gộp trong quá trình xử lý đơn hàng chi nhánh.
+ */
 export interface ConsolidationProduct {
   productId: number;
   productName: string;
@@ -8,6 +13,9 @@ export interface ConsolidationProduct {
   orderIds: number[];
 }
 
+/**
+ * Phản hồi từ API gộp đơn hàng.
+ */
 export interface ConsolidationResponse {
   consolidatedAt: string;
   consolidatedBy: string;
@@ -15,6 +23,10 @@ export interface ConsolidationResponse {
   orderIds: number[];
   products: ConsolidationProduct[];
 }
+
+/**
+ * Đại diện cho một item trong lệnh sản xuất.
+ */
 export interface ItemsResponse {
   manuOrderId: number;
   orderCode: string;
@@ -27,6 +39,31 @@ export interface ItemsResponse {
 }
 
 /**
+ * Chi tiết sản phẩm trong phiếu xuất kho.
+ */
+export interface ExportNoteItem {
+  productId: number;
+  productName: string;
+  batchCode: string;
+  expiryDate: string;
+  quantity: number;
+  unitName: string;
+}
+
+/**
+ * Phản hồi thông tin phiếu xuất kho từ API.
+ */
+export interface ExportNotesResponse {
+  exportId: number;
+  exportCode: string;
+  storeOrderId: number;
+  storeName: string;
+  status: string;
+  exportDate: string;
+  items: ExportNoteItem[];
+}
+
+/**
  * =========================================================
  * API: Supply Service (Quản lý Cung ứng)
  *
@@ -35,6 +72,9 @@ export interface ItemsResponse {
  * POST   /orders/consolidate/auto     -> Gộp đơn hàng tự động
  * POST   /orders/consolidate/manual   -> Gộp đơn hàng thủ công
  * POST   /api/v1/manufacturing-orders -> Tạo lệnh sản xuất
+ *
+ *
+ * GET    /export-notes     -> lấy ra danh sách phiếu xuất kho
  *
  * Authorization:
  * Bearer Token
@@ -89,5 +129,15 @@ export const supplyServices = {
   }) => {
     const response = await http.post<Response<ItemsResponse[]>>('/api/v1/manufacturing-orders', body);
     return response.data;
+  },
+
+  /**
+   * Lấy danh sách tất cả các phiếu xuất kho (Export Notes)
+   * Hỗ trợ phân trang và lọc dữ liệu.
+   *
+   * @returns Promise<Response<PaginatedResponse<ExportNotesResponse[]>>>
+   */
+  getAllExportNote: async () => {
+    return await http.get<Response<PaginatedResponse<ExportNotesResponse[]>>>('/export-notes');
   },
 };
