@@ -72,8 +72,8 @@ function ProductBatches() {
   const getAllProductBatches = async () => {
     try {
       const response = await kitchenServices.getAllProductBatches();
-      if (response.data.success) {
-        setProductBatches(response.data.data);
+      if (response.data) {
+        setProductBatches(response.data);
       }
     } catch (error) {}
   };
