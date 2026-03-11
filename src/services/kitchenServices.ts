@@ -14,17 +14,27 @@ import type { PaginatedResponse, Response } from '@/Types/utils.type';
    ======================================================================== */
 
 /**
+ * Định nghĩa các trạng thái của Manufacturing Order
+ */
+
+export type ManuOrderStatus = 'PLANNED' | 'COOKING' | 'COMPLETED';
+
+/**
  * Interface cho phản hồi lệnh sản xuất
  */
 export interface ManufacturingOrderResponse {
   manuOrderId: number;
   orderCode: string;
+  productId: number;
   productName: string;
-  quantity: number;
   unitName: string;
+  quantityPlanned: number;
   status: string;
   startDate: string;
+  endDate: string;
   createdBy: string;
+  createById: number;
+  createByName: string;
 }
 
 /**
@@ -87,6 +97,18 @@ export const kitchenServices = {
     const response = await http.get<Response<ManufacturingOrderResponse[]>>('/api/v1/manufacturing-orders');
     return response.data;
   },
+  /**
+   * Cập nhật trạng thái lệnh sản xuất
+   * @param id ID của lệnh sản xuất
+   * @returns {Promise<Response<ManufacturingOrderResponse>>}
+   */
+
+  updateStatusOrder: async (id: number) => {
+    const response = await http.patch<Response<ManufacturingOrderResponse>>(
+      `/api/v1/manufacturing-orders/${id}/status`
+    );
+    return response.data;
+  },
 
   /* --- Nhóm API Quản lý Lô hàng (Product Batches) --- */
 
@@ -106,10 +128,8 @@ export const kitchenServices = {
    * @returns {Promise<Response<PaginatedResponse<InventoryTransactionResponse>>>}
    */
   getInventoryTransaction: async () => {
-    const response = await http.get<Response<PaginatedResponse<InventoryTransactionResponse[]>>>(
-      '/inventory-transactions'
-    );
+    const response =
+      await http.get<Response<PaginatedResponse<InventoryTransactionResponse[]>>>('/inventory-transactions');
     return response.data;
   },
 };
-
