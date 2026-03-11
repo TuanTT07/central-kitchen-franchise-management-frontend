@@ -417,38 +417,8 @@ const AdminDashboard = () => {
           </Card>
         </div>
 
-        {/* Hoạt động gần đây + thao tác nhanh */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="border-amber-100 bg-white shadow-md">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <CardTitle className="text-sm font-bold text-amber-900">Hoạt động gần đây</CardTitle>
-              <CardDescription className="text-[11px] text-amber-700/80">
-                Hiện là dữ liệu giả lập để review UI
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-3">
-              {metrics.recentActivity.map((a, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-start justify-between gap-3 rounded-lg border border-amber-100 bg-white px-3 py-2"
-                >
-                  <div className="text-xs font-mono text-stone-500">{a.time}</div>
-                  <div className="flex-1 text-sm text-stone-800">{a.text}</div>
-                  <div
-                    className={cn(
-                      'rounded-full px-2 py-0.5 text-[10px] font-semibold border',
-                      a.tone === 'good'
-                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                        : 'border-amber-200 bg-amber-50 text-amber-800'
-                    )}
-                  >
-                    {a.tone === 'good' ? 'OK' : 'WARN'}
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
+        {/* Thao tác nhanh */}
+        <div className="grid gap-6">
           <Card className="border-amber-100 bg-white shadow-md">
             <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
               <CardTitle className="text-sm font-bold text-amber-900">Thao tác nhanh</CardTitle>
@@ -456,7 +426,7 @@ const AdminDashboard = () => {
                 Điều hướng nhanh tới các trang quản trị
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-4 grid gap-3 sm:grid-cols-2">
+            <CardContent className="pt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Button
                 type="button"
                 onClick={() => navigate('/admin/users')}
