@@ -91,7 +91,6 @@ function ManufacturingOrders() {
 
   const updateStatusManufacturingOrder = async (id: number) => {
     try {
-      console.log(id);
       const response = await kitchenServices.updateStatusOrder(id);
       if (response.success) {
         getAllManufacturing();
@@ -113,7 +112,6 @@ function ManufacturingOrders() {
   const handleConfirmUpdate = async () => {
     if (!selectedOrder) return;
     await updateStatusManufacturingOrder(selectedOrder.manuOrderId);
-
     setIsDialogOpen(false);
     setSelectedOrder(null);
   };
