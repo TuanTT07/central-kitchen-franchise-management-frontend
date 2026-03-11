@@ -103,12 +103,24 @@ export const franchiseServices = {
     return response.data;
   },
 
+    /**
+   * Huỷ đơn hàng
+   * @param id ID của lệnh sản xuất
+   * @returns {Promise<Response<OrderResponse<OrderDetailResponse[]>[]>>}
+   */
+
+  cancelOrder: async (id: number, body: {cancelReason: string}) => {
+    return (await http.post<Response<OrderResponse<OrderDetailResponse[]>[]>>(`/orders/${id}/cancel`, body)).data;
+  },
   /**
    * Lấy danh sách phiếu xuất kho và thông tin lô hàng
+   * @returns {Promise<Response<ExportNotesResponse>>}
    */
   getExportNote: async () => {
     const response = await http.get<Response<ExportNotesResponse>>('/export-notes');
     return response.data;
   },
+
+
 };
 
