@@ -75,6 +75,7 @@ function ProductBatches() {
     register,
     handleSubmit,
     setValue,
+    clearErrors,
     formState: { errors },
   } = useForm<{
     quantities: Record<string, number>;
@@ -140,9 +141,8 @@ function ProductBatches() {
 
   /**
    * Mở popup nhập kho hàng loạt cho các lô WAITING_FOR_STOCK
-   * @param type 'AUTO' (fill sẵn SL ban đầu) hoặc 'MANUAL' (mặc định 0)
    */
-  const handleOpenStockIn = (type: 'AUTO' | 'MANUAL') => {
+  const handleOpenStockIn = () => {
     const waitingBatches = productBatches.filter((b) => b.status === 'WAITING_FOR_STOCK');
 
     if (waitingBatches.length === 0) {
@@ -152,7 +152,7 @@ function ProductBatches() {
 
     const initialQtys: Record<number, number> = {};
     waitingBatches.forEach((b) => {
-      const qty = type === 'AUTO' ? b.initialQuantity : 0;
+      const qty = 0; // Mặc định là 0 để người dùng tự nhập
       initialQtys[b.batchId] = qty;
       // Đồng bộ giá trị vào react-hook-form
       setValue(`quantities.${b.batchId}`, qty);
@@ -166,9 +166,16 @@ function ProductBatches() {
    * Chọn/Bỏ chọn một lô hàng cụ thể
    */
   const handleToggleSelectBatch = (batchId: number) => {
+    const isSelecting = !selectedBatchIds.includes(batchId);
+    
     setSelectedBatchIds((prev) =>
-      prev.includes(batchId) ? prev.filter((id) => id !== batchId) : [...prev, batchId]
+      isSelecting ? [...prev, batchId] : prev.filter((id) => id !== batchId)
     );
+
+    // Nếu là bỏ chọn, xóa lỗi validate của hàng đó
+    if (!isSelecting) {
+      clearErrors(`quantities.${batchId}`);
+    }
   };
 
   /**
@@ -181,6 +188,8 @@ function ProductBatches() {
 
     if (selectedBatchIds.length === waitingBatchIds.length) {
       setSelectedBatchIds([]);
+      // Xóa tất cả lỗi validate khi bỏ chọn tất cả
+      clearErrors('quantities');
     } else {
       setSelectedBatchIds(waitingBatchIds);
     }
@@ -190,13 +199,23 @@ function ProductBatches() {
    * Xác nhận nhập kho hàng loạt - Chỉ nhận các lô được chọn
    * Gọi thông qua handleSubmit của react-hook-form để tận dụng validation
    */
-  const handleConfirmStockIn = (data: { quantities: Record<string, number> }) => {
+  const handleConfirmStockIn = async (data: { quantities: Record<string, number> }) => {
+   
+
     const finalData = selectedBatchIds.map((id) => ({
-      batchId: id,
+      productBatchId: id,
       quantity: data.quantities[id] || 0,
     }));
 
-    console.log('Dữ liệu phiếu nhập kho xác nhận:', finalData);
+     try {
+      const response = await kitchenServices.manualStockIn(finalData);
+      if (response.data) {
+        // toast.success('Nhập kho thành công');
+        getAllProductBatches();
+        setIsStockInModalOpen(false);
+        console.log("Nhập kho thành công");
+      }
+    } catch (error) {}
     // API sẽ được triển khai sau
     setIsStockInModalOpen(false);
   };
@@ -250,7 +269,7 @@ function ProductBatches() {
                   size="sm"
                   variant="outline"
                   className="h-8 rounded-full border-amber-200 text-[11px] font-semibold text-amber-900 hover:bg-amber-50"
-                  onClick={() => handleOpenStockIn('MANUAL')}
+                  onClick={() => handleOpenStockIn()}
                 >
                   Tạo phiếu nhập kho
                 </Button>
@@ -494,10 +513,15 @@ function ProductBatches() {
                               errors.quantities?.[b.batchId] && 'border-rose-500 focus:border-rose-500 focus:ring-rose-200'
                             )}
                             {...register(`quantities.${b.batchId}`, {
-                              required: 'Bắt buộc',
+                              validate: (value) => {
+                                // Chỉ validate nếu hàng này được chọn
+                                if (!selectedBatchIds.includes(b.batchId)) return true;
+                                if (!value && value !== 0) return 'Bắt buộc';
+                                if (value < 1) return 'Min là 1';
+                                if (value > b.initialQuantity) return `Max: ${b.initialQuantity}`;
+                                return true;
+                              },
                               valueAsNumber: true,
-                              min: { value: 1, message: 'Min là 1' },
-                              max: { value: b.initialQuantity, message: `Max: ${b.initialQuantity}` },
                             })}
                           />
                           {errors.quantities?.[b.batchId] && (
