@@ -132,4 +132,15 @@ export const kitchenServices = {
       await http.get<Response<PaginatedResponse<InventoryTransactionResponse[]>>>('/inventory-transactions');
     return response.data;
   },
+
+  /**
+   * Nhập kho thủ công cho lô hàng
+   * @param productBatchId ID của lô hàng
+   * @param quantity Số lượng cần nhập
+   * @returns {Promise<Response<InventoryTransactionResponse>>}
+   */
+  manualStockIn: async (body: { productBatchId: number; quantity: number }[]) => {
+    const response = await http.post<Response<InventoryTransactionResponse>>('/api/v1/inventory-receipts', {items: body});
+    return response.data;
+  },
 };

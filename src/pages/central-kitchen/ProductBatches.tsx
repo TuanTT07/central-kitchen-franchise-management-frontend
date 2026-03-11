@@ -190,13 +190,23 @@ function ProductBatches() {
    * Xác nhận nhập kho hàng loạt - Chỉ nhận các lô được chọn
    * Gọi thông qua handleSubmit của react-hook-form để tận dụng validation
    */
-  const handleConfirmStockIn = (data: { quantities: Record<string, number> }) => {
+  const handleConfirmStockIn = async (data: { quantities: Record<string, number> }) => {
+   
+
     const finalData = selectedBatchIds.map((id) => ({
-      batchId: id,
+      productBatchId: id,
       quantity: data.quantities[id] || 0,
     }));
 
-    console.log('Dữ liệu phiếu nhập kho xác nhận:', finalData);
+     try {
+      const response = await kitchenServices.manualStockIn(finalData);
+      if (response.data) {
+        // toast.success('Nhập kho thành công');
+        getAllProductBatches();
+        setIsStockInModalOpen(false);
+        console.log("Tạo thành công");
+      }
+    } catch (error) {}
     // API sẽ được triển khai sau
     setIsStockInModalOpen(false);
   };
