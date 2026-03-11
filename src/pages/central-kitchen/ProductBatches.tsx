@@ -213,7 +213,6 @@ function ProductBatches() {
         // toast.success('Nhập kho thành công');
         getAllProductBatches();
         setIsStockInModalOpen(false);
-        console.log("Nhập kho thành công");
       }
     } catch (error) {}
     // API sẽ được triển khai sau
