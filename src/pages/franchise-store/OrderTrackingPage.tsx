@@ -10,7 +10,15 @@ import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { CalendarClock, Receipt, Search, Truck, AlertTriangle, Loader2 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { CalendarClock, Receipt, Search, Truck, AlertTriangle, Loader2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { franchiseServices, type OrderResponse, type OrderDetailResponse, type ExportNotesResponse } from '@/services/franchiseServices';
 
@@ -51,11 +59,20 @@ const OrderTrackingPage = () => {
   // Trạng thái loading
   const [loading, setLoading] = useState(true);
 
+  // Trạng thái mở pop huỷ đơn hàng
+  const [openCancelDialog, setOpenCancelDialog] = useState(false);
+
   // Ô tìm kiếm
   const [search, setSearch] = useState('');
 
   // Bộ lọc trạng thái
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('ALL');
+
+  // ID đơn hàng đang được chọn để huỷ
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+
+  // Lí do huỷ đơn hàng
+  const [cancelReason, setCancelReason] = useState('');
 
   // ================= EFFECT =================
 
@@ -99,6 +116,42 @@ const OrderTrackingPage = () => {
 
   const handleFilterChange = (status: FilterStatus) => {
     setStatusFilter(status);
+  };
+
+  const handleCancelOrder = (orderId: number) => {
+    setSelectedOrderId(orderId);
+    setOpenCancelDialog(true);
+  };
+
+  /**
+   * Xác nhận huỷ đơn hàng với lí do
+   */
+  const handleConfirmCancel = async () => {
+    if (!selectedOrderId) return;
+    
+    if (!cancelReason.trim()) {
+      alert('Vui lòng nhập lý do hủy đơn hàng');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await franchiseServices.cancelOrder(selectedOrderId, {
+        cancelReason: cancelReason.trim()
+      });
+      
+      if (response.success) {
+        setOpenCancelDialog(false);
+        setCancelReason('');
+        setSelectedOrderId(null);
+        fetchData();
+      }
+    } catch (error) {
+      console.error('Cancel order failed', error);
+      alert('Không thể huỷ đơn hàng');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ================= UTILS =================
@@ -225,6 +278,8 @@ const OrderTrackingPage = () => {
                         <th className="px-4 py-3 font-bold">Ngày đặt</th>
                         <th className="px-4 py-3 font-bold text-center">Ngày giao</th>
                         <th className="px-4 py-3 font-bold text-right">Trạng thái</th>
+                        <th className="px-4 py-3 font-bold text-right">Thao tác</th>
+
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50/50">
@@ -249,6 +304,21 @@ const OrderTrackingPage = () => {
                             >
                               {STORE_ORDER_STATUS_LABEL[o.status] || o.status}
                             </span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCancelOrder(o.orderId)}
+                              className={cn(
+                                'h-9 border-amber-200 text-xs font-bold hover:bg-amber-50 shadow-sm',
+                                o.status === 'PENDING' ? 'text-amber-800' : 'text-stone-400 cursor-not-allowed'
+                              )}
+                              disabled={o.status !== 'PENDING'}
+                            >
+                              Huỷ Đơn
+                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -370,6 +440,70 @@ const OrderTrackingPage = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* ================= MODALS ================= */}
+
+      {/* Modal xác nhận huỷ đơn hàng */}
+      <Dialog open={openCancelDialog} onOpenChange={(open) => {
+        setOpenCancelDialog(open);
+        if (!open) {
+          setCancelReason('');
+          setSelectedOrderId(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-md border-amber-100">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-900">
+              <XCircle className="size-5 text-red-500" />
+              Xác nhận huỷ đơn hàng
+            </DialogTitle>
+            <p className="text-sm text-stone-500">
+              Bạn đang thực hiện huỷ đơn hàng. Hành động này không thể hoàn tác.
+            </p>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="reason" className="text-xs font-bold text-stone-700">
+                Lí do huỷ đơn <span className="text-red-500">*</span>
+              </Label>
+              <textarea
+                id="reason"
+                placeholder="Nhập lí do huỷ đơn hàng (ví dụ: Đặt nhầm số lượng, thay đổi kế hoạch...)"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                className="flex min-h-[100px] w-full rounded-md border border-amber-200 bg-amber-50/30 px-3 py-2 text-xs ring-offset-white placeholder:text-stone-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex sm:justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpenCancelDialog(false)}
+              className="text-xs font-bold border-amber-200 hover:bg-amber-50"
+            >
+              Hủy bỏ
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmCancel}
+              disabled={!cancelReason.trim() || loading}
+              className="bg-red-500 text-xs font-bold text-white hover:bg-red-600 shadow-sm transition-all"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : (
+                'Xác nhận huỷ'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
