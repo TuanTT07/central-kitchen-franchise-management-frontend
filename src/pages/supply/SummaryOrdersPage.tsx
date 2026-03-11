@@ -190,7 +190,7 @@ function SummaryOrdersPage() {
     const requestBody = {
       products: editedProducts.map((product) => ({
         productId: product.productId,
-        quantity: product.quantity,
+        quantityPlanned: product.quantity,
       })),
     };
 

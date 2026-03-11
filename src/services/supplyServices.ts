@@ -124,7 +124,7 @@ export const supplyServices = {
   createManufacturingOrder: async (body: {
     products: {
       productId: number;
-      quantity: number;
+      quantityPlanned: number;
     }[];
   }) => {
     const response = await http.post<Response<ItemsResponse[]>>('/api/v1/manufacturing-orders', body);

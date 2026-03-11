@@ -24,7 +24,6 @@ import { cn } from '@/lib/utils';
 import { kitchenServices, type ManufacturingOrderResponse, type ManuOrderStatus } from '@/services/kitchenServices';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-
 // ================= TYPES =================
 
 const FILTER_OPTIONS: (ManuOrderStatus | 'ALL')[] = ['ALL', 'PLANNED', 'COOKING', 'COMPLETED'];
@@ -76,7 +75,6 @@ function ManufacturingOrders() {
   // Trạng thái đóng/mở popup xác nhận
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-
   // ================= API =================
   /**
    * Gọi API lấy danh sách tất cả các lệnh sản xuất
@@ -93,6 +91,7 @@ function ManufacturingOrders() {
 
   const updateStatusManufacturingOrder = async (id: number) => {
     try {
+      console.log(id);
       const response = await kitchenServices.updateStatusOrder(id);
       if (response.success) {
         getAllManufacturing();
@@ -114,6 +113,7 @@ function ManufacturingOrders() {
   const handleConfirmUpdate = async () => {
     if (!selectedOrder) return;
     await updateStatusManufacturingOrder(selectedOrder.manuOrderId);
+
     setIsDialogOpen(false);
     setSelectedOrder(null);
   };
@@ -256,7 +256,6 @@ function ManufacturingOrders() {
                             >
                               Cập nhật
                             </Button>
-
                           </td>
                         </tr>
                       ))}
@@ -340,7 +339,6 @@ function ManufacturingOrders() {
       </Card>
       {/* Popup xác nhận cập nhật trạng thái */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-900">
@@ -356,21 +354,29 @@ function ManufacturingOrders() {
             <div className="mt-4 flex items-center justify-center gap-4 rounded-lg bg-amber-50 p-4 border border-amber-100">
               <div className="flex flex-col items-center">
                 <span className="text-[10px] uppercase text-stone-500">Hiện tại</span>
-                <span className={cn(
-                  "mt-1 rounded-full border px-3 py-1 text-xs font-semibold",
-                  selectedOrder ? MANU_ORDER_STATUS_CLASS[selectedOrder.status as ManuOrderStatus] : ""
-                )}>
-                  {selectedOrder ? MANU_ORDER_STATUS_LABEL[selectedOrder.status as ManuOrderStatus] : ""}
+                <span
+                  className={cn(
+                    'mt-1 rounded-full border px-3 py-1 text-xs font-semibold',
+                    selectedOrder ? MANU_ORDER_STATUS_CLASS[selectedOrder.status as ManuOrderStatus] : ''
+                  )}
+                >
+                  {selectedOrder ? MANU_ORDER_STATUS_LABEL[selectedOrder.status as ManuOrderStatus] : ''}
                 </span>
               </div>
               <div className="h-px w-8 bg-amber-300" />
               <div className="flex flex-col items-center">
                 <span className="text-[10px] uppercase text-stone-500">Tiếp theo</span>
-                <span className={cn(
-                  "mt-1 rounded-full border px-3 py-1 text-xs font-semibold",
-                  selectedOrder?.status === 'PLANNED' ? MANU_ORDER_STATUS_CLASS.COOKING : MANU_ORDER_STATUS_CLASS.COMPLETED
-                )}>
-                  {selectedOrder?.status === 'PLANNED' ? MANU_ORDER_STATUS_LABEL.COOKING : MANU_ORDER_STATUS_LABEL.COMPLETED}
+                <span
+                  className={cn(
+                    'mt-1 rounded-full border px-3 py-1 text-xs font-semibold',
+                    selectedOrder?.status === 'PLANNED'
+                      ? MANU_ORDER_STATUS_CLASS.COOKING
+                      : MANU_ORDER_STATUS_CLASS.COMPLETED
+                  )}
+                >
+                  {selectedOrder?.status === 'PLANNED'
+                    ? MANU_ORDER_STATUS_LABEL.COOKING
+                    : MANU_ORDER_STATUS_LABEL.COMPLETED}
                 </span>
               </div>
             </div>
@@ -383,10 +389,7 @@ function ManufacturingOrders() {
             >
               Hủy
             </Button>
-            <Button
-              onClick={handleConfirmUpdate}
-              className="bg-amber-500 text-white hover:bg-amber-600"
-            >
+            <Button onClick={handleConfirmUpdate} className="bg-amber-500 text-white hover:bg-amber-600">
               Xác nhận
             </Button>
           </DialogFooter>
@@ -397,4 +400,3 @@ function ManufacturingOrders() {
 }
 
 export default ManufacturingOrders;
-
