@@ -188,7 +188,7 @@ function SummaryOrdersPage() {
    */
   const handleFinalize = async () => {
     const requestBody = {
-      items: editedProducts.map((product) => ({
+      products: editedProducts.map((product) => ({
         productId: product.productId,
         quantity: product.quantity,
       })),
