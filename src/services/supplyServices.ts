@@ -162,4 +162,27 @@ export const supplyServices = {
     const response = await http.post<Response<OrderResponse<OrderDetailResponse[]>>>(`/orders/${id}/approve`);
     return response.data;
   },
+   /**
+   * Tạo phiếu xuất kho từ danh sách các storeOrder đã được phê duyệt
+   * 
+   * @param orderIds Danh sách ID các storeOrder cần tạo phiếu xuất kho
+   * @returns Promise<ExportNotesResponse[]> Danh sách các phiếu xuất kho vừa tạo
+   */
+  createExportNote: async (orderIds: number[]) => {
+    const response = await http.post<Response<ExportNotesResponse[]>>('/export-notes/createAutoNote', orderIds);
+    return response.data;
+  },
+
+
+  /**
+   * Lấy danh sách các storeOrder đủ điều kiện để tạo lệnh sản xuất
+   * 
+   * @returns Promise<Response<OrderResponse<OrderDetailResponse[]>[]>>
+   */
+  getStoreOrderReadyForManufacturing: async () => {
+    const response = await http.get<Response<OrderResponse<OrderDetailResponse[]>[]>>('/export-notes/ready-orders');
+    return response.data;
+  },
+
+ 
 };
