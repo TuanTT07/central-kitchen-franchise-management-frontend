@@ -47,6 +47,7 @@ function SummaryOrdersPage() {
 
   // State quản lý trạng thái đang gửi API
   const [isFinalizing, setIsFinalizing] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // ================= API =================
   /**
@@ -196,6 +197,33 @@ function SummaryOrdersPage() {
     } catch (error) {
       console.error('Duyệt đơn thất bại:', error);
       alert('Không thể duyệt đơn hàng này');
+    }
+  };
+
+  /**
+   * Nghiệp vụ: Hủy tổng hợp đơn hàng
+   * Gọi API để trả các đơn hàng về trạng thái APPROVED nếu người dùng không muốn tiếp tục gom đơn
+   */
+  const handleCancelConsolidation = async () => {
+    if (!consolidationResult) {
+      setIsModalOpen(false);
+      return;
+    }
+
+    try {
+      setIsCancelling(true);
+      const response = await supplyServices.cancelConsolidate(consolidationResult.orderIds);
+      if (response.success) {
+        setIsModalOpen(false);
+        setConsolidationResult(null);
+        setEditedProducts([]);
+        getAllOrders();
+      }
+    } catch (error) {
+      console.error('Hủy tổng hợp đơn hàng thất bại:', error);
+      alert('Không thể hủy tổng hợp vào lúc này.');
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -459,8 +487,15 @@ function SummaryOrdersPage() {
       </Card>
 
       {/* Dialog kết quả gom đơn & Chỉnh sửa số lượng */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent onClose={() => setIsModalOpen(false)}>
+      <Dialog
+        open={isModalOpen}
+        onOpenChange={(open) => {
+          if (!open && !isFinalizing && !isCancelling) {
+            handleCancelConsolidation();
+          }
+        }}
+      >
+        <DialogContent onClose={handleCancelConsolidation}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-900">
               <Package className="size-5 text-amber-500" />
@@ -508,10 +543,11 @@ function SummaryOrdersPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsModalOpen(false)}
+              onClick={handleCancelConsolidation}
+              disabled={isFinalizing || isCancelling}
               className="rounded-full border-amber-200 px-6 text-stone-600 hover:bg-stone-50"
             >
-              Hủy bỏ
+              {isCancelling ? 'Đang hủy...' : 'Hủy bỏ'}
             </Button>
             <Button
               onClick={handleFinalize}
