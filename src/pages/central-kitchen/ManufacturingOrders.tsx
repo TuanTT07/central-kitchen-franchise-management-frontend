@@ -178,7 +178,7 @@ function ManufacturingOrders() {
                       statusFilter === opt ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'
                     )}
                   >
-                    {opt === 'ALL' ? 'Tất cả' : MANU_ORDER_STATUS_LABEL[opt]}
+                    {/* {opt === 'ALL' ? 'Tất cả' : MANU_ORDER_STATUS_LABEL[opt]} */}
                   </button>
                 ))}
               </div>
