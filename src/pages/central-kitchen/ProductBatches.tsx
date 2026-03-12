@@ -5,6 +5,14 @@ import { Button } from '@/components/ui/button';
 import { AlertTriangle, Boxes, CalendarClock, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { kitchenServices, type ProductBatchesResponse, type ProductBatchStatus } from '@/services/kitchenServices';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useForm } from 'react-hook-form';
 
 const BATCH_STATUS_LABEL: Record<ProductBatchStatus, string> = {
   WAITING_FOR_STOCK: 'Chờ nhập kho',
@@ -52,6 +60,26 @@ function ProductBatches() {
   const [productBatches, setProductBatches] = useState<ProductBatchesResponse[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProductBatchStatus | 'ALL'>('ALL');
+
+  // Quản lý trạng thái đóng/mở popup nhập kho hàng loạt
+  const [isStockInModalOpen, setIsStockInModalOpen] = useState(false);
+
+
+  // Lưu trữ ID các lô được chọn trong Modal nhập kho
+  const [selectedBatchIds, setSelectedBatchIds] = useState<number[]>([]);
+
+
+  // react hook form (validate cho phần tạo phiếu nhập kho)
+  // Quản lý số lượng theo dạng Record để hỗ trợ nhiều dòng trong một form
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    clearErrors,
+    formState: { errors },
+  } = useForm<{
+    quantities: Record<string, number>;
+  }>();
 
   const availableCount = useMemo(() => productBatches.filter((b) => b.status === 'AVAILABLE').length, [productBatches]);
   const outOfStockCount = useMemo(
@@ -107,7 +135,89 @@ function ProductBatches() {
     }
 
     return data;
-  }, [search, statusFilter]);
+  }, [search, statusFilter, productBatches]);
+
+  // ================= HANDLER =================
+
+  /**
+   * Mở popup nhập kho hàng loạt cho các lô WAITING_FOR_STOCK
+   */
+  const handleOpenStockIn = () => {
+    const waitingBatches = productBatches.filter((b) => b.status === 'WAITING_FOR_STOCK');
+
+    if (waitingBatches.length === 0) {
+      alert('Không có lô hàng nào đang ở trạng thái Chờ nhập kho.');
+      return;
+    }
+
+    const initialQtys: Record<number, number> = {};
+    waitingBatches.forEach((b) => {
+      const qty = 0; // Mặc định là 0 để người dùng tự nhập
+      initialQtys[b.batchId] = qty;
+      // Đồng bộ giá trị vào react-hook-form
+      setValue(`quantities.${b.batchId}`, qty);
+    });
+
+    setSelectedBatchIds(waitingBatches.map((b) => b.batchId)); // Mặc định chọn tất cả khi mở
+    setIsStockInModalOpen(true);
+  };
+
+  /**
+   * Chọn/Bỏ chọn một lô hàng cụ thể
+   */
+  const handleToggleSelectBatch = (batchId: number) => {
+    const isSelecting = !selectedBatchIds.includes(batchId);
+    
+    setSelectedBatchIds((prev) =>
+      isSelecting ? [...prev, batchId] : prev.filter((id) => id !== batchId)
+    );
+
+    // Nếu là bỏ chọn, xóa lỗi validate của hàng đó
+    if (!isSelecting) {
+      clearErrors(`quantities.${batchId}`);
+    }
+  };
+
+  /**
+   * Chọn/Bỏ chọn tất cả các lô hàng đang chờ nhập
+   */
+  const handleToggleSelectAll = () => {
+    const waitingBatchIds = productBatches
+      .filter((b) => b.status === 'WAITING_FOR_STOCK')
+      .map((b) => b.batchId);
+
+    if (selectedBatchIds.length === waitingBatchIds.length) {
+      setSelectedBatchIds([]);
+      // Xóa tất cả lỗi validate khi bỏ chọn tất cả
+      clearErrors('quantities');
+    } else {
+      setSelectedBatchIds(waitingBatchIds);
+    }
+  };
+
+  /**
+   * Xác nhận nhập kho hàng loạt - Chỉ nhận các lô được chọn
+   * Gọi thông qua handleSubmit của react-hook-form để tận dụng validation
+   */
+  const handleConfirmStockIn = async (data: { quantities: Record<string, number> }) => {
+   
+
+    const finalData = selectedBatchIds.map((id) => ({
+      productBatchId: id,
+      quantity: data.quantities[id] || 0,
+    }));
+
+     try {
+      const response = await kitchenServices.manualStockIn(finalData);
+      if (response.data) {
+        // toast.success('Nhập kho thành công');
+        getAllProductBatches();
+        setIsStockInModalOpen(false);
+      }
+    } catch (error) {}
+    // API sẽ được triển khai sau
+    setIsStockInModalOpen(false);
+  };
 
   return (
     <div className="h-full w-full">
@@ -152,7 +262,18 @@ function ProductBatches() {
                 className="border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 rounded-full border-amber-200 text-[11px] font-semibold text-amber-900 hover:bg-amber-50"
+                  onClick={() => handleOpenStockIn()}
+                >
+                  Tạo phiếu nhập kho
+                </Button>
+              </div>
+
               <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">
                 {FILTER_OPTIONS.map((opt) => (
                   <button
@@ -194,7 +315,6 @@ function ProductBatches() {
                         <th className="px-2 py-2 font-semibold text-center">SL hiện tại</th>
                         <th className="px-4 py-2 font-semibold text-center">Hạn dùng</th>
                         <th className="px-4 py-2 font-semibold text-right">Trạng thái</th>
-                        <th className="px-4 py-2 font-semibold text-right">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50">
@@ -239,15 +359,7 @@ function ProductBatches() {
                               {BATCH_STATUS_LABEL[b.status]}
                             </span>
                           </td>
-                          <td className="px-4 py-2 text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-amber-200 bg-white text-[11px] text-amber-900 hover:bg-amber-50"
-                            >
-                              Chi tiết
-                            </Button>
-                          </td>
+                          
                         </tr>
                       ))}
                       {filteredBatches.length === 0 && (
@@ -329,6 +441,118 @@ function ProductBatches() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ================= RENDER MODAL ================= */}
+      <Dialog open={isStockInModalOpen} onOpenChange={setIsStockInModalOpen}>
+        <DialogContent className="max-w-3xl overflow-hidden p-0 sm:rounded-2xl">
+          <DialogHeader className="border-b border-amber-100 bg-amber-50 px-6 py-4">
+            <DialogTitle className="text-lg font-bold text-amber-900 uppercase tracking-tight">
+              Xác nhận nhập kho hàng loạt
+            </DialogTitle>
+            <p className="text-[11px] font-medium text-amber-700/80">
+              Chỉ hiển thị các lô đang chờ nhập kho. Vui lòng kiểm tra số lượng thực tế.
+            </p>
+          </DialogHeader>
+
+          <div className="max-h-[60vh] overflow-y-auto px-6 py-4">
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgba(245,158,11,0.1)]">
+                <tr className="text-left text-[11px] text-amber-900 font-bold">
+                  <th className="pb-3 pr-4 w-10">
+                    <input
+                      type="checkbox"
+                      className="size-3.5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                      checked={
+                        selectedBatchIds.length ===
+                          productBatches.filter((b) => b.status === 'WAITING_FOR_STOCK').length &&
+                        selectedBatchIds.length > 0
+                      }
+                      onChange={handleToggleSelectAll}
+                    />
+                  </th>
+                  <th className="pb-3 pr-4">Mã lô / Sản phẩm</th>
+                  <th className="pb-3 pr-4 text-center">SL Dự kiến</th>
+                  <th className="pb-3 text-center w-32">SL Thực tế</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-amber-50">
+                {productBatches
+                  .filter((b) => b.status === 'WAITING_FOR_STOCK')
+                  .map((b) => (
+                    <tr
+                      key={b.batchId}
+                      className={cn(
+                        'group transition-colors',
+                        selectedBatchIds.includes(b.batchId) ? 'bg-amber-50/50' : 'hover:bg-amber-50/20'
+                      )}
+                    >
+                      <td className="py-3 pr-4">
+                        <input
+                          type="checkbox"
+                          className="size-3.5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                          checked={selectedBatchIds.includes(b.batchId)}
+                          onChange={() => handleToggleSelectBatch(b.batchId)}
+                        />
+                      </td>
+                      <td className="py-3 pr-4">
+                        <p className="font-semibold text-stone-900">{b.batchCode}</p>
+                        <p className="text-[10px] text-stone-500">{b.productName}</p>
+                      </td>
+                      <td className="py-3 pr-4 text-center font-medium text-stone-600">
+                        {b.initialQuantity.toLocaleString('vi-VN')}
+                      </td>
+                      <td className="py-3 text-center">
+                        <div className="flex flex-col gap-1">
+                          <Input
+                            type="number"
+                            disabled={!selectedBatchIds.includes(b.batchId)}
+                            className={cn(
+                              'h-8 border-amber-200 text-center text-xs focus:border-amber-400 focus:ring-amber-200',
+                              !selectedBatchIds.includes(b.batchId) && 'bg-stone-50 opacity-50',
+                              errors.quantities?.[b.batchId] && 'border-rose-500 focus:border-rose-500 focus:ring-rose-200'
+                            )}
+                            {...register(`quantities.${b.batchId}`, {
+                              validate: (value) => {
+                                // Chỉ validate nếu hàng này được chọn
+                                if (!selectedBatchIds.includes(b.batchId)) return true;
+                                if (!value && value !== 0) return 'Bắt buộc';
+                                if (value < 1) return 'Min là 1';
+                                if (value > b.initialQuantity) return `Max: ${b.initialQuantity}`;
+                                return true;
+                              },
+                              valueAsNumber: true,
+                            })}
+                          />
+                          {errors.quantities?.[b.batchId] && (
+                            <p className="text-[10px] text-rose-500 font-medium">
+                              {errors.quantities[b.batchId]?.message}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+
+          <DialogFooter className="border-t border-amber-100 bg-stone-50/50 px-6 py-4">
+            <Button
+              variant="ghost"
+              onClick={() => setIsStockInModalOpen(false)}
+              className="text-stone-500 hover:bg-stone-100"
+            >
+              Hủy bỏ
+            </Button>
+            <Button
+              onClick={handleSubmit(handleConfirmStockIn)}
+              className="bg-amber-600 text-white shadow-sm hover:bg-amber-700 font-bold"
+            >
+              Xác nhận nhập kho
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
