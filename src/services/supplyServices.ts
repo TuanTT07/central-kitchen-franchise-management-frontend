@@ -98,7 +98,7 @@ export const supplyServices = {
    * @returns Promise<ConsolidationResponse> Kết quả gộp đơn
    */
   consolidateAuto: async () => {
-    const response = await http.post<Response<ConsolidationResponse>>('orders/consolidate/auto');
+    const response = await http.post<Response<ConsolidationResponse>>('/orders/consolidate/auto');
     return response.data;
   },
 
@@ -110,7 +110,19 @@ export const supplyServices = {
    * @returns Promise<ConsolidationResponse> Kết quả gộp đơn
    */
   consolidateManual: async (orderIds: number[]) => {
-    const response = await http.post<Response<ConsolidationResponse>>('orders/consolidate/manual', { orderIds });
+    const response = await http.post<Response<ConsolidationResponse>>('/orders/consolidate/manual', { orderIds });
+    return response.data;
+  },
+
+  /**
+   * Hủy gộp đơn hàng
+   * @param orderIds Danh sách ID các đơn hàng cần hủy gộp
+   * @returns Promise<ConsolidationResponse> Kết quả hủy gộp đơn
+   */
+  cancelConsolidate: async (orderIds: number[]) => {
+    const response = await http.post<Response<ConsolidationResponse>>('/orders/consolidate/cancel', {
+      orderIds,
+    });
     return response.data;
   },
 
