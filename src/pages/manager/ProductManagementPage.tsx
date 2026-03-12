@@ -269,7 +269,7 @@ const ProductManagementPage = () => {
           </div>
           <div className="flex items-center gap-3">
             <div className="relative hidden w-64 items-center md:flex">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-600" />
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 -mt-2 text-amber-600" />
               <Input
                 placeholder="Tìm theo tên sản phẩm, danh mục..."
                 value={search}
@@ -297,7 +297,7 @@ const ProductManagementPage = () => {
         <CardContent className="space-y-4 p-6">
           <div className="flex items-center gap-2 md:hidden">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-600" />
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 -mt-2 text-amber-600" />
               <Input
                 placeholder="Tìm theo tên sản phẩm, danh mục..."
                 value={search}

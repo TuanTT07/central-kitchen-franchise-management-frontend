@@ -12,6 +12,7 @@ import {
   ProductManagementPage,
   ReportsPage,
   CategoryManager,
+  ManagerReceiptsPage,
 } from './pages/manager/index.ts';
 import {
   DeliverySchedulePage,
@@ -89,6 +90,7 @@ function App() {
                 <Route element={<RoleShell sidebarItems={MANAGER_SIDEBAR_ITEMS} roleLabel="MANAGER" />}>
                   <Route path="/manager/inventory-overview" element={<InventoryOverviewPage />}></Route>
                   <Route path="/manager/products" element={<ProductManagementPage />}></Route>
+                  <Route path="/manager/receipts" element={<ManagerReceiptsPage />}></Route>
                   <Route path="/manager/categories" element={<CategoryManager />}></Route>
                   <Route path="/manager/reports" element={<ReportsPage />}></Route>
                 </Route>
