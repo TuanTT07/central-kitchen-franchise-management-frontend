@@ -1,31 +1,28 @@
 /**
- * =========================================================
- * Component: DistributionPlanPage
- * Description: Trang quản lý kế hoạch phân phối hàng hóa.
- *             Hiển thị danh sách phiếu xuất kho và tổng quan theo chi nhánh.
- * Author: Tuan Tran, Dat Tran
- * Created: 2026-03-10
- *
- * Features:
- * - Lấy dữ liệu phiếu xuất kho (export_notes) từ API.
- * - Tìm kiếm theo mã phiếu, chi nhánh hoặc tên sản phẩm.
- * - Hiển thị thống kê tổng quan (Tổng đợt, Sẵn sàng, Đã giao).
- * - Nhóm dữ liệu theo chi nhánh để theo dõi phân bổ.
- * =========================================================
+ * File: DistributionPlanPage.tsx
+ * Description: Trang quản lý kế hoạch phân phối hàng hóa. 
+ *             Hiển thị danh sách phiếu xuất kho và hỗ trợ tạo đợt phân phối mới qua Popup.
+ * Author: Tuan Tran
+ * Created: 2026-03-12
  */
 
 // ================= IMPORT =================
+
 import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { LayoutGrid, MapPin, Search } from 'lucide-react';
-import { supplyServices, type ExportNotesResponse } from '@/services/supplyServices';
+import { LayoutGrid, MapPin, Search, Loader2, Package } from 'lucide-react';
+import { supplyServices, type ExportNotesResponse, type ExportNoteItem } from '@/services/supplyServices';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import type { OrderResponse, OrderDetailResponse } from '@/services/franchiseServices';
 
 // ================= TYPES =================
+
 type PlanStatus = 'READY' | 'SHIPPED' | 'CANCEL';
 
 // ================= CONSTANTS =================
+
 const STATUS_LABEL: Record<PlanStatus, string> = {
   READY: 'Sẵn sàng giao',
   SHIPPED: 'Đã giao',
@@ -38,76 +35,159 @@ const STATUS_CLASS: Record<PlanStatus, string> = {
   CANCEL: 'bg-stone-100 text-stone-600 border-stone-200',
 };
 
-// ================= COMPONENT =================
+/**
+ * DistributionPlanPage Component
+ * - Hiển thị danh sách phiếu xuất kho
+ * - Thống kê trạng thái phân phối
+ * - Tạo đợt phân phối mới từ các đơn hàng sẵn sàng
+ */
+
 const DistributionPlanPage = () => {
+
   // ================= STATE =================
+
   const [exportNotes, setExportNotes] = useState<ExportNotesResponse[]>([]);
   const [search, setSearch] = useState('');
 
+  // Trạng thái modal và dữ liệu tạo đợt mới
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [readyOrders, setReadyOrders] = useState<OrderResponse<OrderDetailResponse[]>[]>([]);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
+  
+  // Loading states
+  const [loading, setLoading] = useState(false);
+  const [isFetchingReady, setIsFetchingReady] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+
+  // ================= EFFECT =================
+
+  useEffect(() => {
+    getExportNotes();
+  }, []);
+
   // ================= API =================
+
   /**
-   * Gọi API lấy danh sách phiếu xuất kho.
-   * Cập nhật danh sách exportNotes khi thành công.
+   * Lấy danh sách phiếu xuất kho
    */
   const getExportNotes = async () => {
     try {
+      setLoading(true);
       const response = await supplyServices.getAllExportNote();
       if (response.data.success) {
         setExportNotes(response.data.data.items);
       }
     } catch (error) {
-      console.error('Failed to fetch export notes:', error);
+      console.error('Fetch export notes failed', error);
+      // toast.error('Không thể tải danh sách phiếu xuất kho');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ================= EFFECT =================
-  useEffect(() => {
-    getExportNotes();
-  }, []);
-
-  // ================= LOGIC / MEMO =================
   /**
-   * Lọc danh sách phiếu xuất kho dựa trên từ khóa tìm kiếm.
-   * Tìm kiếm trong: Mã phiếu, Tên chi nhánh, Tên sản phẩm.
+   * Lấy danh sách đơn hàng sẵn sàng để phân phối
+   */
+  const fetchReadyOrders = async () => {
+    try {
+      setIsFetchingReady(true);
+      const response = await supplyServices.getStoreOrderReadyForManufacturing();
+      if (response.success) {
+        setReadyOrders(response.data);
+      }
+    } catch (error) {
+      console.error('Fetch ready orders failed', error);
+      // toast.error('Không thể tải danh sách đơn hàng sẵn sàng');
+    } finally {
+      setIsFetchingReady(false);
+    }
+  };
+
+  /**
+   * Thực hiện tạo phiếu xuất kho từ các đơn hàng đã chọn
+   */
+  const handleCreateExportNote = async () => {
+    if (selectedOrderIds.length === 0) {
+      // toast.warning('Vui lòng chọn ít nhất một đơn hàng');
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      const response = await supplyServices.createExportNote(selectedOrderIds);
+      if (response.success) {
+        // toast.success('Tạo đợt phân phối thành công');
+        setIsCreateModalOpen(false);
+        setSelectedOrderIds([]);
+        getExportNotes();
+      }
+    } catch (error) {
+      console.error('Create export note failed', error);
+      // toast.error('Tạo đợt phân phối thất bại');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // ================= HANDLER =================
+
+  const handleOpenCreateModal = () => {
+    setIsCreateModalOpen(true);
+    fetchReadyOrders();
+  };
+
+  const handleToggleOrder = (orderId: number) => {
+    setSelectedOrderIds(prev =>
+      prev.includes(orderId)
+        ? prev.filter(id => id !== orderId)
+        : [...prev, orderId]
+    );
+  };
+
+  // ================= UTILS =================
+
+  /**
+   * Lọc phiếu xuất kho theo từ khóa
    */
   const filteredPlans = useMemo(() => {
     if (!search.trim()) return exportNotes;
     const q = search.toLowerCase();
     return exportNotes.filter(
-      (p) =>
+      (p: ExportNotesResponse) =>
         p.exportCode.toLowerCase().includes(q) ||
         p.storeName.toLowerCase().includes(q) ||
-        p.items.some((item) => item.productName.toLowerCase().includes(q))
+        p.items.some((item: ExportNoteItem) => item.productName.toLowerCase().includes(q))
     );
   }, [search, exportNotes]);
 
   /**
-   * Tính toán các thông số thống kê nhanh.
+   * Thống kê số lượng
    */
   const stats = useMemo(() => {
     return {
       total: exportNotes.length,
-      ready: exportNotes.filter((p) => p.status === 'READY').length,
-      shipped: exportNotes.filter((p) => p.status === 'SHIPPED').length,
+      ready: exportNotes.filter((p: ExportNotesResponse) => p.status === 'READY').length,
+      shipped: exportNotes.filter((p: ExportNotesResponse) => p.status === 'SHIPPED').length,
     };
   }, [exportNotes]);
 
   /**
-   * Nhóm dữ liệu phiếu xuất kho theo từng chi nhánh để hiển thị ở Sidebar.
+   * Nhóm theo chi nhánh
    */
   const storeGroups = useMemo(() => {
     const groups: Record<string, { storeName: string; count: number; totalQty: number; status: string }> = {};
-    exportNotes.forEach((p) => {
+    exportNotes.forEach((p: ExportNotesResponse) => {
       if (!groups[p.storeName]) {
         groups[p.storeName] = { storeName: p.storeName, count: 0, totalQty: 0, status: p.status };
       }
       groups[p.storeName].count += 1;
-      groups[p.storeName].totalQty += p.items.reduce((sum, item) => sum + item.quantity, 0);
+      groups[p.storeName].totalQty += p.items.reduce((sum: number, item: ExportNoteItem) => sum + item.quantity, 0);
     });
     return Object.values(groups);
   }, [exportNotes]);
 
   // ================= RENDER =================
+
   return (
     <div className="h-full w-full">
       <Card className="border-amber-200/60 bg-white shadow-md">
@@ -150,7 +230,10 @@ const DistributionPlanPage = () => {
                 className="border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
               />
             </div>
-            <Button className="h-9 rounded-full bg-amber-500 px-4 text-xs text-white hover:bg-amber-600">
+            <Button 
+              onClick={handleOpenCreateModal}
+              className="h-9 rounded-full bg-amber-500 px-4 text-xs text-white hover:bg-amber-600"
+            >
               Tạo đợt phân phối
             </Button>
           </div>
@@ -177,16 +260,22 @@ const DistributionPlanPage = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50">
-                      {filteredPlans.map((p) => (
+                      {loading ? (
+                        <tr>
+                          <td colSpan={6} className="py-10 text-center">
+                            <Loader2 className="mx-auto size-6 animate-spin text-amber-500" />
+                          </td>
+                        </tr>
+                      ) : filteredPlans.map((p: ExportNotesResponse) => (
                         <tr key={p.exportId} className="hover:bg-amber-50/40">
                           <td className="px-4 py-3 font-semibold text-stone-900">{p.exportCode}</td>
                           <td className="px-4 py-3 text-stone-800">{p.storeName}</td>
                           <td className="px-4 py-3 text-stone-600 italic">
-                            {p.items.map((i) => i.productName).join(', ')}
+                            {p.items.map((i: ExportNoteItem) => i.productName).join(', ')}
                           </td>
                           <td className="px-2 py-3 text-center text-stone-800 font-medium">{p.items.length}</td>
                           <td className="px-2 py-3 text-right text-stone-800 font-bold">
-                            {p.items.reduce((sum, i) => sum + i.quantity, 0)}
+                            {p.items.reduce((sum: number, i: ExportNoteItem) => sum + i.quantity, 0)}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <span
@@ -200,7 +289,7 @@ const DistributionPlanPage = () => {
                     </tbody>
                   </table>
                 </div>
-                {filteredPlans.length === 0 && (
+                {!loading && filteredPlans.length === 0 && (
                   <div className="py-10 text-center text-xs text-stone-500">Không có đợt phân phối nào phù hợp.</div>
                 )}
               </CardContent>
@@ -245,6 +334,128 @@ const DistributionPlanPage = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* ================= MODAL: TẠO ĐỢT PHÂN PHỐI ================= */}
+      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-6">
+          <DialogHeader className="border-b border-amber-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                <Package className="size-6" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold text-amber-900">Tạo đợt phân phối mới</DialogTitle>
+                <p className="text-xs text-amber-700/70">Chọn các đơn hàng chi nhánh đã sẵn sàng để lập đợt phân phối hàng.</p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto py-4">
+            {isFetchingReady ? (
+              <div className="flex h-40 flex-col items-center justify-center gap-3">
+                <Loader2 className="size-8 animate-spin text-amber-500" />
+                <p className="text-xs text-stone-500">Đang tải danh sách đơn hàng...</p>
+              </div>
+            ) : readyOrders.length === 0 ? (
+              <div className="flex h-40 flex-col items-center justify-center gap-2">
+                <div className="rounded-full bg-stone-50 p-3">
+                  <Package className="size-8 text-stone-300" />
+                </div>
+                <p className="text-sm font-medium text-stone-500">Không có đơn hàng nào sẵn sàng</p>
+                <p className="text-xs text-stone-400">Tất cả đơn hàng đã được xử lý hoặc chưa được phê duyệt.</p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-amber-100 overflow-hidden shadow-sm">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-amber-50/60 text-amber-900 border-b border-amber-100">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold w-10 text-center">
+                        <input
+                          type="checkbox"
+                          className="size-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                          checked={readyOrders.length > 0 && selectedOrderIds.length === readyOrders.length}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedOrderIds(readyOrders.map(o => o.orderId));
+                            } else {
+                              setSelectedOrderIds([]);
+                            }
+                          }}
+                        />
+                      </th>
+                      <th className="px-4 py-3 font-semibold">Mã đơn hàng</th>
+                      <th className="px-4 py-3 font-semibold">Chi nhánh</th>
+                      <th className="px-4 py-3 font-semibold text-right">Tổng sản phẩm</th>
+                      <th className="px-4 py-3 font-semibold text-right">Ngày đặt</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-amber-50 bg-white">
+                    {readyOrders.map((order: OrderResponse<OrderDetailResponse[]>) => (
+                      <tr
+                        key={order.orderId}
+                        className={`hover:bg-amber-50/30 transition-colors cursor-pointer ${
+                          selectedOrderIds.includes(order.orderId) ? 'bg-amber-50/50' : ''
+                        }`}
+                        onClick={() => handleToggleOrder(order.orderId)}
+                      >
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center">
+                            <input
+                              type="checkbox"
+                              className="size-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                              checked={selectedOrderIds.includes(order.orderId)}
+                              onChange={() => handleToggleOrder(order.orderId)}
+                            />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-bold text-amber-950">{order.orderCode}</td>
+                        <td className="px-4 py-3 text-stone-700">{order.storeName}</td>
+                        <td className="px-4 py-3 text-right font-medium text-stone-900">
+                          {order.details.reduce((sum: number, d: OrderDetailResponse) => sum + d.quantity, 0)} sản phẩm
+                        </td>
+                        <td className="px-4 py-3 text-right text-stone-500">
+                          {new Date(order.orderDate).toLocaleDateString('vi-VN')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="border-t border-amber-100 pt-5 mt-auto">
+            <div className="flex items-center justify-between w-full">
+              <div className="text-xs text-stone-500">
+                Đã chọn: <span className="font-bold text-amber-600">{selectedOrderIds.length}</span> đơn hàng
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="border-amber-200 text-amber-800 hover:bg-amber-50"
+                >
+                  Hủy bỏ
+                </Button>
+                <Button
+                  disabled={selectedOrderIds.length === 0 || isCreating}
+                  onClick={handleCreateExportNote}
+                  className="bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-200/50"
+                >
+                  {isCreating ? (
+                    <>
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                      Đang xử lý...
+                    </>
+                  ) : (
+                    'Tạo đợt mới'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
