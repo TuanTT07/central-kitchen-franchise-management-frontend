@@ -215,7 +215,6 @@ function ProductBatches() {
         setIsStockInModalOpen(false);
       }
     } catch (error) {}
-    // API sẽ được triển khai sau
     setIsStockInModalOpen(false);
   };
 

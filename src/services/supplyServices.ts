@@ -140,4 +140,14 @@ export const supplyServices = {
   getAllExportNote: async () => {
     return await http.get<Response<PaginatedResponse<ExportNotesResponse[]>>>('/export-notes');
   },
+  /**
+   * Phê duyệt đơn hàng từ chi nhánh
+   *
+   * @param id ID của đơn hàng cần duyệt
+   * @returns Promise<Response<OrderResponse<OrderDetailResponse[]>>>
+   */
+  approveOrder: async (id: number) => {
+    const response = await http.post<Response<OrderResponse<OrderDetailResponse[]>>>(`/orders/${id}/approve`);
+    return response.data;
+  },
 };
