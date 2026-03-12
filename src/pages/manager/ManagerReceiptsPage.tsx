@@ -1,28 +1,42 @@
 import { useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { AlertTriangle, CalendarClock, FileText, Search } from 'lucide-react';
+import { CalendarClock, FileText, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-/**
- * Đồng bộ DB (public schema):
- *
- * inventory_receipts:
- *   receipt_id (PK, identity),
- *   receipt_code (UNIQUE),
- *   status CHECK (DRAFT | COMPLETED),
- *   receipt_date (timestamptz, nullable)
- */
 
 type ReceiptStatus = 'DRAFT' | 'COMPLETED';
 
-interface InventoryReceipt {
-  receipt_id: number;
-  receipt_code: string;
+interface InventoryReceiptRow {
+  receiptId: number;
+  receiptCode: string;
   status: ReceiptStatus;
-  receipt_date: string | null;
+  receiptDate: string | null;
+  createdByName: string;
 }
+
+const MOCK_RECEIPTS: InventoryReceiptRow[] = [
+  {
+    receiptId: 1,
+    receiptCode: 'RC-20250310-001',
+    status: 'COMPLETED',
+    receiptDate: '2025-03-10T09:15:00Z',
+    createdByName: 'Nguyễn Văn A',
+  },
+  {
+    receiptId: 2,
+    receiptCode: 'RC-20250310-002',
+    status: 'DRAFT',
+    receiptDate: '2025-03-10T10:30:00Z',
+    createdByName: 'Trần Thị B',
+  },
+  {
+    receiptId: 3,
+    receiptCode: 'RC-20250309-005',
+    status: 'COMPLETED',
+    receiptDate: '2025-03-09T17:45:00Z',
+    createdByName: 'Lê Văn C',
+  },
+];
 
 const RECEIPT_STATUS_LABEL: Record<ReceiptStatus, string> = {
   DRAFT: 'Nháp',
@@ -36,33 +50,6 @@ const RECEIPT_STATUS_CLASS: Record<ReceiptStatus, string> = {
 
 const FILTER_OPTIONS: (ReceiptStatus | 'ALL')[] = ['ALL', 'DRAFT', 'COMPLETED'];
 
-const MOCK_INVENTORY_RECEIPTS: InventoryReceipt[] = [
-  {
-    receipt_id: 1,
-    receipt_code: 'IR-20260304-001',
-    status: 'DRAFT',
-    receipt_date: '2026-03-04T08:15:00Z',
-  },
-  {
-    receipt_id: 2,
-    receipt_code: 'IR-20260303-001',
-    status: 'COMPLETED',
-    receipt_date: '2026-03-03T10:30:00Z',
-  },
-  {
-    receipt_id: 3,
-    receipt_code: 'IR-20260302-001',
-    status: 'COMPLETED',
-    receipt_date: '2026-03-02T14:00:00Z',
-  },
-  {
-    receipt_id: 4,
-    receipt_code: 'IR-20260301-002',
-    status: 'COMPLETED',
-    receipt_date: '2026-03-01T09:45:00Z',
-  },
-];
-
 const formatDateTime = (value: string | null) => {
   if (!value) return '—';
   return new Date(value).toLocaleString('vi-VN', {
@@ -75,21 +62,23 @@ const formatDateTime = (value: string | null) => {
   });
 };
 
-function Receipts() {
+const ManagerReceiptsPage = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ReceiptStatus | 'ALL'>('ALL');
+  const [receipts] = useState<InventoryReceiptRow[]>(MOCK_RECEIPTS);
 
   const draftCount = useMemo(
-    () => MOCK_INVENTORY_RECEIPTS.filter((r) => r.status === 'DRAFT').length,
-    []
+    () => receipts.filter((r) => r.status === 'DRAFT').length,
+    [receipts]
   );
+
   const completedCount = useMemo(
-    () => MOCK_INVENTORY_RECEIPTS.filter((r) => r.status === 'COMPLETED').length,
-    []
+    () => receipts.filter((r) => r.status === 'COMPLETED').length,
+    [receipts]
   );
 
   const filteredReceipts = useMemo(() => {
-    let data = MOCK_INVENTORY_RECEIPTS;
+    let data = receipts;
 
     if (statusFilter !== 'ALL') {
       data = data.filter((r) => r.status === statusFilter);
@@ -99,18 +88,13 @@ function Receipts() {
       const q = search.toLowerCase();
       data = data.filter(
         (r) =>
-          r.receipt_code.toLowerCase().includes(q) ||
-          (r.receipt_date && new Date(r.receipt_date).toLocaleDateString('vi-VN').toLowerCase().includes(q))
+          r.receiptCode.toLowerCase().includes(q) ||
+          (r.receiptDate && new Date(r.receiptDate).toLocaleDateString('vi-VN').toLowerCase().includes(q))
       );
     }
 
     return data;
-  }, [search, statusFilter]);
-
-  const draftReceipts = useMemo(
-    () => MOCK_INVENTORY_RECEIPTS.filter((r) => r.status === 'DRAFT'),
-    []
-  );
+  }, [receipts, search, statusFilter]);
 
   return (
     <div className="h-full w-full">
@@ -119,21 +103,18 @@ function Receipts() {
           <div className="flex flex-col gap-1">
             <CardTitle className="flex items-center gap-2 text-xl font-bold text-amber-900">
               <FileText className="size-6 text-amber-500" />
-              Biên lai nhập kho
+              Biên lai nhập kho trung tâm
             </CardTitle>
             <CardDescription className="text-xs font-medium text-amber-700/80">
-              Theo dõi trạng thái bảng `inventory_receipts` – biên lai nhập kho bếp trung tâm.
+              Manager xem lịch sử các phiếu nhập kho (inventory_receipts) do bếp trung tâm tạo.
             </CardDescription>
           </div>
-
           <div className="hidden items-center gap-6 md:flex">
             <div className="flex flex-col text-right">
               <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
                 Tổng biên lai
               </span>
-              <span className="text-lg font-semibold text-amber-900">
-                {MOCK_INVENTORY_RECEIPTS.length}
-              </span>
+              <span className="text-lg font-semibold text-amber-900">{receipts.length}</span>
             </div>
             <div className="h-10 w-px bg-amber-200/70" />
             <div className="flex flex-col text-right">
@@ -193,7 +174,7 @@ function Receipts() {
                   Danh sách biên lai
                 </CardTitle>
                 <CardDescription className="text-[11px] text-amber-700/80">
-                  inventory_receipts · lọc theo trạng thái, tìm theo mã và ngày.
+                  inventory_receipts · Manager xem read-only.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
@@ -203,20 +184,21 @@ function Receipts() {
                       <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
                         <th className="px-4 py-2 font-semibold">Mã biên lai</th>
                         <th className="px-4 py-2 font-semibold">Ngày lập</th>
+                        <th className="px-4 py-2 font-semibold">Người lập</th>
                         <th className="px-4 py-2 font-semibold text-right">Trạng thái</th>
-                        <th className="px-4 py-2 font-semibold text-right">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50">
                       {filteredReceipts.map((r) => (
-                        <tr key={r.receipt_id} className="hover:bg-amber-50/40">
+                        <tr key={r.receiptId} className="hover:bg-amber-50/40">
                           <td className="px-4 py-2">
-                            <p className="text-sm font-semibold text-stone-900">{r.receipt_code}</p>
-                            <p className="text-[11px] text-stone-500">ID: {r.receipt_id}</p>
+                            <p className="text-sm font-semibold text-stone-900">{r.receiptCode}</p>
+                            <p className="text-[11px] text-stone-500">ID: {r.receiptId}</p>
                           </td>
                           <td className="px-4 py-2 text-[11px] text-stone-800">
-                            {formatDateTime(r.receipt_date)}
+                            {formatDateTime(r.receiptDate)}
                           </td>
+                          <td className="px-4 py-2 text-[11px] text-stone-800">{r.createdByName}</td>
                           <td className="px-4 py-2 text-right">
                             <span
                               className={cn(
@@ -227,23 +209,11 @@ function Receipts() {
                               {RECEIPT_STATUS_LABEL[r.status]}
                             </span>
                           </td>
-                          <td className="px-4 py-2 text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-amber-200 bg-white text-[11px] text-amber-900 hover:bg-amber-50"
-                            >
-                              Chi tiết
-                            </Button>
-                          </td>
                         </tr>
                       ))}
                       {filteredReceipts.length === 0 && (
                         <tr>
-                          <td
-                            colSpan={4}
-                            className="px-4 py-6 text-center text-xs text-stone-500"
-                          >
+                          <td colSpan={4} className="px-4 py-6 text-center text-xs text-stone-500">
                             Không có biên lai nào khớp với bộ lọc.
                           </td>
                         </tr>
@@ -276,33 +246,9 @@ function Receipts() {
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px]">
-                  <div className="mb-2 flex items-center gap-2">
-                    <AlertTriangle className="size-4 text-amber-500" />
-                    <p className="font-semibold text-amber-900">Biên lai nháp cần xử lý</p>
-                  </div>
-                  {draftReceipts.length > 0 ? (
-                    <ul className="space-y-1.5">
-                      {draftReceipts.map((r) => (
-                        <li key={r.receipt_id} className="flex items-center justify-between">
-                          <p className="text-[11px] font-semibold text-stone-900">
-                            {r.receipt_code}
-                          </p>
-                          <span
-                            className={cn(
-                              'inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-[10px] font-semibold',
-                              RECEIPT_STATUS_CLASS[r.status]
-                            )}
-                          >
-                            {RECEIPT_STATUS_LABEL[r.status]}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-[11px] text-stone-500">Không có biên lai nháp.</p>
-                  )}
-                </div>
+                <p className="text-[11px] text-stone-600">
+                  Dữ liệu đồng bộ trực tiếp từ kho trung tâm. Manager chỉ có quyền xem, không chỉnh sửa phiếu nhập.
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -310,6 +256,6 @@ function Receipts() {
       </Card>
     </div>
   );
-}
+};
 
-export default Receipts;
+export default ManagerReceiptsPage;

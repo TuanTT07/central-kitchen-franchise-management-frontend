@@ -82,6 +82,25 @@ export interface InventoryTransactionResponse {
   note: string;
 }
 
+/**
+ * Interface cho phản hồi biên lai nhập kho (inventory_receipts)
+ * Dùng cho API GET /api/v1/inventory-receipts
+ */
+export interface InventoryReceiptApi {
+  receiptId: number;
+  receiptCode: string;
+  receiptDate: string | null;
+  status: 'DRAFT' | 'COMPLETED';
+  createdById: number;
+  createdByName: string;
+  items?: {
+    receiptItemId: number;
+    quantity: number;
+    batchId: number;
+    batchCode: string;
+  }[];
+}
+
 /* ========================================================================
    [API] - Khai báo các đối tượng dịch vụ API
    ======================================================================== */
@@ -141,6 +160,17 @@ export const kitchenServices = {
    */
   manualStockIn: async (body: { productBatchId: number; quantity: number }[]) => {
     const response = await http.post<Response<InventoryTransactionResponse>>('/api/v1/inventory-receipts', {items: body});
+    return response.data;
+  },
+
+  /* --- Nhóm API Biên lai nhập kho (Inventory Receipts) --- */
+
+  /**
+   * Lấy danh sách lịch sử phiếu nhập kho
+   * GET /api/v1/inventory-receipts
+   */
+  getInventoryReceipts: async () => {
+    const response = await http.get<Response<InventoryReceiptApi[]>>('/api/v1/inventory-receipts');
     return response.data;
   },
 };

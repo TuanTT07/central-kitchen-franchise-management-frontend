@@ -314,7 +314,7 @@ const UserManagementPage = () => {
           <CardContent className="p-6">
             <div className="mb-4 flex items-center gap-2">
               <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/4 size-4 -translate-y-1/4  text-amber-600" />
+                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 -mt-2 text-amber-600" />
                 <Input
                   placeholder="Tìm theo username, họ tên, email..."
                   value={search}
