@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Package, Store, Search, Filter } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 import type { OrderDetailResponse, OrderResponse } from '@/services/franchiseServices';
 import type { ConsolidationProduct, ConsolidationResponse } from '@/services/supplyServices';
 import { supplyServices } from '@/services/supplyServices';
@@ -183,6 +184,22 @@ function SummaryOrdersPage() {
   };
 
   /**
+   * Nghiệp vụ: Duyệt đơn hàng lẻ
+   * @param id ID của đơn hàng cần duyệt
+   */
+  const handleApproveOrder = async (id: number) => {
+    try {
+      const response = await supplyServices.approveOrder(id);
+      if (response.success) {
+        getAllOrders();
+      }
+    } catch (error) {
+      console.error('Duyệt đơn thất bại:', error);
+      alert('Không thể duyệt đơn hàng này');
+    }
+  };
+
+  /**
    * Nghiệp vụ: Tạo lệnh sản xuất (Finalize)
    * Chuyển đổi dữ liệu đã gom thành lệnh sản xuất thực tế tại bếp
    */
@@ -338,6 +355,7 @@ function SummaryOrdersPage() {
                         <th className="px-4 py-2 font-semibold">Chi nhánh</th>
                         <th className="px-4 py-2 font-semibold">Sản phẩm chính</th>
                         <th className="px-2 py-2 font-semibold text-center">SL</th>
+                        <th className="px-4 py-2 font-semibold text-right">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50">
@@ -354,6 +372,20 @@ function SummaryOrdersPage() {
                           </td>
                           <td className="px-2 py-2 text-center text-stone-800">
                             {o.details?.reduce((acc, curr) => acc + curr.quantity, 0) || 0}
+                          </td>
+                          <td className="px-4 py-2 text-right">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className={cn(
+                                'h-8 border-emerald-200 text-[10px] font-bold shadow-sm',
+                                o.status === 'PENDING' ? 'text-emerald-700 hover:bg-emerald-50' : 'text-stone-300 cursor-not-allowed opacity-50'
+                              )}
+                              disabled={o.status !== 'PENDING'}
+                              onClick={() => handleApproveOrder(o.orderId)}
+                            >
+                              Duyệt đơn
+                            </Button>
                           </td>
                         </tr>
                       ))}
