@@ -15,7 +15,7 @@
  */
 
 // ================= IMPORT =================
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ import { AlertTriangle, CalendarClock, ChefHat, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { kitchenServices, type ManufacturingOrderResponse, type ManuOrderStatus } from '@/services/kitchenServices';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {toast} from 'sonner';
 
 // ================= TYPES =================
 
@@ -86,7 +87,9 @@ function ManufacturingOrders() {
       if (response.success) {
         setManufacturingOrder(response.data);
       }
-    } catch (error) {}
+    } catch (error) {
+      toast.error(`${error}`);
+    }
   };
 
   const updateStatusManufacturingOrder = async (id: number) => {
@@ -94,8 +97,11 @@ function ManufacturingOrders() {
       const response = await kitchenServices.updateStatusOrder(id);
       if (response.success) {
         getAllManufacturing();
+        toast.success(`${response.message}`);
       }
-    } catch (error) {}
+    } catch (error) {
+      toast.error(`${error}`);
+    }
   };
 
   /**
@@ -115,6 +121,31 @@ function ManufacturingOrders() {
     setIsDialogOpen(false);
     setSelectedOrder(null);
   };
+
+  // ================= UTILS (COMPUTED) =================
+
+  const filteredOrders = useMemo(() => {
+    let data = [...manufacturingOrder];
+
+    if (statusFilter !== 'ALL') {
+      data = data.filter((o) => o.status === statusFilter);
+    }
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      data = data.filter((o) => o.orderCode.toLowerCase().includes(q) || o.productName.toLowerCase().includes(q));
+    }
+
+    return data;
+  }, [manufacturingOrder, search, statusFilter]);
+
+  const stats = useMemo(() => {
+    return {
+      total: manufacturingOrder.length,
+      cooking: manufacturingOrder.filter((o) => o.status === 'COOKING').length,
+      planned: manufacturingOrder.filter((o) => o.status === 'PLANNED').length,
+    };
+  }, [manufacturingOrder]);
 
   // ================= EFFECT =================
   useEffect(() => {
@@ -139,17 +170,17 @@ function ManufacturingOrders() {
           <div className="hidden items-center gap-6 md:flex">
             <div className="flex flex-col text-right">
               <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Tổng lệnh</span>
-              <span className="text-lg font-semibold text-amber-900">{}</span>
+              <span className="text-lg font-semibold text-amber-900">{stats.total}</span>
             </div>
             <div className="h-10 w-px bg-amber-200/70" />
             <div className="flex flex-col text-right">
               <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Đang nấu</span>
-              <span className="text-lg font-semibold text-amber-900">{}</span>
+              <span className="text-lg font-semibold text-amber-900">{stats.cooking}</span>
             </div>
             <div className="h-10 w-px bg-amber-200/70" />
             <div className="flex flex-col text-right">
               <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Chờ sản xuất</span>
-              <span className="text-lg font-semibold text-amber-900">{}</span>
+              <span className="text-lg font-semibold text-amber-900">{stats.planned}</span>
             </div>
           </div>
         </CardHeader>
@@ -178,7 +209,7 @@ function ManufacturingOrders() {
                       statusFilter === opt ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'
                     )}
                   >
-                    {/* {opt === 'ALL' ? 'Tất cả' : MANU_ORDER_STATUS_LABEL[opt]} */}
+                    {opt === 'ALL' ? 'Tất cả' : MANU_ORDER_STATUS_LABEL[opt]}
                   </button>
                 ))}
               </div>
@@ -210,7 +241,7 @@ function ManufacturingOrders() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50">
-                      {manufacturingOrder.map((o) => (
+                      {filteredOrders.map((o) => (
                         <tr key={o.manuOrderId} className="hover:bg-amber-50/40">
                           <td className="px-2 py-2">
                             <p className="text-sm font-semibold text-stone-900">{o.orderCode}</p>
@@ -257,13 +288,13 @@ function ManufacturingOrders() {
                           </td>
                         </tr>
                       ))}
-                      {/* {filteredOrders.length === 0 && (
+                      {filteredOrders.length === 0 && (
                         <tr>
                           <td colSpan={6} className="px-4 py-6 text-center text-xs text-stone-500">
                             Không có lệnh sản xuất nào khớp với bộ lọc.
                           </td>
                         </tr>
-                      )} */}
+                      )}
                     </tbody>
                   </table>
                 </div>

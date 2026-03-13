@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
+import {toast} from 'sonner';
 
 const BATCH_STATUS_LABEL: Record<ProductBatchStatus, string> = {
   WAITING_FOR_STOCK: 'Chờ nhập kho',
@@ -103,7 +104,9 @@ function ProductBatches() {
       if (response.data) {
         setProductBatches(response.data);
       }
-    } catch (error) {}
+    } catch (error) {
+      toast.error(`${error}`);
+    }
   };
 
   // ================= EFFECTS =================
@@ -146,7 +149,7 @@ function ProductBatches() {
     const waitingBatches = productBatches.filter((b) => b.status === 'WAITING_FOR_STOCK');
 
     if (waitingBatches.length === 0) {
-      alert('Không có lô hàng nào đang ở trạng thái Chờ nhập kho.');
+      toast.error('Không có lô hàng nào đang ở trạng thái Chờ nhập kho.');
       return;
     }
 
@@ -210,11 +213,13 @@ function ProductBatches() {
      try {
       const response = await kitchenServices.manualStockIn(finalData);
       if (response.data) {
-        // toast.success('Nhập kho thành công');
+        toast.success(`${response.message}`);
         getAllProductBatches();
         setIsStockInModalOpen(false);
       }
-    } catch (error) {}
+    } catch (error) {
+      toast.error(`${error}`);
+    }
     setIsStockInModalOpen(false);
   };
 
