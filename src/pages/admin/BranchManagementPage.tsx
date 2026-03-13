@@ -19,6 +19,7 @@ import { adminService, type StoreResponse } from '../../services/adminServices';
 import { cn } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field';
+import { toast } from 'sonner';
 
 // type của Filter
 type StoreFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
@@ -97,6 +98,7 @@ const BranchManagementPage = () => {
       try {
         const response = await adminService.getAllStores(page, pageSize);
         if (response && response.data.success) {
+          toast.success(`${response.data.message}`);
           const paginationData = response.data.data;
           const mappedStores = paginationData.items.map((s: StoreResponse) => ({
             storeId: s.storeId,
@@ -114,7 +116,7 @@ const BranchManagementPage = () => {
           });
         }
       } catch (error) {
-        console.log(error);
+        toast.error(`${error}`);
       } finally {
         setLoading(false);
       }
@@ -199,16 +201,17 @@ const BranchManagementPage = () => {
       setLoading(true);
       if (editingStore) {
         try {
-          const response = await adminService.updateStore(editingStore.storeId, {
+          await adminService.updateStore(editingStore.storeId, {
             storeName: data.storeName,
             address: data.address,
             phone: data.phone,
             status: data.status,
           });
-          if (response.data.success) {
-            fetchStore();
-          }
-        } catch (error) {}
+          toast.success('Cập nhật cửa hàng thành công');
+          fetchStore();
+        } catch (error) {
+          toast.error(`Lỗi cập nhật cửa hàng: ${error}`);
+        }
       } else {
         try {
           const response = await adminService.createStore({
@@ -218,9 +221,12 @@ const BranchManagementPage = () => {
             status: data.status === 'ACTIVE' ? data.status : 'INACTIVE',
           });
           if (response) {
+            toast.success(`${response.data.message}`);
             fetchStore();
           }
-        } catch (error) {}
+        } catch (error) {
+          toast.error(`Lỗi tạo cửa hàng: ${error}`);
+        }
       }
       setDialogOpen(false);
     } catch (error: any) {
@@ -239,9 +245,12 @@ const BranchManagementPage = () => {
       try {
         const response = await adminService.deleteStore(storeToDelete.storeId);
         if (response.data.success) {
+          toast.success(`${response.data.message}`);
           fetchStore();
         }
-      } catch (error) {}
+      } catch (error) {
+        toast.error(`Lỗi xóa cửa hàng: ${error}`);
+      }
       setDeleteConfirmOpen(false);
       setStoreToDelete(null);
     }
