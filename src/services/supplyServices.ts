@@ -63,6 +63,27 @@ export interface ExportNotesResponse {
   items: ExportNoteItem[];
 }
 
+export type statusType ='PLANNED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED';
+
+export interface DeliveryPlanResponse {
+  deliveryId: number,
+  deliveryCode: string,
+  driverName: string,
+  vehiclePlate: string,
+  scheduledDate: string,
+  actualStartDate: string,
+  actualEndDate: string,
+  status: statusType,
+  createdByUsername: string,
+  createdAt: string,
+  exportNotes: {
+    exportId: number,
+    exportCode: string,
+    storeName: string,
+    status: string
+  }[]
+}
+
 /**
  * =========================================================
  * API: Supply Service (Quản lý Cung ứng)
@@ -75,6 +96,9 @@ export interface ExportNotesResponse {
  *
  *
  * GET    /export-notes     -> lấy ra danh sách phiếu xuất kho
+ * 
+ * 
+ * GET    /delivery-plan    -> lấy ra danh sách lịch giao hàng
  *
  * Authorization:
  * Bearer Token
@@ -181,6 +205,15 @@ export const supplyServices = {
    */
   getStoreOrderReadyForManufacturing: async () => {
     const response = await http.get<Response<OrderResponse<OrderDetailResponse[]>[]>>('/export-notes/ready-orders');
+    return response.data;
+  },
+
+/*
+ * API: Delivery Plan Service (Quản lý Lên lịch giao hàng)
+* @returns Promise<Response<DeliveryPlanResponse[]>>
+ */
+   getDeliveryPlan: async () => {
+    const response = await http.get<Response<PaginatedResponse<DeliveryPlanResponse[]>>>('/deliveries');
     return response.data;
   },
 
