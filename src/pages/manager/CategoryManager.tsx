@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { Tag, Plus, Pencil, Trash2, Search, CheckCircle2, XCircle } from 'lucide-react';
 
 import { managerServices, type CategoryResponse, type ProductsResponse } from '@/services/managerServices';
+import { toast } from 'sonner';
 
 type CategoryStatus = 'ACTIVE' | 'INACTIVE';
 type CategoryFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
@@ -39,7 +40,7 @@ function CategoryManager() {
         setCategories(response);
       }
     } catch (error) {
-      console.log(error);
+      toast.error('Không thể lấy danh sách danh mục');
     }
   };
 
@@ -50,7 +51,9 @@ function CategoryManager() {
       if (response) {
         setProducts(response);
       }
-    } catch (error) {}
+    } catch (error) {
+      toast.error('Không thể lấy danh sách sản phẩm');
+    }
   };
 
   useEffect(() => {
@@ -129,18 +132,20 @@ function CategoryManager() {
                   : c //  Trả về object cũ nếu không phải ID đang sửa
             )
           );
+          toast.success(`${response.message}`);
         }
       } catch (error) {
-        console.log(error);
+        toast.error('Không thể cập nhật danh mục');
       }
     } else {
       try {
         const response = await managerServices.creatCategory(data);
         if (response.success) {
           getCategories();
+          toast.success(`${response.message}`);
         }
       } catch (error) {
-        console.log(error);
+        toast.error('Không thể thêm danh mục');
       }
     }
     setDialogOpen(false);
@@ -152,9 +157,10 @@ function CategoryManager() {
       const response = await managerServices.deleteCategory(categoryToDelete.categoryId);
       if (response.success) {
         getCategories();
+        toast.success(`${response.message}`);
       }
     } catch (error) {
-      console.error(error);
+      toast.error('Không thể xóa danh mục');
     }
     setCategoryToDelete(null);
     setDeleteConfirmOpen(false);
