@@ -19,6 +19,9 @@ import { AlertTriangle, ArrowLeftRight, Package, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { kitchenServices, type InventoryTransactionResponse, type TransactionType } from '@/services/kitchenServices';
 
+import {toast} from 'sonner';
+
+
 // ================= UTILS (CONSTANTS) =================
 
 /**
@@ -83,7 +86,7 @@ const InventoryTransactions = () => {
         setInventoryTransaction(response.data.items);
       }
     } catch (error) {
-      console.error('Lỗi khi tải giao dịch kho:', error);
+      toast.error(`${error}`);
     } finally {
       setIsLoading(false);
     }

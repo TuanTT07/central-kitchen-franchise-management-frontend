@@ -21,6 +21,7 @@ import {
 import { CalendarClock, Receipt, Search, Truck, AlertTriangle, Loader2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { franchiseServices, type OrderResponse, type OrderDetailResponse, type ExportNotesResponse } from '@/services/franchiseServices';
+import {toast} from 'sonner';
 
 /**
  * Component Description
@@ -101,8 +102,7 @@ const OrderTrackingPage = () => {
         setExportData(exportRes.data);
       }
     } catch (error) {
-      console.error('Fetch data failed', error);
-      alert('Không thể tải dữ liệu đơn hàng');
+      toast.error('Không thể tải dữ liệu đơn hàng');
     } finally {
       setLoading(false);
     }
@@ -130,7 +130,7 @@ const OrderTrackingPage = () => {
     if (!selectedOrderId) return;
     
     if (!cancelReason.trim()) {
-      alert('Vui lòng nhập lý do hủy đơn hàng');
+      toast.error('Vui lòng nhập lý do hủy đơn hàng');
       return;
     }
 
@@ -147,8 +147,7 @@ const OrderTrackingPage = () => {
         fetchData();
       }
     } catch (error) {
-      console.error('Cancel order failed', error);
-      alert('Không thể huỷ đơn hàng');
+      toast.error('Không thể huỷ đơn hàng');
     } finally {
       setLoading(false);
     }

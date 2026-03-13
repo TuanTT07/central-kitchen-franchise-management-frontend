@@ -17,6 +17,8 @@ import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 
+import { toast } from 'sonner';
+
 // ================= TYPES =================
 
 interface DeliveryFormInput {
@@ -91,11 +93,11 @@ const DeliverySchedulePage = () => {
       if (response && response.data && Array.isArray(response.data.items)) {
         setDeliveryPlans(response.data.items);
       } else {
-        console.warn('API returned unexpected data structure:', response);
+        toast.error('Không thể lấy danh sách lịch giao hàng');
         setDeliveryPlans([]);
       }
     } catch (error) {
-      console.error('Error fetching delivery plans:', error);
+      toast.error('Không thể lấy danh sách lịch giao hàng');
       setDeliveryPlans([]);
     } finally {
       setLoading(false);
@@ -111,11 +113,11 @@ const DeliverySchedulePage = () => {
       if (response && Array.isArray(response.data)) {
         setReadyNotes(response.data);
       } else {
-        console.warn('API ready-notes returned unexpected structure:', response);
+        toast.error('Không thể lấy danh sách phiếu xuất kho');
         setReadyNotes([]);
       }
     } catch (error) {
-      console.error('Error fetching ready notes:', error);
+      toast.error('Không thể lấy danh sách phiếu xuất kho');
       setReadyNotes([]);
     } finally {
       setIsLoadingNotes(false);
@@ -136,9 +138,9 @@ const DeliverySchedulePage = () => {
       setIsModalOpen(false);
       resetModal();
       fetchDeliveryPlans();
+      toast.success('Tạo lịch giao hàng thành công');
     } catch (error) {
-      console.error('Error creating delivery plan:', error);
-      alert("Đã có lỗi xảy ra khi tạo lịch giao hàng.");
+      toast.error('Không thể tạo lịch giao hàng');
     } finally {
       setIsSubmitting(false);
     }
@@ -171,7 +173,7 @@ const DeliverySchedulePage = () => {
   // Xử lý khi nhấn nút Cập nhật
   const handleUpdate = (plan: DeliveryPlanResponse) => {
     if (plan.status === 'COMPLETED' || plan.status === 'CANCELLED') {
-      alert("Chuyến hàng đã hoàn tất hoặc đã hủy, không thể cập nhật thêm.");
+      toast.error("Chuyến hàng đã hoàn tất hoặc đã hủy, không thể cập nhật thêm.");
       return;
     }
     setSelectedPlanForStatus(plan);
@@ -184,18 +186,19 @@ const DeliverySchedulePage = () => {
 
     try {
       setIsSubmitting(true);
+      let response;
       if (selectedPlanForStatus.status === 'PLANNED') {
-        await supplyServices.updateDeliveryStatusStart(selectedPlanForStatus.deliveryId);
+        response = await supplyServices.updateDeliveryStatusStart(selectedPlanForStatus.deliveryId);
       } else if (selectedPlanForStatus.status === 'IN_TRANSIT') {
-        await supplyServices.updateDeliveryStatusComplete(selectedPlanForStatus.deliveryId);
+        response = await supplyServices.updateDeliveryStatusComplete(selectedPlanForStatus.deliveryId);
       }
       
       setIsStatusModalOpen(false);
       setSelectedPlanForStatus(null);
       fetchDeliveryPlans();
+      toast.success(`${response?.message}`);
     } catch (error) {
-      console.error('Error updating delivery status:', error);
-      alert("Đã có lỗi xảy ra khi cập nhật trạng thái.");
+      toast.error('Không thể cập nhật trạng thái');
     } finally {
       setIsSubmitting(false);
     }

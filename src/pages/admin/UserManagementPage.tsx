@@ -35,6 +35,7 @@ import { type Role } from '@/Types';
 import { adminService, type StoreResponse, type UserResponse } from '@/services/adminServices';
 import { useForm } from 'react-hook-form';
 import { Field, FieldLabel, FieldError, FieldContent } from '@/components/ui/field';
+import { toast } from 'sonner';
 
 // ================= CONSTANTS =================
 const ROLES: { roleId: number; roleName: Role; label: string }[] = [
@@ -108,7 +109,7 @@ const UserManagementPage = () => {
           });
         }
       } catch (error) {
-        console.error('Lỗi khi lấy danh sách người dùng:', error);
+        toast.error(`${error}`);
       } finally {
         setLoading(false);
       }
@@ -205,11 +206,8 @@ const UserManagementPage = () => {
   const handleSave = async (data: UserResponse) => {
     try {
       setLoading(true);
-      // [QUAN TRỌNG]: Lấy trực tiếp role từ form vì value của select-option là roleName (string)
       const selectedRole = data.role as Role;
       
-      // [QUAN TRỌNG]: Vì checkbox 'status' được register trực tiếp, nó trả về boolean (true/false)
-      // Chúng ta cần chuyển boolean này thành chuỗi 'ACTIVE'/'INACTIVE' mà API yêu cầu
       const statusValue = ((data.status as unknown as boolean) ? 'ACTIVE' : 'INACTIVE') as 'ACTIVE' | 'INACTIVE';
 
       if (userToProcess) {
@@ -225,7 +223,7 @@ const UserManagementPage = () => {
         const response = await adminService.updateAccount(userToProcess.userId, payload);
         if (response.status === 200) {
           await fetchUsers();
-          alert('Cập nhật người dùng thành công');
+          toast.success(`${response.data.message}`);
         }
       } else {
         // Trường hợp Thêm mới
@@ -241,12 +239,12 @@ const UserManagementPage = () => {
 
         if (response.status === 200 || response.status === 201) {
           await fetchUsers();
-          alert('Thêm người dùng thành công');
+          toast.success(`${response.data.message}`);
         }
       }
       setDialogOpen(false);
     } catch (error: any) {
-      console.error('Lỗi khi lưu người dùng:', error);
+      toast.error(`${error}`);
       alert(error.response?.data?.message || 'Có lỗi xảy ra khi lưu người dùng');
     } finally {
       setLoading(false);
@@ -263,11 +261,10 @@ const UserManagementPage = () => {
         const response = await adminService.deleteAccount(userToProcess.userId);
         if (response.status === 200 || response.status === 204) {
           await fetchUsers();
-          alert('Xóa người dùng thành công');
+          toast.success(`${response.data.message}`);
         }
       } catch (error: any) {
-        console.error('Lỗi khi xóa người dùng:', error);
-        alert(error.response?.data?.message || 'Có lỗi xảy ra khi xóa người dùng');
+        toast.error(`${error}`);
       } finally {
         setLoading(false);
         setDeleteConfirmOpen(false);
