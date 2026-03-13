@@ -217,5 +217,29 @@ export const supplyServices = {
     return response.data;
   },
 
+/**
+ * Tạo lịch giao hàng mới dựa trên danh sách các exportNote
+ * 
+ * @param body Đối tượng chứa thông tin lịch giao hàng
+ * 
+ * @returns Promise<DeliveryPlanResponse[]> Danh sách các item trong lệnh sản xuất vừa tạo
+ */
+  createDeliveryPlan: async (body: {
+    driverName: string,
+    vehiclePlate: string,
+    scheduledDate: string,
+    exportNoteIds: number[];
+  }) => {
+    const response = await http.post<Response<DeliveryPlanResponse[]>>('/deliveries', body);
+    return response.data;
+  },
+
+  /**
+   * Lấy ra các phiếu suất kho sẵn sàng
+  */
+  getExportNoteReadyForDelivery: async () => {
+    const response = await http.get<Response<ExportNotesResponse[]>>('/deliveries/ready-note');
+    return response.data;
+  },
  
 };
