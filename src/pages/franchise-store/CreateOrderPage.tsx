@@ -7,6 +7,7 @@ import { managerServices, type ProductsResponse } from '@/services/managerServic
 import { franchiseServices, type OrderResponse, type OrderDetailResponse } from '@/services/franchiseServices';
 import { cn } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
 
 // Interface đại diện cho một dòng sản phẩm trong giỏ hàng nháp
 interface DraftOrderItem {
@@ -46,7 +47,7 @@ const CreateOrderPage = () => {
         }
       }
     } catch (error) {
-      console.error('Lỗi khi lấy danh sách sản phẩm:', error);
+      toast.error('Lỗi khi lấy danh sách sản phẩm');
       setProducts([]);
     }
   };
@@ -67,7 +68,7 @@ const CreateOrderPage = () => {
         }
       }
     } catch (error) {
-      console.error('Lỗi khi lấy danh sách đơn hàng:', error);
+      toast.error('Lỗi khi lấy danh sách đơn hàng');
       setOrders([]);
     }
   };
@@ -149,18 +150,17 @@ const CreateOrderPage = () => {
       const response = await franchiseServices.createOrders(body);
 
       if (response && response.success) {
-        alert('Tạo đơn hàng thành công!');
+        toast.success(`${response.message}`);
         // Reset giỏ hàng và form sau khi thành công
         setItems([]);
         reset();
         // Tải lại danh sách đơn hàng để cập nhật bảng bên dưới
         getAllOrders();
       } else {
-        alert('Có lỗi xảy ra khi tạo đơn hàng.');
+        toast.error(`${response.message}`);
       }
     } catch (error) {
-      console.error('Lỗi khi gửi đơn hàng:', error);
-      alert('Lỗi hệ thống, vui lòng thử lại sau.');
+      toast.error('Lỗi hệ thống, vui lòng thử lại sau.');
     }
   };
 
