@@ -51,10 +51,12 @@ import {
 } from './components/layout/sidebarConfig.ts';
 import { Role } from './Types/index.ts';
 import SupplyDashboard from './pages/supply/SupplyDashboard.tsx';
+import { Toaster } from 'sonner';
 
 function App() {
   return (
     <>
+      <Toaster position="top-right" richColors closeButton />
       <BrowserRouter>
         <AuthProvider>
           <Routes>
