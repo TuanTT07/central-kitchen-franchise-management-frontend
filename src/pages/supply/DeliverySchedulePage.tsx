@@ -53,6 +53,10 @@ const DeliverySchedulePage = () => {
   const [selectedNoteIds, setSelectedNoteIds] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
+  // ---------------- Status Modal State ----------------
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState<boolean>(false);
+  const [selectedPlanForStatus, setSelectedPlanForStatus] = useState<DeliveryPlanResponse | null>(null);
+
   // ================= FORM =================
 
   const {
@@ -166,8 +170,35 @@ const DeliverySchedulePage = () => {
 
   // Xử lý khi nhấn nút Cập nhật
   const handleUpdate = (plan: DeliveryPlanResponse) => {
-    console.log("Mở modal cập nhật cho chuyến:", plan.deliveryCode);
-    // Logic mở Modal/Form cập nhật sẽ thực hiện tại đây
+    if (plan.status === 'COMPLETED' || plan.status === 'CANCELLED') {
+      alert("Chuyến hàng đã hoàn tất hoặc đã hủy, không thể cập nhật thêm.");
+      return;
+    }
+    setSelectedPlanForStatus(plan);
+    setIsStatusModalOpen(true);
+  };
+
+  // Xác nhận cập nhật trạng thái
+  const handleUpdateStatusConfirm = async () => {
+    if (!selectedPlanForStatus) return;
+
+    try {
+      setIsSubmitting(true);
+      if (selectedPlanForStatus.status === 'PLANNED') {
+        await supplyServices.updateDeliveryStatusStart(selectedPlanForStatus.deliveryId);
+      } else if (selectedPlanForStatus.status === 'IN_TRANSIT') {
+        await supplyServices.updateDeliveryStatusComplete(selectedPlanForStatus.deliveryId);
+      }
+      
+      setIsStatusModalOpen(false);
+      setSelectedPlanForStatus(null);
+      fetchDeliveryPlans();
+    } catch (error) {
+      console.error('Error updating delivery status:', error);
+      alert("Đã có lỗi xảy ra khi cập nhật trạng thái.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Xử lý thay đổi ô tìm kiếm
@@ -566,7 +597,72 @@ const DeliverySchedulePage = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Footer Info */}
+      {/* MODAL XÁC NHẬN CẬP NHẬT TRẠNG THÁI */}
+      <Dialog open={isStatusModalOpen} onOpenChange={setIsStatusModalOpen}>
+        <DialogContent className="max-w-md overflow-hidden p-0 rounded-2xl border-none shadow-2xl">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white text-center">
+            <h2 className="text-xl font-bold flex items-center justify-center gap-2">
+                <Truck className="size-6" />
+                Xác nhận cập nhật trạng thái
+            </h2>
+            <p className="text-blue-50 text-xs mt-1 font-medium opacity-90">
+                Chuyến hàng: <span className="font-black text-white">{selectedPlanForStatus?.deliveryCode}</span>
+            </p>
+          </div>
+
+          <div className="p-8 space-y-6 text-center">
+            <div className="flex flex-col items-center gap-4">
+                <div className="flex items-center gap-4 text-sm font-bold">
+                    <div className="flex flex-col items-center gap-1 opacity-50">
+                        <span className="text-[10px] uppercase text-stone-400">Hiện tại</span>
+                        {selectedPlanForStatus && renderStatusBadge(selectedPlanForStatus.status)}
+                    </div>
+                    <ChevronRight className="size-5 text-stone-300 mt-4" />
+                    <div className="flex flex-col items-center gap-1">
+                        <span className="text-[10px] uppercase text-stone-400">Tiếp theo</span>
+                        {selectedPlanForStatus?.status === 'PLANNED' ? renderStatusBadge('IN_TRANSIT') : renderStatusBadge('COMPLETED')}
+                    </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-blue-50 border border-blue-100 w-full text-left">
+                    <p className="text-[11px] font-bold text-blue-800 mb-2 uppercase tracking-wide">Chi tiết chuyến hàng:</p>
+                    <div className="space-y-1">
+                        <p className="text-xs font-medium text-stone-700">Tài xế: <span className="font-bold">{selectedPlanForStatus?.driverName}</span></p>
+                        <p className="text-xs font-medium text-stone-700">Lộ trình: <span className="font-bold">{selectedPlanForStatus?.exportNotes.map(n => n.storeName).join(', ')}</span></p>
+                    </div>
+                </div>
+
+                <p className="text-xs font-medium text-stone-600 leading-relaxed italic">
+                    Bạn có chắc chắn muốn chuyển trạng thái chuyến hàng này không? Hành động này sẽ được ghi lại vào lịch sử.
+                </p>
+            </div>
+          </div>
+
+          <DialogFooter className="p-4 bg-stone-50/80 border-t border-stone-100">
+            <div className="flex w-full gap-3">
+                <Button 
+                    variant="ghost" 
+                    onClick={() => setIsStatusModalOpen(false)}
+                    className="flex-1 text-stone-500 font-bold text-xs h-11"
+                >
+                    Hủy bỏ
+                </Button>
+                <Button 
+                    onClick={handleUpdateStatusConfirm}
+                    disabled={isSubmitting}
+                    className="flex-[2] h-11 rounded-xl bg-blue-600 font-black text-sm text-white hover:bg-blue-700 shadow-xl shadow-blue-200 active:scale-95 transition-all"
+                >
+                    {isSubmitting ? (
+                        <>
+                            <Loader2 className="size-4 mr-2 animate-spin" />
+                            Đang xử lý...
+                        </>
+                    ) : "Xác nhận chuyển trạng thái"}
+                </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <div className="flex items-start gap-2 px-6 py-3 bg-amber-50/50 rounded-xl border border-dashed border-amber-200">
         <div className="mt-0.5 rounded-full bg-amber-200 p-1">
           <Truck className="size-3 text-amber-700" />

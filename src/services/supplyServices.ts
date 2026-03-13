@@ -236,9 +236,30 @@ export const supplyServices = {
 
   /**
    * Lấy ra các phiếu suất kho sẵn sàng
+   * @returns Promise<Response<ExportNotesResponse[]>>
   */
   getExportNoteReadyForDelivery: async () => {
     const response = await http.get<Response<ExportNotesResponse[]>>('/deliveries/ready-note');
+    return response.data;
+  },
+
+  /**
+   * cập nhật tình trang chuyến hàng (xuất phát)
+   * @param id ID của lịch giao hàng cần hủy
+   * @returns Promise<Response<DeliveryPlanResponse[]>>
+   */
+  updateDeliveryStatusStart: async (id: number) => {
+    const response = await http.patch<Response<DeliveryPlanResponse[]>>(`/deliveries/${id}/start`);
+    return response.data;
+  },
+
+  /**
+   * cập nhật tình trang chuyến hàng (hoàn thành)
+   * @param id ID của lịch giao hàng cần hủy
+   * @returns Promise<Response<DeliveryPlanResponse[]>>
+   */
+  updateDeliveryStatusComplete: async (id: number) => {
+    const response = await http.patch<Response<DeliveryPlanResponse[]>>(`/deliveries/${id}/complete`);
     return response.data;
   },
  
