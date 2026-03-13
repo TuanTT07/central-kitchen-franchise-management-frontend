@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import type { OrderDetailResponse, OrderResponse } from '@/services/franchiseServices';
 import type { ConsolidationProduct, ConsolidationResponse } from '@/services/supplyServices';
 import { supplyServices } from '@/services/supplyServices';
+import { toast } from 'sonner';
 
 // ================= COMPONENT =================
 function SummaryOrdersPage() {
@@ -59,7 +60,7 @@ function SummaryOrdersPage() {
         setOrders(response.data.items);
       }
     } catch (error) {
-      console.error('Failed to fetch orders:', error);
+      toast.error('Không thể tải danh sách đơn hàng');
     }
   };
 
