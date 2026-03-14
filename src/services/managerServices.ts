@@ -75,6 +75,26 @@ export interface UnitResponse {
   status?: 'ACTIVE' | 'INACTIVE';
 }
 
+/** Item từ API near-expiry (lô sắp hết hạn) */
+export interface NearExpiryItem {
+  batchCode: string;
+  product: string;
+  expiryDate: string;
+  stock: number;
+}
+
+/** Đơn hàng (Store Order) cho dashboard Manager */
+export interface ManagerOrderItem {
+  orderId: number;
+  orderCode: string;
+  storeId: number;
+  storeName: string;
+  orderDate: string;
+  deliveryDate?: string;
+  status: 'PENDING' | 'APPROVED' | 'CONSOLIDATED' | 'CANCELLED';
+  details?: unknown;
+}
+
 // ================= API =================
 
 export const managerServices = {
@@ -224,6 +244,29 @@ export const managerServices = {
       '/inventory-reports/stock-summary'
     );
     return response;
+  },
+
+  /**
+   * Lấy danh sách lô hàng sắp hết hạn (FEFO)
+   * GET /inventory-reports/near-expiry
+   */
+  getNearExpiryBatches: async (daysThreshold: number = 14) => {
+    const res = await http.get<Response<PaginatedResponse<NearExpiryItem[]>>>(
+      '/inventory-reports/near-expiry',
+      { params: { daysThreshold } }
+    );
+    return res.data;
+  },
+
+  /**
+   * Lấy danh sách đơn yêu cầu cấp hàng (Manager xem tổng hợp)
+   * GET /orders
+   */
+  getOrders: async (page: number = 0, size: number = 50, status?: string) => {
+    const res = await http.get<Response<PaginatedResponse<ManagerOrderItem[]>>>('/orders', {
+      params: { page, size, ...(status && { status }) },
+    });
+    return res.data;
   },
 };
 
