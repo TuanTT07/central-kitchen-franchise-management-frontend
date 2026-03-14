@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import type { OrderDetailResponse, OrderResponse } from '@/services/franchiseServices';
 import type { ConsolidationProduct, ConsolidationResponse } from '@/services/supplyServices';
 import { supplyServices } from '@/services/supplyServices';
+import { toast } from 'sonner';
 
 // ================= COMPONENT =================
 function SummaryOrdersPage() {
@@ -59,7 +60,7 @@ function SummaryOrdersPage() {
         setOrders(response.data.items);
       }
     } catch (error) {
-      console.error('Failed to fetch orders:', error);
+      toast.error('Không thể tải danh sách đơn hàng');
     }
   };
 
@@ -179,6 +180,23 @@ function SummaryOrdersPage() {
       }
     } catch (error) {
       console.error('Gom đơn thủ công thất bại:', error);
+    }
+  };
+
+  /**
+   * Nghiệp vụ: Phê duyệt đơn hàng
+   * 
+   * @param orderId ID của đơn hàng cần phê duyệt
+   */
+  const handleApprove = async (orderId: number) => {
+    try {
+      const response = await supplyServices.approveOrder(orderId);
+      if (response.success) {
+        toast.success('Phê duyệt đơn hàng thành công');
+        getAllOrders();
+      }
+    } catch (error) {
+      toast.error('Phê duyệt đơn hàng thất bại');
     }
   };
 
@@ -338,6 +356,7 @@ function SummaryOrdersPage() {
                         <th className="px-4 py-2 font-semibold">Chi nhánh</th>
                         <th className="px-4 py-2 font-semibold">Sản phẩm chính</th>
                         <th className="px-2 py-2 font-semibold text-center">SL</th>
+                        <th className="px-2 py-2 font-semibold text-center">Hành động</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50">
@@ -355,6 +374,19 @@ function SummaryOrdersPage() {
                           <td className="px-2 py-2 text-center text-stone-800">
                             {o.details?.reduce((acc, curr) => acc + curr.quantity, 0) || 0}
                           </td>
+                          {o.status === 'PENDING' && (
+                          <td className="px-2 py-2 text-center text-stone-800">
+                              
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleApprove(o.orderId)}
+                                  className="border-green-200 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800"
+                                >
+                                  Phê duyệt
+                                </Button>
+                          </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>

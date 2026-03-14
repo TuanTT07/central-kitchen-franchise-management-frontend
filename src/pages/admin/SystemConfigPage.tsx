@@ -6,6 +6,7 @@ import { Field, FieldContent, FieldDescription, FieldLabel, FieldSet, FieldTitle
 import { cn } from '@/lib/utils';
 import { Lock, Shield, Store, Users, Mail, SlidersHorizontal, LayoutList } from 'lucide-react';
 import type { Role } from '@/Types';
+import { toast } from 'sonner';
 
 type SystemSettings = {
   // Tài khoản & bảo mật
@@ -84,7 +85,13 @@ const SystemConfigPage = () => {
       // TODO: call backend save API when available
       await new Promise((resolve) => setTimeout(resolve, 600));
       setIsDirty(false);
-      alert('Lưu cài đặt thành công (tạm thời mới lưu ở UI).');
+      toast.success('Lưu cài đặt thành công', {
+        description: 'Các cài đặt đã được lưu tạm thời trên UI.',
+      });
+    } catch (error) {
+      toast.error('Lỗi khi lưu cài đặt', {
+        description: `${error}`,
+      });
     } finally {
       setIsSaving(false);
     }

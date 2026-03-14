@@ -28,6 +28,7 @@ import {
 /* [IMPORT] - Utils và Services */
 import { cn } from '@/lib/utils';
 import { managerServices, type InventoryReportResponse } from '@/services/managerServices';
+import { toast } from 'sonner';
 
 /* ========================================================================
    [TYPES] - Định nghĩa các Interface và Type cho Component
@@ -72,7 +73,7 @@ const InventoryOverviewPage = () => {
         setInventory(response.data.data.items as unknown as InventoryReportResponse[]);
       }
     } catch (error) {
-      console.error('Lỗi khi lấy dữ liệu tồn kho:', error);
+      toast.error('Lỗi khi lấy dữ liệu tồn kho');
     } finally {
       setIsLoading(false);
     }

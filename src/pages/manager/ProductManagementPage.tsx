@@ -27,6 +27,7 @@ import {
   type ProductsResponse,
   type UnitResponse,
 } from '@/services/managerServices';
+import { toast } from 'sonner';
 
 type ProductStatus = 'ACTIVE' | 'INACTIVE' | null;
 
@@ -162,8 +163,11 @@ const ProductManagementPage = () => {
 
         if (response) {
           getProducts();
+          toast.success(`${response.message}`);
         }
-      } catch (error) {}
+      } catch (error) {
+        toast.error('Không thể cập nhật sản phẩm');
+      }
     } else {
       try {
         const response = await managerServices.createProduct({
@@ -175,8 +179,11 @@ const ProductManagementPage = () => {
         });
         if (response) {
           getProducts();
+          toast.success(`${response.message}`);
         }
-      } catch (error) {}
+      } catch (error) {
+        toast.error('Không thể thêm sản phẩm');
+      }
     }
     setDialogOpen(false);
   };
@@ -187,8 +194,11 @@ const ProductManagementPage = () => {
       const response = await managerServices.deleteProduct(productToDelete.productId);
       if (response.success) {
         getProducts();
+        toast.success(`${response.message}`);
       }
-    } catch (error) {}
+    } catch (error) {
+      toast.error('Không thể xóa sản phẩm');
+    }
 
     setDeleteConfirmOpen(false);
     setProductToDelete(null);
@@ -216,15 +226,19 @@ const ProductManagementPage = () => {
           getUnits();
           setEditingUnit(null);
           resetUnit({ unitName: '', description: '' });
+          toast.success(`${response.message}`);
         }
       } else {
         const response = await managerServices.createUnit({ unitName: data.unitName, description: data.description });
         if (response) {
           getUnits();
           resetUnit({ unitName: '', description: '' });
+          toast.success(`${response.message}`);
         }
+      } 
+    }catch (error) {
+        toast.error('Không thể thêm đơn vị');
       }
-    } catch (error) {}
   };
 
   const openDeleteUnit = (unit: UnitResponse) => {
@@ -238,8 +252,11 @@ const ProductManagementPage = () => {
       const response = await managerServices.deleteUnit(unitToDelete.unitId);
       if (response.success) {
         getUnits();
+        toast.success(`${response.message}`);
       }
-    } catch (error) {}
+    } catch (error) {
+      toast.error('Không thể xóa đơn vị');
+    }
     setUnitDeleteConfirmOpen(false);
     setUnitToDelete(null);
   };

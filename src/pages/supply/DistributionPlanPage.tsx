@@ -16,6 +16,7 @@ import { LayoutGrid, MapPin, Search, Loader2, Package } from 'lucide-react';
 import { supplyServices, type ExportNotesResponse, type ExportNoteItem } from '@/services/supplyServices';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import type { OrderResponse, OrderDetailResponse } from '@/services/franchiseServices';
+import { toast } from 'sonner';
 
 // ================= TYPES =================
 
@@ -78,8 +79,7 @@ const DistributionPlanPage = () => {
         setExportNotes(response.data.data.items);
       }
     } catch (error) {
-      console.error('Fetch export notes failed', error);
-      // toast.error('Không thể tải danh sách phiếu xuất kho');
+      toast.error('Không thể tải danh sách phiếu xuất kho');
     } finally {
       setLoading(false);
     }
@@ -96,8 +96,7 @@ const DistributionPlanPage = () => {
         setReadyOrders(response.data);
       }
     } catch (error) {
-      console.error('Fetch ready orders failed', error);
-      // toast.error('Không thể tải danh sách đơn hàng sẵn sàng');
+      toast.error('Không thể tải danh sách đơn hàng sẵn sàng');
     } finally {
       setIsFetchingReady(false);
     }
@@ -116,14 +115,13 @@ const DistributionPlanPage = () => {
       setIsCreating(true);
       const response = await supplyServices.createExportNote(selectedOrderIds);
       if (response.success) {
-        // toast.success('Tạo đợt phân phối thành công');
+        toast.success('Tạo đợt phân phối thành công');
         setIsCreateModalOpen(false);
         setSelectedOrderIds([]);
         getExportNotes();
       }
     } catch (error) {
-      console.error('Create export note failed', error);
-      // toast.error('Tạo đợt phân phối thất bại');
+      toast.error('Tạo đợt phân phối thất bại');
     } finally {
       setIsCreating(false);
     }

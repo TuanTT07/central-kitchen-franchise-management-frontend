@@ -1,3 +1,12 @@
+/**
+ * File: login-form.tsx
+ * Description: Component xử lý đăng nhập người dùng
+ * Author: Tuan Tran
+ * Created: 2026
+ */
+
+// ================= IMPORTS =================
+
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
@@ -7,27 +16,38 @@ import { authService } from '@/services/authService';
 import { useNavigate } from 'react-router';
 import { useForm } from 'react-hook-form';
 import { CookingPot, Eye, EyeOff, Lock, User } from 'lucide-react';
+import { toast } from 'sonner';
 
-type FormData = {
-  username: string;
-  password: string;
-};
+/**
+ * LoginForm Component
+ * - Thu thập thông tin đăng nhập
+ * - Gọi API xác thực
+ * - Hiển thị thông báo thành công/thất báo
+ * - Điều hướng sau khi đăng nhập
+ */
 
 export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) {
+  // ================= STATE =================
+
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // ================= UTILS =================
+
   const navigate = useNavigate();
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>();
+
+  // ================= HANDLER =================
+
   const onSubmit = async (data: FormData) => {
     const { username, password } = data;
-    // Handle form submission logic
-    setError(null); // Reset lỗi trước khi submit
-    setIsLoading(true); // Bắt đầu trạng thái loading
+    setError(null);
+    setIsLoading(true);
     try {
       const payload: any = await authService.signIn(username, password);
 
@@ -38,23 +58,26 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
         localStorage.setItem('user', JSON.stringify(payload.user));
       }
 
+      toast.success('Đăng nhập thành công!', {
+        description: `Chào mừng ${payload.user?.username || 'bạn'} quay trở lại.`,
+      });
+
       navigate('/', { replace: true });
-      console.log('Đăng nhập thành công:', payload);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Đăng nhập thất bại. Vui lòng thử lại.');
+      const errorMsg = error instanceof Error ? error.message : 'Đăng nhập thất bại. Vui lòng thử lại.';
+      setError(errorMsg);
+      toast.error('Đăng nhập thất bại', {
+        description: errorMsg,
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ================= RENDER =================
+
   return (
-    <div
-      className={cn(
-        'w-full max-w-md rounded-2xl bg-white px-8 py-8 shadow-xl',
-        className
-      )}
-      {...props}
-    >
+    <div className={cn('w-full max-w-md rounded-2xl bg-white px-8 py-8 shadow-xl', className)} {...props}>
       {/* Header */}
       <div className="flex flex-col items-center text-center">
         <div className="flex items-center gap-2">
@@ -99,9 +122,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
               />
             </div>
             {errors.username && (
-              <FieldDescription className="mt-1 text-[11px] text-rose-600">
-                {errors.username.message}
-              </FieldDescription>
+              <FieldDescription className="mt-1 text-[11px] text-rose-600">{errors.username.message}</FieldDescription>
             )}
           </Field>
 
@@ -142,15 +163,10 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
               />
             </div>
             {errors.password && (
-              <FieldDescription className="mt-1 text-[11px] text-rose-600">
-                {errors.password.message}
-              </FieldDescription>
+              <FieldDescription className="mt-1 text-[11px] text-rose-600">{errors.password.message}</FieldDescription>
             )}
             <div className="mt-1 text-right">
-              <button
-                type="button"
-                className="text-sm font-medium text-orange-500 hover:text-orange-600"
-              >
+              <button type="button" className="text-sm font-medium text-orange-500 hover:text-orange-600">
                 Quên mật khẩu?
               </button>
             </div>
@@ -177,3 +193,10 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
     </div>
   );
 }
+
+// ================= TYPES =================
+
+type FormData = {
+  username: string;
+  password: string;
+};
