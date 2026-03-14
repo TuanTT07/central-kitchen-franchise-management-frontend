@@ -2,15 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, CalendarClock, FileText, Search } from 'lucide-react';
+import { AlertTriangle, CalendarClock, FileText, Hash, Search, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { kitchenServices, type InventoryReceiptApi } from '@/services/kitchenServices';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 type ReceiptStatus = 'DRAFT' | 'COMPLETED';
 
@@ -85,16 +80,17 @@ function Receipts() {
     setSelectedReceipt(null);
   };
 
-  const handleOpenDetail = async (receiptId: number) => {
+  const handleOpenDetail = async (receipt: InventoryReceiptApi) => {
+    setSelectedReceipt(receipt);
     setIsDetailOpen(true);
     setIsLoadingDetail(true);
     try {
-      const response = await kitchenServices.getInventoryReceiptById(receiptId);
+      const response = await kitchenServices.getInventoryReceiptById(receipt.receiptId);
       if (response.data) {
         setSelectedReceipt(response.data);
       }
     } catch {
-      // TODO: bổ sung toast khi có hệ thống thông báo
+      // Giữ lại dữ liệu từ danh sách nếu API lỗi
     } finally {
       setIsLoadingDetail(false);
     }
@@ -238,7 +234,7 @@ function Receipts() {
                               variant="outline"
                               size="sm"
                               className="border-amber-200 bg-white text-[11px] text-amber-900 hover:bg-amber-50"
-                              onClick={() => handleOpenDetail(r.receiptId)}
+                              onClick={() => handleOpenDetail(r)}
                             >
                               Chi tiết
                             </Button>
@@ -329,108 +325,124 @@ function Receipts() {
       <Dialog
         open={isDetailOpen}
         onOpenChange={(open) => {
-          if (!open) {
-            handleCloseDetail();
-          } else {
-            setIsDetailOpen(true);
-          }
+          if (!open) handleCloseDetail();
+          else setIsDetailOpen(true);
         }}
       >
-        <DialogContent className="max-w-3xl rounded-2xl p-0">
-          <DialogHeader className="border-b border-amber-100 bg-amber-50 px-6 py-4">
-            <DialogTitle className="flex items-center justify-between text-base font-bold text-amber-900">
-              <span>Chi tiết biên lai nhập kho</span>
-              {selectedReceipt && (
-                <span
-                  className={cn(
-                    'inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-semibold',
-                    RECEIPT_STATUS_CLASS[selectedReceipt.status]
-                  )}
-                >
-                  {RECEIPT_STATUS_LABEL[selectedReceipt.status]}
-                </span>
-              )}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent
+          className="max-w-4xl overflow-hidden rounded-2xl border border-stone-200 bg-white p-0 shadow-2xl"
+          onClose={handleCloseDetail}
+        >
+          {!selectedReceipt && (
+            <div className="px-8 py-14 text-center text-sm text-stone-500">Đang tải...</div>
+          )}
 
-          <div className="max-h-[70vh] space-y-4 overflow-y-auto px-6 py-4 text-xs">
-            {isLoadingDetail && (
-              <p className="py-6 text-center text-stone-500">Đang tải chi tiết biên lai...</p>
-            )}
-
-            {!isLoadingDetail && !selectedReceipt && (
-              <p className="py-6 text-center text-stone-500">Không tìm thấy dữ liệu biên lai.</p>
-            )}
-
-            {!isLoadingDetail && selectedReceipt && (
-              <>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-medium text-stone-500">Mã biên lai</p>
-                    <p className="text-sm font-semibold text-stone-900">
-                      {selectedReceipt.receiptCode}
-                    </p>
-                    <p className="text-[11px] text-stone-500">ID: {selectedReceipt.receiptId}</p>
+          {selectedReceipt && (
+            <>
+              {/* Header: mã biên lai nổi bật + badge (thêm padding phải để tránh dính nút đóng) */}
+              <div className="border-b border-stone-100 bg-stone-50/80 px-8 pt-6 pb-6 pr-14">
+                <div className="flex flex-wrap items-center justify-between gap-6">
+                  <div className="flex items-baseline gap-4">
+                    <Hash className="size-5 shrink-0 text-amber-600" />
+                    <div>
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-stone-400">
+                        Mã biên lai
+                      </p>
+                      <p className="mt-1 text-xl font-bold tracking-tight text-stone-900">
+                        {selectedReceipt.receiptCode}
+                      </p>
+                      <p className="mt-0.5 text-xs text-stone-500">ID: {selectedReceipt.receiptId}</p>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-medium text-stone-500">Ngày lập</p>
-                    <p className="text-sm font-semibold text-stone-900">
+                  <span
+                    className={cn(
+                      'inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold',
+                      RECEIPT_STATUS_CLASS[selectedReceipt.status]
+                    )}
+                  >
+                    {RECEIPT_STATUS_LABEL[selectedReceipt.status]}
+                  </span>
+                </div>
+              </div>
+
+              {/* Thông tin phụ: ngày + người tạo (tăng khoảng cách giữa 2 khối) */}
+              <div className="flex flex-wrap gap-x-16 gap-y-4 border-b border-stone-100 bg-white px-8 py-5">
+                <div className="flex items-center gap-3 min-w-0">
+                  <CalendarClock className="size-4 shrink-0 text-stone-400" />
+                  <div>
+                    <p className="text-[10px] font-medium uppercase text-stone-400">Ngày lập</p>
+                    <p className="mt-0.5 text-sm font-semibold text-stone-800">
                       {formatDateTime(selectedReceipt.receiptDate)}
                     </p>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-medium text-stone-500">Người tạo</p>
-                    <p className="text-sm font-semibold text-stone-900">
+                </div>
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <User className="size-4 shrink-0 text-stone-400" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-medium uppercase text-stone-400">Người tạo</p>
+                    <p className="mt-0.5 text-sm font-semibold text-stone-800">
                       {selectedReceipt.createdByName || '—'}
+                      {typeof selectedReceipt.createdById !== 'undefined' && (
+                        <span className="ml-1.5 font-normal text-stone-500">(ID: {selectedReceipt.createdById})</span>
+                      )}
                     </p>
-                    {typeof selectedReceipt.createdById !== 'undefined' && (
-                      <p className="text-[11px] text-stone-500">ID: {selectedReceipt.createdById}</p>
-                    )}
                   </div>
                 </div>
+              </div>
 
-                <div className="mt-2 rounded-lg border border-amber-100 bg-amber-50/40">
-                  <div className="border-b border-amber-100 px-4 py-2.5">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-900">
-                      Danh sách mặt hàng
-                    </p>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto px-4 py-3">
-                    {selectedReceipt.items && selectedReceipt.items.length > 0 ? (
-                      <table className="w-full text-[11px]">
-                        <thead>
-                          <tr className="border-b border-amber-50 text-left text-[11px] text-stone-700">
-                            <th className="py-1 pr-3 font-semibold">Mã lô</th>
-                            <th className="py-1 pr-3 font-semibold text-center">Số lượng</th>
-                            <th className="py-1 pr-3 font-semibold text-right">Batch ID</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-amber-50">
-                          {selectedReceipt.items.map((item) => (
-                            <tr key={item.receiptItemId} className="hover:bg-amber-50/40">
-                              <td className="py-1 pr-3 text-sm font-semibold text-stone-900">
-                                {item.batchCode}
-                              </td>
-                              <td className="py-1 pr-3 text-center text-sm font-semibold text-stone-900">
-                                {item.quantity}
-                              </td>
-                              <td className="py-1 pr-3 text-right text-[11px] text-stone-500">
-                                {item.batchId}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <p className="py-3 text-center text-[11px] text-stone-500">
-                        Biên lai này chưa có mặt hàng nào.
-                      </p>
-                    )}
-                  </div>
+              {/* Danh sách mặt hàng: padding rộng hơn, cột tách rõ */}
+              <div className="max-h-[55vh] overflow-y-auto">
+                <div className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50 px-6 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-stone-600">
+                    Danh sách mặt hàng
+                  </p>
                 </div>
-              </>
-            )}
-          </div>
+                <div className="px-6 py-4 pb-6">
+                  {isLoadingDetail && !selectedReceipt.items?.length ? (
+                    <p className="py-10 text-center text-xs text-stone-500">
+                      Đang tải danh sách mặt hàng...
+                    </p>
+                  ) : selectedReceipt.items && selectedReceipt.items.length > 0 ? (
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-[11px] font-semibold text-stone-500">
+                          <th className="pb-3 pr-4">Mã lô</th>
+                          <th className="w-24 pb-3 text-center">Số lượng</th>
+                          <th className="w-20 pb-3 pl-4 text-right">Batch ID</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {selectedReceipt.items.map((item, i) => (
+                          <tr
+                            key={item.receiptItemId}
+                            className={cn(
+                              'transition-colors',
+                              i % 2 === 0 ? 'bg-white' : 'bg-stone-50/50',
+                              'hover:bg-amber-50/50'
+                            )}
+                          >
+                            <td className="py-3 pr-4 font-medium text-stone-900">
+                              {item.batchCode}
+                            </td>
+                            <td className="py-3 text-center font-semibold text-stone-800">
+                              {item.quantity}
+                            </td>
+                            <td className="py-3 pl-4 text-right text-xs text-stone-500">
+                              {item.batchId}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p className="py-10 text-center text-xs text-stone-500">
+                      Biên lai này chưa có mặt hàng nào.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
