@@ -75,26 +75,6 @@ export interface UnitResponse {
   status?: 'ACTIVE' | 'INACTIVE';
 }
 
-/** Item từ API near-expiry (lô sắp hết hạn) */
-export interface NearExpiryItem {
-  batchCode: string;
-  product: string;
-  expiryDate: string;
-  stock: number;
-}
-
-/** Đơn hàng (Store Order) cho dashboard Manager */
-export interface ManagerOrderItem {
-  orderId: number;
-  orderCode: string;
-  storeId: number;
-  storeName: string;
-  orderDate: string;
-  deliveryDate?: string;
-  status: 'PENDING' | 'APPROVED' | 'CONSOLIDATED' | 'CANCELLED';
-  details?: unknown;
-}
-
 // ================= API =================
 
 export const managerServices = {
@@ -247,7 +227,7 @@ export const managerServices = {
   },
 
   /**
-   * Lấy danh sách lô hàng sắp hết hạn (FEFO)
+   * Lấy danh sách lô sắp hết hạn (FEFO)
    * GET /inventory-reports/near-expiry
    */
   getNearExpiryBatches: async (daysThreshold: number = 14) => {
@@ -259,14 +239,74 @@ export const managerServices = {
   },
 
   /**
-   * Lấy danh sách đơn yêu cầu cấp hàng (Manager xem tổng hợp)
+   * Lấy danh sách đơn yêu cầu (Manager xem tổng hợp)
    * GET /orders
    */
-  getOrders: async (page: number = 0, size: number = 50, status?: string) => {
+  getOrders: async (
+    page: number = 0,
+    size: number = 50,
+    params?: { status?: string }
+  ) => {
     const res = await http.get<Response<PaginatedResponse<ManagerOrderItem[]>>>('/orders', {
-      params: { page, size, ...(status && { status }) },
+      params: { page, size, ...params },
     });
     return res.data;
   },
+
+  /**
+   * Top cửa hàng nhập lớn nhất
+   * GET /inventory-reports/top-importing-stores?limit=
+   */
+  getTopImportingStores: async (limit: number = 10) => {
+    const res = await http.get<Response<PaginatedResponse<TopStoreReportItem[]>>>(
+      '/inventory-reports/top-importing-stores',
+      { params: { limit } }
+    );
+    return res.data;
+  },
+
+  /**
+   * Top món tiêu thụ mạnh nhất
+   * GET /inventory-reports/top-consumed?limit=
+   */
+  getTopConsumedProducts: async (limit: number = 10) => {
+    const res = await http.get<Response<PaginatedResponse<TopProductReportItem[]>>>(
+      '/inventory-reports/top-consumed',
+      { params: { limit } }
+    );
+    return res.data;
+  },
 };
+
+/** Item từ API near-expiry */
+export interface NearExpiryItem {
+  batchCode: string;
+  product: string;
+  expiryDate: string;
+  stock: number;
+}
+
+/** Đơn hàng cho dashboard Manager */
+export interface ManagerOrderItem {
+  orderId: number;
+  orderCode: string;
+  storeId: number;
+  storeName: string;
+  orderDate: string;
+  deliveryDate?: string;
+  status: 'PENDING' | 'APPROVED' | 'CONSOLIDATED' | 'CANCELLED' | 'AWAITING_DELIVERY' | 'DONE';
+  details?: unknown;
+}
+
+/** Top cửa hàng nhập nhiều - GET /inventory-reports/top-importing-stores */
+export interface TopStoreReportItem {
+  storeName: string;
+  totalImported: number;
+}
+
+/** Top món tiêu thụ - GET /inventory-reports/top-consumed */
+export interface TopProductReportItem {
+  product: string;
+  totalConsumed: number;
+}
 
