@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Boxes, UtensilsCrossed, Package, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Boxes, UtensilsCrossed, Package, Loader2, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { MANAGER_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 import { cn } from '@/lib/utils';
 import { managerServices } from '@/services/managerServices';
@@ -16,6 +17,8 @@ const STATUS_LABEL: Record<string, string> = {
   APPROVED: 'Đã duyệt',
   CONSOLIDATED: 'Đã gộp',
   CANCELLED: 'Đã hủy',
+  AWAITING_DELIVERY: 'Chờ giao hàng',
+  DONE: 'Hoàn thành',
 };
 
 const STATUS_STYLE: Record<string, string> = {
@@ -23,6 +26,8 @@ const STATUS_STYLE: Record<string, string> = {
   APPROVED: 'bg-emerald-100 text-emerald-800',
   CONSOLIDATED: 'bg-sky-100 text-sky-800',
   CANCELLED: 'bg-slate-100 text-slate-600',
+  AWAITING_DELIVERY: 'bg-sky-100 text-sky-800',
+  DONE: 'bg-emerald-100 text-emerald-800',
 };
 
 const CATEGORY_COLORS = ['#d97706', '#ea580c', '#b45309', '#c2410c'];
@@ -39,6 +44,8 @@ function parsePaginatedItems<T>(data: unknown): T[] {
   return Array.isArray(arr) ? arr : [];
 }
 
+const PAGE_SIZE_ORDERS = 10;
+
 const ManagerDashboard = () => {
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [products, setProducts] = useState<ProductsResponse[]>([]);
@@ -47,6 +54,7 @@ const ManagerDashboard = () => {
   const [batches, setBatches] = useState<ProductBatchesResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [orderPage, setOrderPage] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -130,6 +138,12 @@ const ManagerDashboard = () => {
     );
   }, [categoryStats]);
 
+  const orderTotalPages = Math.max(1, Math.ceil(orders.length / PAGE_SIZE_ORDERS));
+  const paginatedOrders = orders.slice(
+    orderPage * PAGE_SIZE_ORDERS,
+    (orderPage + 1) * PAGE_SIZE_ORDERS
+  );
+
   if (loading) {
     return (
       <DashboardLayout navItems={MANAGER_SIDEBAR_ITEMS} roleLabel="MANAGER">
@@ -159,59 +173,79 @@ const ManagerDashboard = () => {
             </p>
           </header>
 
-          <section className="grid gap-4 sm:grid-cols-3">
+          {/* KPIs – toàn bộ từ API */}
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between gap-4">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
                       Tổng tồn kho
                     </p>
-                    <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
                       {totalStockUnits.toLocaleString()}
                     </p>
-                    <p className="mt-1 text-sm text-slate-500">Đơn vị từ tất cả lô hàng</p>
+                    <p className="mt-0.5 text-xs text-slate-500">Đơn vị từ lô hàng</p>
                   </div>
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-                    <Boxes className="h-6 w-6" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                    <Boxes className="h-5 w-5" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between gap-4">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
                       Đơn hôm nay
                     </p>
-                    <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
                       {ordersToday}
                     </p>
-                    <p className="mt-1 text-sm text-slate-500">Đơn yêu cầu từ cửa hàng</p>
+                    <p className="mt-0.5 text-xs text-slate-500">Đơn từ cửa hàng</p>
                   </div>
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
-                    <Package className="h-6 w-6" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
+                    <Package className="h-5 w-5" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between gap-4">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
                       Sản phẩm
                     </p>
-                    <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
                       {products.length}
                     </p>
-                    <p className="mt-1 text-sm text-slate-500">{categories.length} danh mục</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{categories.length} danh mục</p>
                   </div>
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-                    <UtensilsCrossed className="h-6 w-6" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                    <UtensilsCrossed className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Lô sắp hết hạn
+                    </p>
+                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
+                      {nearExpiry.length}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">Cần ưu tiên FEFO</p>
+                  </div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                    <AlertTriangle className="h-5 w-5" />
                   </div>
                 </div>
               </CardContent>
@@ -225,7 +259,7 @@ const ManagerDashboard = () => {
                   Đơn yêu cầu theo ngày
                 </CardTitle>
                 <CardDescription className="text-sm text-slate-500">
-                  Theo dữ liệu đơn hàng gần đây
+                  Theo dữ liệu đơn hàng (API)
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-2">
@@ -252,7 +286,7 @@ const ManagerDashboard = () => {
                   Loại sản phẩm
                 </CardTitle>
                 <CardDescription className="text-sm text-slate-500">
-                  Tỷ lệ theo danh mục
+                  Tỷ lệ theo danh mục (dữ liệu API)
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-2">
@@ -290,28 +324,55 @@ const ManagerDashboard = () => {
                   Đơn yêu cầu gần đây
                 </CardTitle>
                 <CardDescription className="text-sm text-slate-500">
-                  Danh sách đơn từ cửa hàng
+                  {orders.length} đơn · trang {orderPage + 1}/{orderTotalPages} (dữ liệu API)
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 {orders.length === 0 ? (
                   <p className="px-6 py-10 text-center text-sm text-slate-500">Chưa có đơn nào.</p>
                 ) : (
-                  <ul className="divide-y divide-slate-100">
-                    {orders.slice(0, 10).map((o) => (
-                      <li key={o.orderId} className="flex items-center justify-between gap-4 px-6 py-4 hover:bg-slate-50/80">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-slate-900">{o.orderCode}</p>
-                          <p className="mt-0.5 text-sm text-slate-500">
-                            {o.storeName ?? `#${o.storeId}`} · Giao {formatDate(o.deliveryDate)}
-                          </p>
-                        </div>
-                        <span className={cn('shrink-0 rounded-full px-3 py-1 text-xs font-medium', STATUS_STYLE[o.status] ?? 'bg-slate-100 text-slate-600')}>
-                          {STATUS_LABEL[o.status] ?? o.status}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    <ul className="divide-y divide-slate-100">
+                      {paginatedOrders.map((o) => (
+                        <li key={o.orderId} className="flex items-center justify-between gap-4 px-6 py-4 hover:bg-slate-50/80">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-slate-900">{o.orderCode}</p>
+                            <p className="mt-0.5 text-sm text-slate-500">
+                              {o.storeName ?? `Cửa hàng #${o.storeId}`} · Giao {formatDate(o.deliveryDate)}
+                            </p>
+                          </div>
+                          <span className={cn('shrink-0 rounded-full border px-3 py-1 text-xs font-medium', STATUS_STYLE[o.status] ?? 'bg-slate-100 text-slate-600')}>
+                            {STATUS_LABEL[o.status] ?? 'Khác'}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
+                      <span className="text-sm text-slate-500">
+                        Trang {orderPage + 1} / {orderTotalPages}
+                      </span>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => setOrderPage((p) => Math.max(0, p - 1))}
+                          disabled={orderPage === 0}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => setOrderPage((p) => Math.min(orderTotalPages - 1, p + 1))}
+                          disabled={orderPage >= orderTotalPages - 1}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -322,7 +383,7 @@ const ManagerDashboard = () => {
                   Lô sắp hết hạn
                 </CardTitle>
                 <CardDescription className="text-sm text-slate-500">
-                  Cần ưu tiên xuất (FEFO)
+                  Cần ưu tiên xuất FEFO (dữ liệu API)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
