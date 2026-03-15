@@ -6,17 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { adminService, type StoreResponse, type UserResponse } from '@/services/adminServices';
 import { cn } from '@/lib/utils';
-import {
-  AlertTriangle,
-  Building2,
-  Plus,
-  RefreshCcw,
-  Shield,
-  Sparkles,
-  Store,
-  Users,
-  UserX,
-} from 'lucide-react';
+import { AlertTriangle, Building2, Plus, RefreshCcw, Shield, Store, Users, UserX, Loader2 } from 'lucide-react';
 
 type LoadState = 'idle' | 'loading' | 'error';
 
@@ -146,330 +136,302 @@ const AdminDashboard = () => {
     ];
   }, [metrics.activeStores, metrics.inactiveStores, metrics.totalStores]);
 
+  if (loadState === 'loading') {
+    return (
+      <DashboardLayout navItems={ADMIN_SIDEBAR_ITEMS} roleLabel="ADMIN">
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-amber-600" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout navItems={ADMIN_SIDEBAR_ITEMS} roleLabel="ADMIN">
-      <div className="space-y-5">
-        {/* Header */}
-        <div className="relative flex items-center overflow-hidden rounded-md border border-amber-200/60 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-4 py-3 shadow-sm">
-          <div className="absolute right-0 top-0 h-full w-1/4 bg-gradient-to-l from-white/15 to-transparent" />
-          <div className="relative flex min-w-0 flex-1 items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/25 shadow-sm">
-                <Sparkles className="size-4 text-white" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="truncate text-sm font-semibold leading-tight text-white md:text-base">
-                  ADMIN DASHBOARD
-                </h1>
-                <p className="mt-0.5 truncate text-xs leading-tight text-amber-50/90">
-                  Quản trị tài khoản và cửa hàng
-                </p>
-              </div>
+      <div className="min-h-screen bg-slate-50/50">
+        <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+          <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+                Quản trị hệ thống
+              </h1>
+              <p className="text-sm text-slate-500 sm:text-base">
+                Tổng quan tài khoản và cửa hàng trong hệ thống.
+              </p>
             </div>
-
             <Button
               type="button"
               variant="outline"
               onClick={refresh}
-              disabled={loadState === 'loading'}
-              className="h-8 border-white/30 bg-white/10 text-white hover:bg-white/15 hover:text-white text-xs"
+              disabled={loadState !== 'idle'}
+              className="h-9 shrink-0 border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
             >
-              <RefreshCcw className={cn('mr-1.5 size-3.5', loadState === 'loading' && 'animate-spin')} />
-              Làm mới
+              <RefreshCcw className={cn('mr-2 h-4 w-4', loadState !== 'idle' && 'animate-spin')} />
+              Làm mới dữ liệu
             </Button>
-          </div>
-        </div>
+          </header>
 
-        {/* KPI Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card className="overflow-hidden border-amber-200/70 bg-white shadow-lg shadow-amber-500/5 transition hover:shadow-xl">
-            <CardContent className="relative p-0">
-              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-amber-500 to-orange-500" />
-              <div className="flex items-center gap-4 p-4 pl-5">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md">
-                  <Users className="size-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800/90">Tổng User</p>
-                  <p className="mt-0.5 text-2xl font-bold text-stone-900">{metrics.totalUsers}</p>
-                  <p className="mt-0.5 text-[11px] font-medium text-stone-500">Tổng tài khoản hệ thống</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {loadState === 'error' && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Không tải được dữ liệu từ API. Vui lòng bấm “Làm mới dữ liệu” để thử lại.
+            </div>
+          )}
 
-          <Card className="overflow-hidden border-emerald-200/60 bg-white shadow-lg shadow-emerald-500/5 transition hover:shadow-xl">
-            <CardContent className="relative p-0">
-              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-emerald-500 to-emerald-600" />
-              <div className="flex items-center gap-4 p-4 pl-5">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-md">
-                  <Shield className="size-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800/90">
-                    User ACTIVE
-                  </p>
-                  <p className="mt-0.5 text-2xl font-bold text-stone-900">{metrics.activeUsers}</p>
-                  <p className="mt-0.5 text-[11px] font-medium text-stone-500">
-                    {metrics.totalUsers ? `${((metrics.activeUsers / metrics.totalUsers) * 100).toFixed(1)}%` : '0%'}{' '}
-                    hoạt động
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="overflow-hidden border-amber-200/70 bg-white shadow-lg shadow-amber-500/5 transition hover:shadow-xl">
-            <CardContent className="relative p-0">
-              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-orange-500 to-amber-500" />
-              <div className="flex items-center gap-4 p-4 pl-5">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-md">
-                  <Store className="size-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800/90">Tổng Store</p>
-                  <p className="mt-0.5 text-2xl font-bold text-stone-900">{metrics.totalStores}</p>
-                  <p className="mt-0.5 text-[11px] font-medium text-stone-500">Tổng cửa hàng</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="overflow-hidden border-emerald-200/60 bg-white shadow-lg shadow-emerald-500/5 transition hover:shadow-xl">
-            <CardContent className="relative p-0">
-              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-emerald-500 to-emerald-600" />
-              <div className="flex items-center gap-4 p-4 pl-5">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-md">
-                  <Building2 className="size-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800/90">
-                    Store ACTIVE
-                  </p>
-                  <p className="mt-0.5 text-2xl font-bold text-stone-900">{metrics.activeStores}</p>
-                  <p className="mt-0.5 text-[11px] font-medium text-stone-500">
-                    {metrics.totalStores ? `${((metrics.activeStores / metrics.totalStores) * 100).toFixed(1)}%` : '0%'}{' '}
-                    hoạt động
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Phân bố role + trạng thái store */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="border-amber-100 bg-white shadow-md">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <CardTitle className="text-sm font-bold text-amber-900">Phân bố tài khoản theo role</CardTitle>
-              <CardDescription className="text-[11px] text-amber-700/80">
-                Tính theo danh sách users hiện tại
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-3">
-              {roleRows.length === 0 ? (
-                <div className="text-sm text-stone-500">Chưa có dữ liệu role.</div>
-              ) : (
-                roleRows.map((r) => (
-                  <div key={r.role} className="flex items-center gap-3">
-                    <div className="w-44 text-xs font-semibold text-stone-800">{r.role}</div>
-                    <div className="flex-1">
-                      <div className="h-2.5 rounded-full bg-amber-50 overflow-hidden border border-amber-100">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500"
-                          style={{ width: `${r.pct}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div className="w-10 text-right text-xs font-bold text-stone-800">{r.count}</div>
+          {/* KPI Cards */}
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Tổng user
+                    </p>
+                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
+                      {metrics.totalUsers}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">Tổng tài khoản hệ thống</p>
                   </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                    <Users className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card className="border-amber-100 bg-white shadow-md">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <CardTitle className="text-sm font-bold text-amber-900">Trạng thái cửa hàng</CardTitle>
-              <CardDescription className="text-[11px] text-amber-700/80">
-                Tỷ lệ ACTIVE / INACTIVE (donut)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-4">
-              <div className="flex items-center gap-4">
-                <div
-                  className="size-24 shrink-0 rounded-full border-4 border-white shadow-inner"
-                  style={{
-                    background: `conic-gradient(#10b981 0% ${
-                      storeStatusRows[0]?.pct ?? 0
-                    }%, #d6d3d1 ${storeStatusRows[0]?.pct ?? 0}% 100%)`,
-                  }}
-                />
-                <div className="flex-1 space-y-2">
-                  {storeStatusRows.map((s) => (
-                    <div key={s.label} className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-2">
-                        <span
-                          className={cn(
-                            'size-2.5 rounded-full',
-                            s.tone === 'ok' ? 'bg-emerald-500' : 'bg-stone-400'
-                          )}
-                        />
-                        {s.label}
-                      </span>
-                      <span className="font-semibold text-stone-800">
-                        {s.count}{' '}
-                        <span className="font-normal text-stone-500">({s.pct.toFixed(1)}
-                        %)</span>
-                      </span>
-                    </div>
-                  ))}
-                  <div className="pt-1 text-[11px] text-stone-500">
-                    Tổng:{' '}
-                    <span className="font-semibold text-stone-800">
+            <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                      User active
+                    </p>
+                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
+                      {metrics.activeUsers}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {metrics.totalUsers
+                        ? `${((metrics.activeUsers / metrics.totalUsers) * 100).toFixed(1)}%`
+                        : '0%'}{' '}
+                      hoạt động
+                    </p>
+                  </div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                    <Shield className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Tổng store
+                    </p>
+                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
                       {metrics.totalStores}
-                    </span>
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">Tổng cửa hàng</p>
+                  </div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                    <Store className="h-5 w-5" />
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
 
-        {/* Cảnh báo + sức khỏe nhân sự */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="border-amber-100 bg-white shadow-md">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <CardTitle className="text-sm font-bold text-amber-900">Cảnh báo quản trị</CardTitle>
-              <CardDescription className="text-[11px] text-amber-700/80">
-                Gợi ý kiểm tra chất lượng dữ liệu
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-2 text-sm">
-              <div className="flex items-start gap-2 text-stone-700">
-                <AlertTriangle className="mt-0.5 size-4 text-amber-500" />
-                <div>
-                  <span className="font-semibold">{metrics.activeStoresNoStaff.length}</span> store chưa có staff
+            <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Store active
+                    </p>
+                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
+                      {metrics.activeStores}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {metrics.totalStores
+                        ? `${((metrics.activeStores / metrics.totalStores) * 100).toFixed(1)}%`
+                        : '0%'}{' '}
+                      hoạt động
+                    </p>
+                  </div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                    <Building2 className="h-5 w-5" />
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-2 text-stone-700">
-                <AlertTriangle className="mt-0.5 size-4 text-amber-500" />
-                <div>
-                  <span className="font-semibold">{metrics.staffNoStore.length}</span> staff chưa gán store
-                </div>
-              </div>
-              <div className="flex items-start gap-2 text-stone-700">
-                <AlertTriangle className="mt-0.5 size-4 text-amber-500" />
-                <div>
-                  <span className="font-semibold">
-                    {metrics.storesInactiveButHasStaff.length}
-                  </span>{' '}
-                  store INACTIVE còn staff
-                </div>
-              </div>
-              <div className="flex items-start gap-2 text-stone-700">
-                <UserX className="mt-0.5 size-4 text-rose-500" />
-                <div>
-                  <span className="font-semibold">{metrics.inactiveUsers}</span> user đang INACTIVE
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </section>
 
-          <Card className="border-amber-100 bg-white shadow-md">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <CardTitle className="text-sm font-bold text-amber-900">
-                Sức khỏe phân bổ nhân sự cửa hàng
-              </CardTitle>
-              <CardDescription className="text-[11px] text-amber-700/80">
-                Top store theo số staff (cảnh báo khi = 0)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-3">
-              {metrics.staffHealth.length === 0 ? (
-                <div className="text-sm text-stone-500">Chưa có dữ liệu cửa hàng.</div>
-              ) : (
-                metrics.staffHealth.map(({ store, count }) => (
+          {/* Phân bố role + trạng thái store */}
+          <section className="grid gap-6 lg:grid-cols-2">
+            <Card className="border-0 bg-white shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold text-slate-900">
+                  Phân bố tài khoản theo role
+                </CardTitle>
+                <CardDescription className="text-sm text-slate-500">
+                  Tính theo danh sách users hiện tại
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 pt-2">
+                {roleRows.length === 0 ? (
+                  <div className="text-sm text-slate-500">Chưa có dữ liệu role.</div>
+                ) : (
+                  roleRows.map((r) => (
+                    <div key={r.role} className="flex items-center gap-3">
+                      <div className="w-44 text-xs font-semibold text-slate-800">{r.role}</div>
+                      <div className="flex-1">
+                        <div className="h-2.5 overflow-hidden rounded-full border border-amber-100 bg-amber-50">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500"
+                            style={{ width: `${r.pct}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="w-10 text-right text-xs font-bold text-slate-800">{r.count}</div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 bg-white shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold text-slate-900">
+                  Trạng thái cửa hàng
+                </CardTitle>
+                <CardDescription className="text-sm text-slate-500">
+                  Tỷ lệ ACTIVE / INACTIVE (donut)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-2">
+                <div className="flex items-center gap-4">
                   <div
-                    key={store.storeId}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-amber-100 bg-amber-50/40 px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-stone-900">{store.storeName}</div>
-                      <div className="text-[11px] text-stone-500">
-                        {store.status} · ID #{store.storeId}
+                    className="size-24 shrink-0 rounded-full border-4 border-white shadow-inner"
+                    style={{
+                      background: `conic-gradient(#10b981 0% ${
+                        storeStatusRows[0]?.pct ?? 0
+                      }%, #d6d3d1 ${storeStatusRows[0]?.pct ?? 0}% 100%)`,
+                    }}
+                  />
+                  <div className="flex-1 space-y-2">
+                    {storeStatusRows.map((s) => (
+                      <div key={s.label} className="flex items-center justify-between text-xs">
+                        <span className="flex items-center gap-2">
+                          <span
+                            className={cn(
+                              'size-2.5 rounded-full',
+                              s.tone === 'ok' ? 'bg-emerald-500' : 'bg-stone-400'
+                            )}
+                          />
+                          {s.label}
+                        </span>
+                        <span className="font-semibold text-slate-800">
+                          {s.count}{' '}
+                          <span className="font-normal text-slate-500">({s.pct.toFixed(1)}%)</span>
+                        </span>
+                      </div>
+                    ))}
+                    <div className="pt-1 text-[11px] text-slate-500">
+                      Tổng:{' '}
+                      <span className="font-semibold text-slate-800">
+                        {metrics.totalStores}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* Cảnh báo + sức khỏe nhân sự */}
+          <section className="grid gap-6 lg:grid-cols-2">
+            <Card className="border-0 bg-white shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold text-slate-900">
+                  Cảnh báo quản trị
+                </CardTitle>
+                <CardDescription className="text-sm text-slate-500">
+                  Gợi ý kiểm tra chất lượng dữ liệu
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2 pt-2 text-sm">
+                <div className="flex items-start gap-2 text-slate-700">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" />
+                  <div>
+                    <span className="font-semibold">{metrics.activeStoresNoStaff.length}</span> store chưa có staff
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 text-slate-700">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" />
+                  <div>
+                    <span className="font-semibold">{metrics.staffNoStore.length}</span> staff chưa gán store
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 text-slate-700">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" />
+                  <div>
+                    <span className="font-semibold">
+                      {metrics.storesInactiveButHasStaff.length}
+                    </span>{' '}
+                    store INACTIVE còn staff
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 text-slate-700">
+                  <UserX className="mt-0.5 h-4 w-4 text-rose-500" />
+                  <div>
+                    <span className="font-semibold">{metrics.inactiveUsers}</span> user đang INACTIVE
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 bg-white shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold text-slate-900">
+                  Sức khỏe phân bổ nhân sự cửa hàng
+                </CardTitle>
+                <CardDescription className="text-sm text-slate-500">
+                  Top store theo số staff (cảnh báo khi = 0)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 pt-2">
+                {metrics.staffHealth.length === 0 ? (
+                  <div className="text-sm text-slate-500">Chưa có dữ liệu cửa hàng.</div>
+                ) : (
+                  metrics.staffHealth.map(({ store, count }) => (
+                    <div
+                      key={store.storeId}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-amber-100 bg-amber-50/40 px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-slate-900">{store.storeName}</div>
+                        <div className="text-[11px] text-slate-500">
+                          {store.status} · ID #{store.storeId}
+                        </div>
+                      </div>
+                      <div
+                        className={cn(
+                          'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold',
+                          count === 0
+                            ? 'border-rose-200 bg-rose-50 text-rose-700'
+                            : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        )}
+                      >
+                        {count} staff{count === 0 ? ' · Cảnh báo' : ''}
                       </div>
                     </div>
-                    <div
-                      className={cn(
-                        'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold',
-                        count === 0
-                          ? 'border-rose-200 bg-rose-50 text-rose-700'
-                          : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                      )}
-                    >
-                      {count} staff{count === 0 ? ' · Cảnh báo' : ''}
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </section>
 
-        {/* Thao tác nhanh */}
-        <div className="grid gap-6">
-          <Card className="border-amber-100 bg-white shadow-md">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <CardTitle className="text-sm font-bold text-amber-900">Thao tác nhanh</CardTitle>
-              <CardDescription className="text-[11px] text-amber-700/80">
-                Điều hướng nhanh tới các trang quản trị
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Button
-                type="button"
-                onClick={() => navigate('/admin/users')}
-                className="h-11 justify-start gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-md"
-              >
-                <Plus className="size-4" />
-                Tạo tài khoản
-              </Button>
-              <Button
-                type="button"
-                onClick={() => navigate('/admin/stores')}
-                className="h-11 justify-start gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-md"
-              >
-                <Plus className="size-4" />
-                Tạo cửa hàng
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate('/admin/users')}
-                className="h-11 justify-start gap-2 border-amber-200 text-amber-800 hover:bg-amber-50"
-              >
-                <UserX className="size-4 text-rose-500" />
-                Xem user bị khóa
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate('/admin/stores')}
-                className="h-11 justify-start gap-2 border-amber-200 text-amber-800 hover:bg-amber-50"
-              >
-                <Store className="size-4 text-stone-600" />
-                Xem store inactive
-              </Button>
-            </CardContent>
-          </Card>
         </div>
-
-        {loadState === 'error' && (
-          <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            Không tải được dữ liệu từ API. Bạn có thể bấm “Làm mới” để thử lại.
-          </div>
-        )}
       </div>
     </DashboardLayout>
   );
