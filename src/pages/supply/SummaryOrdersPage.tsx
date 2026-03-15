@@ -184,6 +184,23 @@ function SummaryOrdersPage() {
   };
 
   /**
+   * Nghiệp vụ: Phê duyệt đơn hàng
+   * 
+   * @param orderId ID của đơn hàng cần phê duyệt
+   */
+  const handleApprove = async (orderId: number) => {
+    try {
+      const response = await supplyServices.approveOrder(orderId);
+      if (response.success) {
+        toast.success('Phê duyệt đơn hàng thành công');
+        getAllOrders();
+      }
+    } catch (error) {
+      toast.error('Phê duyệt đơn hàng thất bại');
+    }
+  };
+
+  /**
    * Nghiệp vụ: Tạo lệnh sản xuất (Finalize)
    * Chuyển đổi dữ liệu đã gom thành lệnh sản xuất thực tế tại bếp
    */
@@ -339,6 +356,7 @@ function SummaryOrdersPage() {
                         <th className="px-4 py-2 font-semibold">Chi nhánh</th>
                         <th className="px-4 py-2 font-semibold">Sản phẩm chính</th>
                         <th className="px-2 py-2 font-semibold text-center">SL</th>
+                        <th className="px-2 py-2 font-semibold text-center">Hành động</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50">
@@ -356,6 +374,19 @@ function SummaryOrdersPage() {
                           <td className="px-2 py-2 text-center text-stone-800">
                             {o.details?.reduce((acc, curr) => acc + curr.quantity, 0) || 0}
                           </td>
+                          {o.status === 'PENDING' && (
+                          <td className="px-2 py-2 text-center text-stone-800">
+                              
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleApprove(o.orderId)}
+                                  className="border-green-200 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800"
+                                >
+                                  Phê duyệt
+                                </Button>
+                          </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
