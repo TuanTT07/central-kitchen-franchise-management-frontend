@@ -154,7 +154,7 @@ const AdminDashboard = () => {
                 Quản trị hệ thống
               </h1>
               <p className="text-sm text-slate-500 sm:text-base">
-                Tổng quan tài khoản và cửa hàng trong hệ thống.
+                Tổng quan tài khoản và cửa hàng.
               </p>
             </div>
             <Button
