@@ -6,77 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AlertTriangle, ChefHat, Loader2, Package, UtensilsCrossed } from 'lucide-react';
 import { CENTRAL_KITCHEN_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 import { Role } from '@/Types';
-import { cn } from '@/lib/utils';
 import { kitchenServices, type ProductBatchesResponse } from '@/services/kitchenServices';
 import { managerServices, type ManagerOrderItem } from '@/services/managerServices';
 import { supplyServices, type ExportNotesResponse } from '@/services/supplyServices';
 
-/**
- * Dashboard Central Kitchen - bám DB: manufacturing_orders, product_batches,
- * store_orders, export_notes, inventory_receipts.
- * Thiết kế đồng bộ với FranchiseStoreDashboard / SupplyDashboard / ManagerDashboard.
- */
-
-type ManuOrderStatus = 'PLANNED' | 'COOKING' | 'COMPLETED' | 'CANCELLED';
 type ProductBatchStatus = 'WAITING_FOR_STOCK' | 'AVAILABLE' | 'OUT_OF_STOCK' | 'EXPIRED';
-type ExportStatus = 'READY' | 'SHIPPED' | 'CANCEL';
-
-interface ManufacturingOrder {
-  manu_order_id: number;
-  order_code: string;
-  product_id: number;
-  product_name: string;
-  quantity_planned: number;
-  status: ManuOrderStatus;
-  start_date: string | null;
-  end_date: string | null;
-}
-
-interface ProductBatch {
-  batch_id: number;
-  batch_code: string;
-  product_id: number;
-  product_name: string;
-  current_quantity: number;
-  initial_quantity: number;
-  status: ProductBatchStatus;
-  expiry_date: string;
-}
-
-interface Store {
-  store_id: number;
-  store_name: string;
-}
-
-interface StoreOrder {
-  order_id: number;
-  order_code: string;
-  store_store_id: number;
-  order_date: string;
-  delivery_date: string | null;
-  status: 'PENDING' | 'APPROVED' | 'CANCELLED';
-}
-
-interface ExportNote {
-  export_id: number;
-  export_code: string;
-  store_order_id: number;
-  status: ExportStatus;
-}
-
-const MANU_ORDER_STATUS_LABEL: Record<ManuOrderStatus, string> = {
-  PLANNED: 'Chờ sản xuất',
-  COOKING: 'Đang nấu',
-  COMPLETED: 'Hoàn thành',
-  CANCELLED: 'Đã hủy',
-};
-
-const MANU_ORDER_STATUS_CLASS: Record<ManuOrderStatus, string> = {
-  PLANNED: 'bg-amber-100 text-amber-800 border-amber-200',
-  COOKING: 'bg-orange-500 text-white border-orange-600 shadow-sm',
-  COMPLETED: 'bg-emerald-500 text-white border-emerald-600 shadow-sm',
-  CANCELLED: 'bg-stone-200 text-stone-600 border-stone-300',
-};
 
 const BATCH_STATUS_LABEL: Record<ProductBatchStatus, string> = {
   WAITING_FOR_STOCK: 'Chờ nhập kho',
@@ -85,17 +19,6 @@ const BATCH_STATUS_LABEL: Record<ProductBatchStatus, string> = {
   EXPIRED: 'Hết hạn',
 };
 
-const EXPORT_STATUS_LABEL: Record<ExportStatus, string> = {
-  READY: 'Sẵn sàng giao',
-  SHIPPED: 'Đã giao',
-  CANCEL: 'Hủy',
-};
-
-const EXPORT_STATUS_CLASS: Record<ExportStatus, string> = {
-  READY: 'bg-sky-100 text-sky-800 border-sky-200',
-  SHIPPED: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  CANCEL: 'bg-stone-200 text-stone-600 border-stone-300',
-};
 
 const CentralKitchenDashboard = () => {
   const [batches, setBatches] = useState<ProductBatchesResponse[]>([]);
