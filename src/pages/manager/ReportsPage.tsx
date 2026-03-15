@@ -79,8 +79,8 @@ function ReportsPage() {
           : 0;
         setTotalStockUnits(totalStock);
 
-        const nearPayload = (nearExpiryRes as { data?: { items?: NearExpiryItem[]; totalElements?: number } })?.data;
-        const nearItems = nearPayload?.items ?? (nearExpiryRes as { data?: NearExpiryItem[] })?.data;
+        const nearPayload = (nearExpiryRes as unknown as { data?: { items?: NearExpiryItem[]; totalElements?: number } })?.data;
+        const nearItems = nearPayload?.items ?? [];
         setNearExpiryBatches(Array.isArray(nearItems) ? nearItems : []);
         const total = nearPayload?.totalElements ?? (Array.isArray(nearItems) ? nearItems.length : 0);
         setNearExpiryTotal(total);
@@ -88,12 +88,10 @@ function ReportsPage() {
         setTotalStoreOrders(getTotal(ordersRes as never));
         setApprovedOrders(getTotal(approvedRes as never));
 
-        const storesList = (topStoresRes as { data?: { items?: TopStoreReportItem[] } })?.data?.items
-          ?? (topStoresRes as { data?: TopStoreReportItem[] })?.data;
+        const storesList = (topStoresRes as unknown as { data?: { items?: TopStoreReportItem[] } })?.data?.items ?? [];
         setTopStores(Array.isArray(storesList) ? storesList : []);
 
-        const productsList = (topProductsRes as { data?: { items?: TopProductReportItem[] } })?.data?.items
-          ?? (topProductsRes as { data?: TopProductReportItem[] })?.data;
+        const productsList = (topProductsRes as unknown as { data?: { items?: TopProductReportItem[] } })?.data?.items ?? [];
         setTopProducts(Array.isArray(productsList) ? productsList : []);
       } catch (e) {
         if (!cancelled) {
