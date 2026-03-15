@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
 import { DashboardLayout } from '@/components/layout';
 import { ADMIN_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { adminService, type StoreResponse, type UserResponse } from '@/services/adminServices';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, Building2, Plus, RefreshCcw, Shield, Store, Users, UserX, Loader2 } from 'lucide-react';
+import { AlertTriangle, Building2, RefreshCcw, Shield, Store, Users, UserX, Loader2 } from 'lucide-react';
 
 type LoadState = 'idle' | 'loading' | 'error';
 
@@ -28,7 +27,6 @@ async function fetchAllPages<T>(fetchPage: (page: number) => Promise<{ items: T[
 }
 
 const AdminDashboard = () => {
-  const navigate = useNavigate();
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [users, setUsers] = useState<UserResponse[]>([]);
   const [stores, setStores] = useState<StoreResponse[]>([]);
