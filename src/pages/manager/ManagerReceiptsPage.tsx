@@ -1,42 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { CalendarClock, FileText, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { kitchenServices, type InventoryReceiptApi } from '@/services/kitchenServices';
 
 type ReceiptStatus = 'DRAFT' | 'COMPLETED';
-
-interface InventoryReceiptRow {
-  receiptId: number;
-  receiptCode: string;
-  status: ReceiptStatus;
-  receiptDate: string | null;
-  createdByName: string;
-}
-
-const MOCK_RECEIPTS: InventoryReceiptRow[] = [
-  {
-    receiptId: 1,
-    receiptCode: 'RC-20250310-001',
-    status: 'COMPLETED',
-    receiptDate: '2025-03-10T09:15:00Z',
-    createdByName: 'Nguyễn Văn A',
-  },
-  {
-    receiptId: 2,
-    receiptCode: 'RC-20250310-002',
-    status: 'DRAFT',
-    receiptDate: '2025-03-10T10:30:00Z',
-    createdByName: 'Trần Thị B',
-  },
-  {
-    receiptId: 3,
-    receiptCode: 'RC-20250309-005',
-    status: 'COMPLETED',
-    receiptDate: '2025-03-09T17:45:00Z',
-    createdByName: 'Lê Văn C',
-  },
-];
 
 const RECEIPT_STATUS_LABEL: Record<ReceiptStatus, string> = {
   DRAFT: 'Nháp',
@@ -65,7 +34,26 @@ const formatDateTime = (value: string | null) => {
 const ManagerReceiptsPage = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ReceiptStatus | 'ALL'>('ALL');
-  const [receipts] = useState<InventoryReceiptRow[]>(MOCK_RECEIPTS);
+  const [receipts, setReceipts] = useState<InventoryReceiptApi[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchReceipts = async () => {
+    setIsLoading(true);
+    try {
+      const response = await kitchenServices.getInventoryReceipts();
+      if (response.data) {
+        setReceipts(response.data);
+      }
+    } catch {
+      // TODO: toast khi có lỗi
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReceipts();
+  }, []);
 
   const draftCount = useMemo(
     () => receipts.filter((r) => r.status === 'DRAFT').length,
@@ -198,7 +186,9 @@ const ManagerReceiptsPage = () => {
                           <td className="px-4 py-2 text-[11px] text-stone-800">
                             {formatDateTime(r.receiptDate)}
                           </td>
-                          <td className="px-4 py-2 text-[11px] text-stone-800">{r.createdByName}</td>
+                          <td className="px-4 py-2 text-[11px] text-stone-800">
+                            {r.createdByName ?? '—'}
+                          </td>
                           <td className="px-4 py-2 text-right">
                             <span
                               className={cn(
@@ -211,10 +201,17 @@ const ManagerReceiptsPage = () => {
                           </td>
                         </tr>
                       ))}
-                      {filteredReceipts.length === 0 && (
+                      {!isLoading && filteredReceipts.length === 0 && (
                         <tr>
                           <td colSpan={4} className="px-4 py-6 text-center text-xs text-stone-500">
                             Không có biên lai nào khớp với bộ lọc.
+                          </td>
+                        </tr>
+                      )}
+                      {isLoading && (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-6 text-center text-xs text-stone-500">
+                            Đang tải danh sách biên lai...
                           </td>
                         </tr>
                       )}

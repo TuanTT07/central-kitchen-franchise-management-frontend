@@ -186,6 +186,7 @@ export const supplyServices = {
     const response = await http.post<Response<OrderResponse<OrderDetailResponse[]>>>(`/orders/${id}/approve`);
     return response.data;
   },
+
    /**
    * Tạo phiếu xuất kho từ danh sách các storeOrder đã được phê duyệt
    * 

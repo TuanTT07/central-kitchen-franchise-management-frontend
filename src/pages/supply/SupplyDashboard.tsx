@@ -1,239 +1,248 @@
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Button } from '@/components/ui/button';
+import { useEffect, useMemo, useState } from 'react';
+import { DashboardLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Truck, Package, AlertTriangle, Sparkles, CalendarClock } from 'lucide-react';
-import { mockRecentOrders, mockActivity } from '@/services/mockDashboardData';
+import { AlertTriangle, Loader2, Package, Truck } from 'lucide-react';
 import { SUPPLY_COORDINATOR_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 import { Role } from '@/Types';
+import { supplyServices, type DeliveryPlanResponse, type ExportNotesResponse } from '@/services/supplyServices';
 
 const SupplyDashboard = () => {
-  const transferOrders = mockRecentOrders.filter((o) => o.orderType === 'TRANSFER');
-  const totalTransferOrders = transferOrders.length;
-  const totalOrders = mockRecentOrders.length;
+  const [exportNotes, setExportNotes] = useState<ExportNotesResponse[]>([]);
+  const [deliveryPlans, setDeliveryPlans] = useState<DeliveryPlanResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  function parsePaginatedItems<T>(data: unknown): T[] {
+    if (!data || typeof data !== 'object') return [];
+    const o = data as Record<string, unknown>;
+    const arr = (o.items ?? o.content) as T[] | undefined;
+    return Array.isArray(arr) ? arr : [];
+  }
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [exportRes, deliveryRes] = await Promise.allSettled([
+          supplyServices.getAllExportNote(),
+          supplyServices.getDeliveryPlan(),
+        ]);
+
+        if (exportRes.status === 'fulfilled' && exportRes.value?.data) {
+          const paginated = (exportRes.value as { data?: unknown }).data;
+          const list = parsePaginatedItems<ExportNotesResponse>(paginated);
+          setExportNotes(Array.isArray(list) ? list : []);
+        }
+
+        if (deliveryRes.status === 'fulfilled' && deliveryRes.value?.data) {
+          const paginated = (deliveryRes.value as { data?: unknown }).data;
+          const list = parsePaginatedItems<DeliveryPlanResponse>(paginated);
+          setDeliveryPlans(Array.isArray(list) ? list : []);
+        }
+      } catch {
+        setError('Không tải được dữ liệu. Vui lòng thử lại.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const totalTrips = deliveryPlans.length;
+  const readyOrInTransitExports = useMemo(
+    () => exportNotes.filter((e) => e.status === 'READY' || e.status === 'IN_TRANSIT'),
+    [exportNotes]
+  );
+  const plannedTrips = useMemo(
+    () => deliveryPlans.filter((d) => d.status === 'PLANNED').length,
+    [deliveryPlans]
+  );
+  const inTransitTrips = useMemo(
+    () => deliveryPlans.filter((d) => d.status === 'IN_TRANSIT').length,
+    [deliveryPlans]
+  );
+  const completedTrips = useMemo(
+    () => deliveryPlans.filter((d) => d.status === 'COMPLETED').length,
+    [deliveryPlans]
+  );
+
+  const formatDate = (d: string | null | undefined) => {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout navItems={SUPPLY_COORDINATOR_SIDEBAR_ITEMS} roleLabel={Role.SUPPLY_COORDINATOR}>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-amber-600" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
-    <DashboardLayout
-      navItems={SUPPLY_COORDINATOR_SIDEBAR_ITEMS}
-      roleLabel={Role.SUPPLY_COORDINATOR}
-    >
-      <div className="space-y-5">
-        {/* Hero banner – đồng bộ màu với Admin/Manager */}
-        <div className="relative flex items-center overflow-hidden rounded-md border border-amber-200/60 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-3 py-2 shadow-sm">
-          <div className="absolute right-0 top-0 h-full w-1/4 bg-gradient-to-l from-white/15 to-transparent" />
-          <div className="relative flex min-w-0 flex-1 items-center gap-3">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-white/25 shadow-sm">
-              <Sparkles className="size-3.5 text-white" />
+    <DashboardLayout navItems={SUPPLY_COORDINATOR_SIDEBAR_ITEMS} roleLabel={Role.SUPPLY_COORDINATOR}>
+      <div className="min-h-screen bg-slate-50/50">
+        <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+          {error && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {error}
             </div>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-xs font-semibold leading-tight text-white md:text-sm">
-                Supply Coordinator · Điều phối giao nhận
-              </h1>
-              <p className="mt-0.5 text-[11px] leading-tight text-amber-50/90">
-                Tổng quan đơn cần giao, chuyến giao trong ngày và hoạt động giao nhận
-              </p>
-            </div>
-          </div>
-        </div>
+          )}
 
-        {/* KPI Cards */}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card className="overflow-hidden border-amber-200/70 bg-white shadow-lg shadow-amber-500/5 transition hover:shadow-xl">
-            <CardContent className="relative p-0">
-              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-amber-500 to-orange-500" />
-              <div className="flex items-center gap-4 p-4 pl-5">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md">
-                  <Truck className="size-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800/90">
-                    Chuyến giao (giả lập)
-                  </p>
-                  <p className="mt-0.5 text-2xl font-bold text-stone-900">{totalTransferOrders}</p>
-                  <p className="mt-0.5 text-[11px] text-stone-500">
-                    Dựa trên đơn Transfer trong mockRecentOrders
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <header className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+              Điều phối giao nhận
+            </h1>
+            <p className="text-sm text-slate-500 sm:text-base">
+              Tổng quan chuyến giao và phiếu xuất.
+            </p>
+          </header>
 
-          <Card className="overflow-hidden border-amber-200/70 bg-white shadow-lg shadow-amber-500/5 transition hover:shadow-xl">
-            <CardContent className="relative p-0">
-              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-orange-500 to-amber-500" />
-              <div className="flex items-center gap-4 p-4 pl-5">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-md">
-                  <Package className="size-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800/90">
-                    Đơn cần điều phối
-                  </p>
-                  <p className="mt-0.5 text-2xl font-bold text-stone-900">{totalOrders}</p>
-                  <p className="mt-0.5 text-[11px] text-stone-500">
-                    Tổng PO + Transfer trong mockRecentOrders
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="overflow-hidden border-amber-200/70 bg-white shadow-lg shadow-amber-500/5 transition hover:shadow-xl">
-            <CardContent className="relative p-0">
-              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-amber-500 to-yellow-500" />
-              <div className="flex items-center gap-4 p-4 pl-5">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-yellow-400 text-white shadow-md">
-                  <AlertTriangle className="size-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800/90">
-                    Sự cố chờ xử lý
-                  </p>
-                  <p className="mt-0.5 text-2xl font-bold text-stone-900">2</p>
-                  <p className="mt-0.5 text-[11px] text-stone-500">
-                    Mapping sau sang trang xử lý sự cố
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Đơn cần giao – TransferOrder giả lập */}
-          <Card className="overflow-hidden border-amber-100 bg-white shadow-md lg:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <div>
-                <CardTitle className="text-sm font-bold text-amber-900">Đơn cần giao</CardTitle>
-                <CardDescription className="text-[11px] text-amber-700/80">
-                  TransferOrder chờ phân phối · sẽ mapping sang export_notes / store_orders
-                </CardDescription>
-              </div>
-              <Button
-                size="sm"
-                className="h-8 rounded-full bg-white px-3 text-xs font-medium text-amber-800 shadow-sm hover:bg-amber-50"
-              >
-                Cập nhật lịch giao
-              </Button>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
-                      <th className="px-4 py-2 font-semibold">Mã đơn</th>
-                      <th className="px-4 py-2 font-semibold">Sản phẩm chính</th>
-                      <th className="px-2 py-2 font-semibold text-center">SL</th>
-                      <th className="px-4 py-2 font-semibold">Điểm đến</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-amber-50">
-                    {transferOrders.map((o) => (
-                      <tr key={o.orderId} className="hover:bg-amber-50/40">
-                        <td className="px-4 py-2 font-semibold text-stone-900">{o.orderId}</td>
-                        <td className="px-4 py-2 text-stone-800">{o.itemName}</td>
-                        <td className="px-2 py-2 text-center text-stone-800">{o.quantity}</td>
-                        <td className="px-4 py-2 text-stone-700">{o.customer}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Hành động nhanh */}
-          <Card className="border-amber-100 bg-white shadow-md">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <CardTitle className="text-sm font-bold text-amber-900">Hành động nhanh</CardTitle>
-              <CardDescription className="text-[11px] text-amber-700/80">
-                Truy cập nhanh tới các màn hình Supply
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 pt-4">
-              <Button className="w-full justify-start rounded-lg bg-amber-500 text-xs text-white hover:bg-amber-600">
-                <Package className="mr-2 size-4" />
-                Tổng hợp đơn (Order Aggregation)
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start rounded-lg border-amber-200 text-xs text-amber-800 hover:bg-amber-50"
-              >
-                <CalendarClock className="mr-2 size-4" />
-                Xem lịch giao (Delivery Schedule)
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start rounded-lg border-amber-200 text-xs text-amber-800 hover:bg-amber-50"
-              >
-                <AlertTriangle className="mr-2 size-4" />
-                Báo sự cố (Issue Handling)
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Hoạt động gần đây – col-span-2 giống layout Admin/Manager */}
-          <Card className="border-amber-100 bg-white shadow-md lg:col-span-2">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <CardTitle className="text-sm font-bold text-amber-900">
-                Hoạt động giao nhận gần đây
-              </CardTitle>
-              <CardDescription className="text-[11px] text-amber-700/80">
-                Nhật ký actions của Supply / kho / giao nhận
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                {mockActivity.map((a) => (
-                  <div
-                    key={a.id}
-                    className="flex gap-3 rounded-lg border border-amber-100 bg-amber-50/40 p-3"
-                  >
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-xs font-bold text-white shadow-sm">
-                      {a.userName.charAt(0)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-stone-900">
-                        {a.userName}{' '}
-                        <span className="font-normal text-amber-800/90">({a.roleName})</span>
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-stone-600">{a.action}</p>
-                      <p className="mt-0.5 text-[10px] text-stone-400">{a.time}</p>
-                    </div>
+          {/* KPIs – dữ liệu từ API */}
+          <section className="grid gap-4 sm:grid-cols-3">
+            <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Tổng chuyến giao
+                    </p>
+                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
+                      {totalTrips}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">Lịch giao hàng</p>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                    <Truck className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Tóm tắt nhanh – card nhỏ bên phải để cân layout */}
-          <Card className="border-amber-100 bg-white shadow-md">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <CardTitle className="text-sm font-bold text-amber-900">
-                Tóm tắt đơn Supply
-              </CardTitle>
-              <CardDescription className="text-[11px] text-amber-700/80">
-                Phân loại nhanh PO / Transfer
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 pt-4 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-stone-600">Đơn mua (PO)</span>
-                <span className="font-semibold text-stone-900">
-                  {mockRecentOrders.filter((o) => o.orderType === 'PO').length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-stone-600">Chuyển kho (Transfer)</span>
-                <span className="font-semibold text-stone-900">{totalTransferOrders}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-stone-600">Tổng đơn</span>
-                <span className="font-semibold text-stone-900">{totalOrders}</span>
-              </div>
-            </CardContent>
-          </Card>
+            <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Phiếu chờ giao
+                    </p>
+                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
+                      {readyOrInTransitExports.length}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">Phiếu READY / IN_TRANSIT</p>
+                  </div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-600">
+                    <Package className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Chuyến hoàn thành
+                    </p>
+                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
+                      {completedTrips}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">Đã hoàn thành</p>
+                  </div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* Bảng chuyến giao */}
+          <section className="grid gap-6 lg:grid-cols-3">
+            <Card className="border-0 bg-white shadow-sm lg:col-span-2">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle className="text-base font-semibold text-slate-900">
+                    Lịch giao hàng
+                  </CardTitle>
+                  <CardDescription className="text-sm text-slate-500">
+                    Danh sách chuyến giao
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {deliveryPlans.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-slate-500">
+                    Chưa có lịch giao hàng nào.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50/80 text-left text-xs text-slate-600">
+                          <th className="px-4 py-3 font-semibold">Mã chuyến</th>
+                          <th className="px-3 py-3 font-semibold">Tài xế</th>
+                          <th className="px-3 py-3 font-semibold">Biển số</th>
+                          <th className="px-3 py-3 text-center font-semibold">Ngày dự kiến</th>
+                          <th className="px-4 py-3 text-right font-semibold">Số phiếu xuất</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {deliveryPlans.map((d) => (
+                          <tr key={d.deliveryId} className="hover:bg-slate-50/80">
+                            <td className="px-4 py-3 font-medium text-slate-900">{d.deliveryCode}</td>
+                            <td className="px-3 py-3 text-slate-700">{d.driverName}</td>
+                            <td className="px-3 py-3 text-slate-700">{d.vehiclePlate}</td>
+                            <td className="px-3 py-3 text-center text-slate-700">
+                              {formatDate(d.scheduledDate)}
+                            </td>
+                            <td className="px-4 py-3 text-right text-slate-700">
+                              {Array.isArray(d.exportNotes) ? d.exportNotes.length : 0}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Tóm tắt chuyến giao */}
+            <Card className="border-0 bg-white shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold text-slate-900">
+                  Tóm tắt chuyến giao
+                </CardTitle>
+                <CardDescription className="text-sm text-slate-500">
+                  Phân loại theo trạng thái
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 pt-2 text-sm">
+                <div className="flex items-center justify-between rounded-lg bg-slate-50/80 px-3 py-2">
+                  <span className="text-slate-600">Chờ thực hiện (PLANNED)</span>
+                  <span className="font-semibold text-slate-900">{plannedTrips}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-slate-50/80 px-3 py-2">
+                  <span className="text-slate-600">Đang giao (IN_TRANSIT)</span>
+                  <span className="font-semibold text-slate-900">{inTransitTrips}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-slate-50/80 px-3 py-2">
+                  <span className="text-slate-600">Hoàn thành (COMPLETED)</span>
+                  <span className="font-semibold text-slate-900">{completedTrips}</span>
+                </div>
+                <div className="flex items-center justify-between border-t border-slate-200 pt-3">
+                  <span className="font-medium text-slate-700">Tổng chuyến</span>
+                  <span className="text-lg font-semibold text-slate-900">{totalTrips}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
         </div>
       </div>
     </DashboardLayout>

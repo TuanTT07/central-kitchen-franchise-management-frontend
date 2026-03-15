@@ -81,10 +81,12 @@ export const franchiseServices = {
   },
 
   /**
-   * Lấy danh sách đơn hàng chi nhánh (Mới - hỗ trợ phân trang)
+   * Lấy danh sách đơn hàng chi nhánh (hỗ trợ phân trang)
    */
-  getOrders: async () => {
-    const response = await http.get<Response<PaginatedResponse<OrderResponse<OrderDetailResponse[]>[]>>>('/orders');
+  getOrders: async (page: number = 0, size: number = 50) => {
+    const response = await http.get<Response<PaginatedResponse<OrderResponse<OrderDetailResponse[]>[]>>>('/orders', {
+      params: { page, size },
+    });
     return response.data;
   },
 

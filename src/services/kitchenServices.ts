@@ -173,4 +173,13 @@ export const kitchenServices = {
     const response = await http.get<Response<InventoryReceiptApi[]>>('/api/v1/inventory-receipts');
     return response.data;
   },
+
+  /**
+   * Lấy chi tiết một biên lai nhập kho theo ID
+   * GET /api/v1/inventory-receipts/:id
+   */
+  getInventoryReceiptById: async (id: number) => {
+    const response = await http.get<Response<InventoryReceiptApi>>(`/api/v1/inventory-receipts/${id}`);
+    return response.data;
+  },
 };
