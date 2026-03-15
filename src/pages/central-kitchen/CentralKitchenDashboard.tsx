@@ -1,18 +1,15 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+import { DashboardLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  ChefHat,
-  Package,
-  Sparkles,
-  UtensilsCrossed,
-  AlertTriangle,
-} from 'lucide-react';
+import { AlertTriangle, ChefHat, Loader2, Package, UtensilsCrossed } from 'lucide-react';
 import { CENTRAL_KITCHEN_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 import { Role } from '@/Types';
 import { cn } from '@/lib/utils';
+import { kitchenServices, type ProductBatchesResponse } from '@/services/kitchenServices';
+import { managerServices, type ManagerOrderItem } from '@/services/managerServices';
+import { supplyServices, type ExportNotesResponse } from '@/services/supplyServices';
 
 /**
  * Dashboard Central Kitchen - bám DB: manufacturing_orders, product_batches,
@@ -100,505 +97,322 @@ const EXPORT_STATUS_CLASS: Record<ExportStatus, string> = {
   CANCEL: 'bg-stone-200 text-stone-600 border-stone-300',
 };
 
-const MOCK_MANUFACTURING_ORDERS: ManufacturingOrder[] = [
-  {
-    manu_order_id: 1,
-    order_code: 'MO-20260304-001',
-    product_id: 1,
-    product_name: 'Cơm gà xối mỡ',
-    quantity_planned: 200,
-    status: 'PLANNED',
-    start_date: null,
-    end_date: null,
-  },
-  {
-    manu_order_id: 2,
-    order_code: 'MO-20260304-002',
-    product_id: 2,
-    product_name: 'Phở bò tái',
-    quantity_planned: 150,
-    status: 'COOKING',
-    start_date: '2026-03-04T06:00:00Z',
-    end_date: null,
-  },
-  {
-    manu_order_id: 3,
-    order_code: 'MO-20260303-001',
-    product_id: 1,
-    product_name: 'Cơm gà xối mỡ',
-    quantity_planned: 180,
-    status: 'COMPLETED',
-    start_date: '2026-03-03T07:00:00Z',
-    end_date: '2026-03-03T10:30:00Z',
-  },
-  {
-    manu_order_id: 4,
-    order_code: 'MO-20260302-003',
-    product_id: 3,
-    product_name: 'Trà chanh sả',
-    quantity_planned: 300,
-    status: 'CANCELLED',
-    start_date: null,
-    end_date: null,
-  },
-];
-
-const MOCK_PRODUCT_BATCHES: ProductBatch[] = [
-  {
-    batch_id: 1,
-    batch_code: 'LOT-COMGA-001',
-    product_id: 1,
-    product_name: 'Cơm gà xối mỡ',
-    current_quantity: 120,
-    initial_quantity: 200,
-    status: 'AVAILABLE',
-    expiry_date: '2026-03-05',
-  },
-  {
-    batch_id: 2,
-    batch_code: 'LOT-PHO-001',
-    product_id: 2,
-    product_name: 'Phở bò tái',
-    current_quantity: 0,
-    initial_quantity: 80,
-    status: 'OUT_OF_STOCK',
-    expiry_date: '2026-03-04',
-  },
-  {
-    batch_id: 3,
-    batch_code: 'LOT-TRACHANH-001',
-    product_id: 3,
-    product_name: 'Trà chanh sả',
-    current_quantity: 45,
-    initial_quantity: 300,
-    status: 'AVAILABLE',
-    expiry_date: '2026-03-02',
-  },
-];
-
-const MOCK_STORES: Store[] = [
-  { store_id: 1, store_name: 'Cửa hàng Quận 1' },
-  { store_id: 2, store_name: 'Cửa hàng Quận 3' },
-  { store_id: 3, store_name: 'Cửa hàng Quận 7' },
-];
-
-const MOCK_STORE_ORDERS: StoreOrder[] = [
-  {
-    order_id: 1,
-    order_code: 'SO-20260304-001',
-    store_store_id: 1,
-    order_date: '2026-03-04T08:30:00Z',
-    delivery_date: '2026-03-06',
-    status: 'APPROVED',
-  },
-  {
-    order_id: 2,
-    order_code: 'SO-20260303-002',
-    store_store_id: 2,
-    order_date: '2026-03-03T10:15:00Z',
-    delivery_date: '2026-03-05',
-    status: 'APPROVED',
-  },
-  {
-    order_id: 3,
-    order_code: 'SO-20260302-001',
-    store_store_id: 1,
-    order_date: '2026-03-02T14:00:00Z',
-    delivery_date: '2026-03-04',
-    status: 'PENDING',
-  },
-];
-
-const MOCK_EXPORT_NOTES: ExportNote[] = [
-  { export_id: 10, export_code: 'EX-20260304-001', store_order_id: 1, status: 'READY' },
-  { export_id: 11, export_code: 'EX-20260303-001', store_order_id: 2, status: 'SHIPPED' },
-];
-
-const MOCK_ORDERS_BY_DAY = [
-  { day: 'T2', count: 8 },
-  { day: 'T3', count: 12 },
-  { day: 'T4', count: 15 },
-  { day: 'T5', count: 18 },
-  { day: 'T6', count: 14 },
-  { day: 'T7', count: 10 },
-  { day: 'CN', count: 6 },
-];
-
-/** inventory_receipts: receipt_code, status (COMPLETED | DRAFT) */
-const MOCK_INVENTORY_RECEIPTS = [
-  { receipt_id: 1, receipt_code: 'IR-20260304-001', status: 'DRAFT' as const },
-  { receipt_id: 2, receipt_code: 'IR-20260303-001', status: 'COMPLETED' as const },
-  { receipt_id: 3, receipt_code: 'IR-20260302-001', status: 'COMPLETED' as const },
-];
-
-/** Hoạt động bám manufacturing_orders, product_batches, export_notes */
-const MOCK_ACTIVITY_CK = [
-  { id: '1', userName: 'Nguyễn Văn A', roleName: 'Bếp trung tâm', action: 'Cập nhật đơn MO-20260304-002 sang trạng thái COOKING', time: '11:20' },
-  { id: '2', userName: 'Trần Thị B', roleName: 'Bếp trung tâm', action: 'Hoàn thành lô LOT-COMGA-001 · product_batches', time: '10:45' },
-  { id: '3', userName: 'Lê Văn C', roleName: 'Supply', action: 'Phiếu xuất EX-20260304-001 sẵn sàng giao · export_notes', time: '10:30' },
-  { id: '4', userName: 'Phạm Thị D', roleName: 'Bếp trung tâm', action: 'Tạo biên lai nhập kho IR-20260304-001 · inventory_receipts', time: '10:15' },
-];
-
 const CentralKitchenDashboard = () => {
+  const [batches, setBatches] = useState<ProductBatchesResponse[]>([]);
+  const [orders, setOrders] = useState<ManagerOrderItem[]>([]);
+  const [exportNotes, setExportNotes] = useState<ExportNotesResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  function parsePaginatedItems<T>(data: unknown): T[] {
+    if (!data || typeof data !== 'object') return [];
+    const o = data as Record<string, unknown>;
+    const arr = (o.items ?? o.content) as T[] | undefined;
+    return Array.isArray(arr) ? arr : [];
+  }
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [batchesRes, ordersRes, exportsRes] = await Promise.allSettled([
+          kitchenServices.getAllProductBatches(),
+          managerServices.getOrders(0, 50),
+          supplyServices.getAllExportNote(),
+        ]);
+
+        if (batchesRes.status === 'fulfilled' && batchesRes.value?.data) {
+          const raw = batchesRes.value.data as ProductBatchesResponse[] | unknown;
+          setBatches(Array.isArray(raw) ? raw : []);
+        }
+        if (ordersRes.status === 'fulfilled' && ordersRes.value?.data) {
+          const data = (ordersRes.value as { data?: unknown }).data;
+          setOrders(parsePaginatedItems<ManagerOrderItem>(data));
+        }
+        if (exportsRes.status === 'fulfilled' && exportsRes.value?.data) {
+          const data = (exportsRes.value as { data?: unknown }).data;
+          setExportNotes(parsePaginatedItems<ExportNotesResponse>(data));
+        }
+      } catch {
+        setError('Không tải được dữ liệu. Vui lòng thử lại.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   const plannedCount = useMemo(
-    () => MOCK_MANUFACTURING_ORDERS.filter((o) => o.status === 'PLANNED').length,
-    []
+    () => orders.filter((o) => o.status === 'PENDING').length,
+    [orders]
   );
 
   const cookingCount = useMemo(
-    () => MOCK_MANUFACTURING_ORDERS.filter((o) => o.status === 'COOKING').length,
-    []
+    () => orders.filter((o) => o.status === 'APPROVED' || o.status === 'CONSOLIDATED').length,
+    [orders]
   );
 
   const outOfStockCount = useMemo(
-    () => MOCK_PRODUCT_BATCHES.filter((b) => b.status === 'OUT_OF_STOCK' || b.status === 'EXPIRED').length,
-    []
+    () =>
+      batches.filter(
+        (b) => (b.status as ProductBatchStatus | undefined) === 'OUT_OF_STOCK' || (b.status as ProductBatchStatus | undefined) === 'EXPIRED'
+      ).length,
+    [batches]
   );
 
   const exportReadyCount = useMemo(
-    () => MOCK_EXPORT_NOTES.filter((e) => e.status === 'READY').length,
-    []
+    () => exportNotes.filter((e) => e.status === 'READY').length,
+    [exportNotes]
   );
-
-  const maxOrdersByDay = Math.max(...MOCK_ORDERS_BY_DAY.map((d) => d.count), 1);
-
-  const getStoreName = (storeId: number) =>
-    MOCK_STORES.find((s) => s.store_id === storeId)?.store_name ?? `#${storeId}`;
-
-  const recentManuOrders = useMemo(() => MOCK_MANUFACTURING_ORDERS.slice(0, 5), []);
 
   const batchesAlert = useMemo(
-    () => MOCK_PRODUCT_BATCHES.filter((b) => b.status === 'OUT_OF_STOCK' || b.status === 'EXPIRED'),
-    []
+    () =>
+      batches.filter(
+        (b) => (b.status as ProductBatchStatus | undefined) === 'OUT_OF_STOCK' || (b.status as ProductBatchStatus | undefined) === 'EXPIRED'
+      ),
+    [batches]
   );
 
-  const draftReceiptsCount = useMemo(
-    () => MOCK_INVENTORY_RECEIPTS.filter((r) => r.status === 'DRAFT').length,
-    []
-  );
+  const recentOrders = useMemo(() => orders.slice(0, 5), [orders]);
+
+  const formatDate = (d: string | null | undefined) => {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout navItems={CENTRAL_KITCHEN_SIDEBAR_ITEMS} roleLabel={Role.CENTRAL_KITCHEN_STAFF}>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-amber-600" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout navItems={CENTRAL_KITCHEN_SIDEBAR_ITEMS} roleLabel={Role.CENTRAL_KITCHEN_STAFF}>
-      <div className="space-y-5">
-        {/* Hero banner – đồng bộ với các role khác */}
-        <div className="relative flex items-center overflow-hidden rounded-md border border-amber-200/60 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-3 py-2 shadow-sm">
-          <div className="absolute right-0 top-0 h-full w-1/4 bg-gradient-to-l from-white/15 to-transparent" />
-          <div className="relative flex min-w-0 flex-1 items-center gap-3">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-white/25 shadow-sm">
-              <Sparkles className="size-3.5 text-white" />
+      <div className="min-h-screen bg-slate-50/50">
+        <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+          {error && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {error}
             </div>
-            <div className="min-w-0 flex-1">
-              <h1 className="whitespace-nowrap text-[11px] font-semibold leading-tight text-white md:text-xs">
-                Bếp trung tâm · Sản xuất & tồn kho
-              </h1>
-              <p className="mt-0.5 text-[10px] leading-tight text-amber-50/90">
-                Tổng quan manufacturing_orders, product_batches và export_notes
-              </p>
-            </div>
-          </div>
-        </div>
+          )}
 
-        {/* KPI Cards – 3 thẻ bám DB */}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card className="overflow-hidden border-amber-200/70 bg-white shadow-lg shadow-amber-500/5 transition hover:shadow-xl">
-            <CardContent className="relative p-0">
-              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-amber-500 to-orange-500" />
-              <div className="flex items-center gap-4 p-4 pl-5">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md">
-                  <ChefHat className="size-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800/90">
-                    Đơn chờ sản xuất
-                  </p>
-                  <p className="mt-0.5 text-2xl font-bold text-stone-900">{plannedCount}</p>
-                  <p className="mt-0.5 text-[11px] text-stone-500">
-                    manufacturing_orders.status = PLANNED
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <header className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+              Bếp trung tâm
+            </h1>
+            <p className="text-sm text-slate-500 sm:text-base">
+              Tổng quan sản xuất, lô sản phẩm và phiếu xuất.
+            </p>
+          </header>
 
-          <Card className="overflow-hidden border-amber-200/70 bg-white shadow-lg shadow-amber-500/5 transition hover:shadow-xl">
-            <CardContent className="relative p-0">
-              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-orange-500 to-amber-500" />
-              <div className="flex items-center gap-4 p-4 pl-5">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-md">
-                  <UtensilsCrossed className="size-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800/90">
-                    Đơn đang nấu
-                  </p>
-                  <p className="mt-0.5 text-2xl font-bold text-stone-900">{cookingCount}</p>
-                  <p className="mt-0.5 text-[11px] text-stone-500">
-                    manufacturing_orders.status = COOKING
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="overflow-hidden border-amber-200/70 bg-white shadow-lg shadow-amber-500/5 transition hover:shadow-xl">
-            <CardContent className="relative p-0">
-              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-amber-500 to-yellow-500" />
-              <div className="flex items-center gap-4 p-4 pl-5">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-yellow-400 text-white shadow-md">
-                  <AlertTriangle className="size-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800/90">
-                    Lô hết / sắp hết
-                  </p>
-                  <p className="mt-0.5 text-2xl font-bold text-stone-900">{outOfStockCount}</p>
-                  <p className="mt-0.5 text-[11px] text-stone-500">
-                    product_batches OUT_OF_STOCK / EXPIRED
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Đơn sản xuất theo ngày */}
-          <Card className="border-amber-100 bg-white shadow-md">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <CardTitle className="text-sm font-bold text-amber-900">
-                Đơn sản xuất theo ngày
-              </CardTitle>
-              <CardDescription className="text-[11px] text-amber-700/80">
-                Tuần này · manufacturing_orders
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="flex h-40 items-end gap-1.5">
-                {MOCK_ORDERS_BY_DAY.map((d, i) => (
-                  <div key={i} className="flex flex-1 flex-col items-center gap-1">
-                    <div
-                      className={cn(
-                        'w-full rounded-t-lg transition-all',
-                        d.count === maxOrdersByDay
-                          ? 'bg-gradient-to-t from-amber-500 to-orange-400 shadow-md'
-                          : 'bg-gradient-to-t from-amber-100 to-amber-50'
-                      )}
-                      style={{
-                        height: `${(d.count / maxOrdersByDay) * 100}%`,
-                        minHeight: '12px',
-                      }}
-                    />
-                    <span className="text-[11px] font-medium text-stone-600">{d.day}</span>
+          {/* KPI Cards – bám API */}
+          <section className="grid gap-4 sm:grid-cols-3">
+            <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Đơn chờ sản xuất
+                    </p>
+                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
+                      {plannedCount}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">Đơn cửa hàng trạng thái PENDING</p>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                    <ChefHat className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Đơn sản xuất gần đây – 2 cột */}
-          <Card className="overflow-hidden border-amber-100 bg-white shadow-md lg:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <div>
-                <CardTitle className="text-sm font-bold text-amber-900">
-                  Đơn sản xuất gần đây
-                </CardTitle>
-                <CardDescription className="text-[11px] text-amber-700/80">
-                  manufacturing_orders · product_id → products
-                </CardDescription>
-              </div>
-              <Button
-                asChild
-                size="sm"
-                className="h-8 rounded-full bg-white px-3 text-xs font-medium text-amber-800 shadow-sm hover:bg-amber-50"
-              >
-                <Link to="/central-kitchen/orders">
-                  <Package className="mr-2 size-4" />
-                  Xem tất cả
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
-                      <th className="px-4 py-2 font-semibold">Mã đơn</th>
-                      <th className="px-4 py-2 font-semibold">Sản phẩm</th>
-                      <th className="px-2 py-2 font-semibold text-center">SL kế hoạch</th>
-                      <th className="px-4 py-2 font-semibold text-right">Trạng thái</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-amber-50">
-                    {recentManuOrders.map((o) => (
-                      <tr key={o.manu_order_id} className="hover:bg-amber-50/40">
-                        <td className="px-4 py-2 font-semibold text-stone-900">{o.order_code}</td>
-                        <td className="px-4 py-2 text-stone-800">{o.product_name}</td>
-                        <td className="px-2 py-2 text-center text-stone-800">
-                          {o.quantity_planned}
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          <span
-                            className={cn(
-                              'inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-semibold',
-                              MANU_ORDER_STATUS_CLASS[o.status]
-                            )}
-                          >
-                            {MANU_ORDER_STATUS_LABEL[o.status]}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Đơn đang xử lý
+                    </p>
+                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
+                      {cookingCount}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">Đơn APPROVED / CONSOLIDATED</p>
+                  </div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                    <UtensilsCrossed className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        <div className="grid gap-6">
-          {/* Phiếu xuất chờ giao – export_notes */}
-          <Card className="overflow-hidden border-amber-100 bg-white shadow-md">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <div>
-                <CardTitle className="text-sm font-bold text-amber-900">
-                  Phiếu xuất chờ giao
-                </CardTitle>
-                <CardDescription className="text-[11px] text-amber-700/80">
-                  export_notes · liên kết store_orders
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
-                      <th className="px-4 py-2 font-semibold">Mã phiếu</th>
-                      <th className="px-4 py-2 font-semibold">Đơn hàng</th>
-                      <th className="px-4 py-2 font-semibold">Chi nhánh</th>
-                      <th className="px-4 py-2 font-semibold text-right">Trạng thái</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-amber-50">
-                    {MOCK_EXPORT_NOTES.map((e) => {
-                      const order = MOCK_STORE_ORDERS.find((o) => o.order_id === e.store_order_id);
-                      return (
-                        <tr key={e.export_id} className="hover:bg-amber-50/40">
-                          <td className="px-4 py-2 font-semibold text-stone-900">{e.export_code}</td>
-                          <td className="px-4 py-2 text-stone-800">
-                            {order?.order_code ?? '—'}
-                          </td>
-                          <td className="px-4 py-2 text-stone-700">
-                            {order ? getStoreName(order.store_store_id) : '—'}
-                          </td>
-                          <td className="px-4 py-2 text-right">
-                            <span
-                              className={cn(
-                                'inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-semibold',
-                                EXPORT_STATUS_CLASS[e.status]
-                              )}
-                            >
-                              {EXPORT_STATUS_LABEL[e.status]}
-                            </span>
-                          </td>
+            <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Lô hết / sắp hết
+                    </p>
+                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
+                      {outOfStockCount}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">Lô OUT_OF_STOCK / EXPIRED</p>
+                  </div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          <section className="grid gap-6 lg:grid-cols-3">
+            {/* Đơn từ cửa hàng gần đây – giả lập lệnh sản xuất */}
+            <Card className="border-0 bg-white shadow-sm lg:col-span-2">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle className="text-base font-semibold text-slate-900">
+                    Đơn từ cửa hàng gần đây
+                  </CardTitle>
+                  <CardDescription className="text-sm text-slate-500">
+                    Đơn từ các cửa hàng
+                  </CardDescription>
+                </div>
+                <Button asChild size="sm" variant="outline" className="shrink-0">
+                  <Link to="/central-kitchen/orders">
+                    <Package className="mr-2 h-4 w-4" />
+                    Xem tất cả
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                {recentOrders.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-slate-500">Chưa có đơn nào.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50/80 text-left text-xs text-slate-600">
+                          <th className="px-4 py-3 font-semibold">Mã đơn</th>
+                          <th className="px-4 py-3 font-semibold">Cửa hàng</th>
+                          <th className="px-3 py-3 text-center font-semibold">Ngày giao</th>
+                          <th className="px-4 py-3 text-right font-semibold">Trạng thái</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Hàng thứ 3: Hoạt động gần đây + Tóm tắt */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="border-amber-100 bg-white shadow-md lg:col-span-2">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <CardTitle className="text-sm font-bold text-amber-900">
-                Hoạt động gần đây
-              </CardTitle>
-              <CardDescription className="text-[11px] text-amber-700/80">
-                Nhật ký manufacturing_orders · product_batches · export_notes
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                {MOCK_ACTIVITY_CK.map((a) => (
-                  <div
-                    key={a.id}
-                    className="flex gap-3 rounded-lg border border-amber-100 bg-amber-50/40 p-3"
-                  >
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-xs font-bold text-white shadow-sm">
-                      {a.userName.charAt(0)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-stone-900">
-                        {a.userName}{' '}
-                        <span className="font-normal text-amber-800/90">({a.roleName})</span>
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-stone-600">{a.action}</p>
-                      <p className="mt-0.5 text-[10px] text-stone-400">{a.time}</p>
-                    </div>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {recentOrders.map((o) => (
+                          <tr key={o.orderId} className="hover:bg-slate-50/80">
+                            <td className="px-4 py-3 font-medium text-slate-900">{o.orderCode}</td>
+                            <td className="px-4 py-3 text-slate-800">{o.storeName ?? `Cửa hàng #${o.storeId}`}</td>
+                            <td className="px-3 py-3 text-center text-slate-700">
+                              {formatDate(o.deliveryDate)}
+                            </td>
+                            <td className="px-4 py-3 text-right text-xs font-medium text-slate-700">
+                              {o.status}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
 
-          <Card className="border-amber-100 bg-white shadow-md">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <CardTitle className="text-sm font-bold text-amber-900">
-                Tóm tắt đơn sản xuất
-              </CardTitle>
-              <CardDescription className="text-[11px] text-amber-700/80">
-                Phân loại theo manufacturing_orders.status
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 pt-4 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-stone-600">Chờ sản xuất (PLANNED)</span>
-                <span className="font-semibold text-stone-900">{plannedCount}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-stone-600">Đang nấu (COOKING)</span>
-                <span className="font-semibold text-stone-900">{cookingCount}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-stone-600">Hoàn thành (COMPLETED)</span>
-                <span className="font-semibold text-stone-900">
-                  {MOCK_MANUFACTURING_ORDERS.filter((o) => o.status === 'COMPLETED').length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-stone-600">Phiếu sẵn sàng giao (READY)</span>
-                <span className="font-semibold text-stone-900">{exportReadyCount}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-stone-600">Biên lai nháp (DRAFT)</span>
-                <span className="font-semibold text-stone-900">{draftReceiptsCount}</span>
-              </div>
-              {batchesAlert.length > 0 && (
-                <div className="border-t border-amber-100 pt-2">
-                  <p className="mb-1.5 text-[11px] font-medium text-amber-800">Lô cần chú ý</p>
-                  {batchesAlert.map((b) => (
-                    <div key={b.batch_id} className="flex items-center justify-between py-1">
-                      <span className="truncate text-stone-600">{b.batch_code}</span>
-                      <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-800">
-                        {BATCH_STATUS_LABEL[b.status]}
-                      </span>
-                    </div>
-                  ))}
+            {/* Tóm tắt đơn sản xuất / lô */}
+            <Card className="border-0 bg-white shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold text-slate-900">
+                  Tóm tắt sản xuất & lô
+                </CardTitle>
+                <CardDescription className="text-sm text-slate-500">
+                  Từ đơn cửa hàng và product_batches
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 pt-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Đơn chờ sản xuất (PENDING)</span>
+                  <span className="font-semibold text-slate-900">{plannedCount}</span>
                 </div>
-              )}
-              <div className="flex items-center justify-between border-t border-amber-100 pt-2">
-                <span className="font-medium text-stone-700">Tổng đơn sản xuất</span>
-                <span className="font-semibold text-amber-900">
-                  {MOCK_MANUFACTURING_ORDERS.length}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Đơn đang xử lý (APPROVED/CONSOLIDATED)</span>
+                  <span className="font-semibold text-slate-900">{cookingCount}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Phiếu READY</span>
+                  <span className="font-semibold text-slate-900">{exportReadyCount}</span>
+                </div>
+                {batchesAlert.length > 0 && (
+                  <div className="border-t border-slate-200 pt-3">
+                    <p className="mb-1.5 text-xs font-medium text-amber-800">Lô cần chú ý</p>
+                    {batchesAlert.slice(0, 4).map((b) => (
+                      <div key={b.batchId ?? (b as { batch_id?: number }).batch_id} className="flex items-center justify-between py-1">
+                        <span className="truncate text-xs text-slate-600">
+                          {b.batchCode ?? (b as { batch_code?: string }).batch_code}
+                        </span>
+                        <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-800">
+                          {BATCH_STATUS_LABEL[(b.status as ProductBatchStatus) ?? 'OUT_OF_STOCK']}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* Phiếu xuất chờ giao – export_notes */}
+          <section>
+            <Card className="border-0 bg-white shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold text-slate-900">
+                  Phiếu xuất kho
+                </CardTitle>
+                <CardDescription className="text-sm text-slate-500">
+                  Danh sách phiếu xuất
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                {exportNotes.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-slate-500">
+                    Chưa có phiếu xuất nào.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50/80 text-left text-xs text-slate-600">
+                          <th className="px-4 py-3 font-semibold">Mã phiếu</th>
+                          <th className="px-4 py-3 font-semibold">Đơn hàng</th>
+                          <th className="px-4 py-3 font-semibold">Chi nhánh</th>
+                          <th className="px-4 py-3 text-right font-semibold">Trạng thái</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {exportNotes.slice(0, 8).map((e) => (
+                          <tr key={e.exportId} className="hover:bg-slate-50/80">
+                            <td className="px-4 py-3 font-medium text-slate-900">{e.exportCode}</td>
+                            <td className="px-4 py-3 text-slate-800">
+                              {e.storeOrderId ? `Đơn #${e.storeOrderId}` : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-slate-700">{e.storeName ?? '—'}</td>
+                            <td className="px-4 py-3 text-right text-xs font-medium text-slate-700">
+                              {e.status}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </section>
         </div>
       </div>
     </DashboardLayout>
