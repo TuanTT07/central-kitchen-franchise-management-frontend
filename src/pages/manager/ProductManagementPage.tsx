@@ -37,6 +37,7 @@ const ProductManagementPage = () => {
 
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductsResponse | null>(null);
   const [productToDelete, setProductToDelete] = useState<ProductsResponse | null>(null);
@@ -78,6 +79,15 @@ const ProductManagementPage = () => {
       }
     } catch (error) {}
   };
+  const getProductDetail = async (id: number) => {
+    try {
+      const response = await managerServices.getProductDetail(id);
+      return response.data || response;
+    } catch (error) {
+      toast.error('Lỗi khi tải thông tin sản phẩm');
+      throw error;
+    }
+  };
   const getUnits = async () => {
     try {
       const response = (await managerServices.getAllUnits()).data;
@@ -97,8 +107,8 @@ const ProductManagementPage = () => {
   const displayProducts = useMemo(() => {
     const rawList = products.map((p: ProductsResponse) => {
       const category = categories.find((c) => c.categoryId === p.categoryId);
-      // Ép kiểu p.unit về số để so sánh chính xác với u.unitId
-      const unit = units.find((u: UnitResponse) => u.unitId === Number(p.unit));
+      // Ép kiểu p.unitId về số để so sánh chính xác với u.unitId
+      const unit = units.find((u: UnitResponse) => u.unitId === Number(p.unitId));
       return {
         ...p,
         categoryName: category?.categoryName || p.categoryName || 'Chưa phân loại',
@@ -122,27 +132,55 @@ const ProductManagementPage = () => {
     getCategories();
     reset({
       productName: '',
-      unit: 0,
+      unitId: 0,
       imageUrl: '',
       description: '',
       categoryId: 0,
       status: 'ACTIVE',
+      price: 0,
+      shelfLifeDays: 1,
     });
     setDialogOpen(true);
   };
 
-  const openEdit = (product: ProductsResponse) => {
+  const openDetail = async (product: ProductsResponse) => {
+    const toastId = toast.loading('Đang tải thông tin chi tiết...');
+    try {
+      const detailedProduct = await getProductDetail(product.productId);
+      setEditingProduct(detailedProduct);
+      setDetailDialogOpen(true);
+      toast.dismiss(toastId);
+    } catch (error) {
+      toast.dismiss(toastId);
+    }
+  };
+
+  const openEdit = async (product: ProductsResponse) => {
     setEditingProduct(product);
     getCategories();
-    reset({
-      productId: product.productId,
-      productName: product.productName,
-      unit: Number(product.unit), // Ép kiểu về số để Select khớp giá trị
-      imageUrl: product.imageUrl ?? undefined,
-      description: product.description ?? undefined,
-      categoryId: product.categoryId,
-    });
-    setDialogOpen(true);
+    getUnits();
+    
+    // Hiện dialog loading tạm thời hoặc toast
+    const toastId = toast.loading('Đang tải thông tin chi tiết...');
+    try {
+      const detailedProduct = await getProductDetail(product.productId);
+
+      reset({
+        productId: detailedProduct.productId,
+        productName: detailedProduct.productName,
+        unitId: Number(detailedProduct.unitId),
+        imageUrl: detailedProduct.imageUrl ?? undefined,
+        description: detailedProduct.description ?? undefined,
+        categoryId: detailedProduct.categoryId,
+        status: detailedProduct.status,
+        price: detailedProduct.price ?? 0,
+        shelfLifeDays: detailedProduct.shelfLifeDays ?? 1,
+      });
+      setDialogOpen(true);
+      toast.dismiss(toastId);
+    } catch (error) {
+      toast.error('Lỗi lấy thông tin sản phẩm', { id: toastId });
+    }
   };
 
   const openDelete = (product: ProductsResponse) => {
@@ -155,10 +193,12 @@ const ProductManagementPage = () => {
       try {
         const response = await managerServices.updateProduct(data.productId, {
           productName: data.productName,
-          unitId: Number(data.unit), // Gửi đúng key unitId
+          unitId: Number(data.unitId), // Gửi đúng key unitId
           imageUrl: data.imageUrl,
           description: data.description,
           categoryId: Number(data.categoryId),
+          price: Number(data.price),
+          shelfLifeDays: Number(data.shelfLifeDays),
         });
 
         if (response) {
@@ -172,10 +212,12 @@ const ProductManagementPage = () => {
       try {
         const response = await managerServices.createProduct({
           productName: data.productName,
-          unitId: Number(data.unit), // Gửi đúng key unitId
+          unitId: Number(data.unitId), // Gửi đúng key unitId
           imageUrl: data.imageUrl,
           description: data.description,
           categoryId: Number(data.categoryId),
+          price: Number(data.price),
+          shelfLifeDays: Number(data.shelfLifeDays),
         });
         if (response) {
           getProducts();
@@ -235,10 +277,10 @@ const ProductManagementPage = () => {
           resetUnit({ unitName: '', description: '' });
           toast.success(`${response.message}`);
         }
-      } 
-    }catch (error) {
-        toast.error('Không thể thêm đơn vị');
       }
+    } catch (error) {
+      toast.error('Không thể thêm đơn vị');
+    }
   };
 
   const openDeleteUnit = (unit: UnitResponse) => {
@@ -338,7 +380,11 @@ const ProductManagementPage = () => {
               </thead>
               <tbody className="divide-y divide-amber-100/60">
                 {displayProducts.map((product, index) => (
-                  <tr key={product.productId} className="group transition hover:bg-amber-50/40">
+                  <tr 
+                    key={product.productId} 
+                    className="group cursor-pointer transition hover:bg-amber-50/40"
+                    onClick={() => openDetail(product)}
+                  >
                     <td className="px-6 py-4 text-xs font-mono text-amber-600/70">{index + 1}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -390,25 +436,33 @@ const ProductManagementPage = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 transition group-hover:opacity-100">
+                      <div className="flex justify-end gap-2 ">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="size-9 rounded-full text-amber-600 hover:bg-amber-100 hover:text-amber-700"
-                          onClick={() => openEdit(product)}
+                          className="size-9 rounded-full text-amber-600 hover:bg-amber-100 hover:text-amber-700 hover:cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEdit(product);
+                          }}
                           title="Chỉnh sửa"
                         >
                           <Pencil className="size-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-9 rounded-full text-rose-500 hover:bg-rose-100 hover:text-rose-600"
-                          onClick={() => openDelete(product)}
-                          title="Xóa sản phẩm"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                        {product.status !== 'INACTIVE' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-9 rounded-full text-rose-500 hover:bg-rose-100 hover:text-rose-600 hover:cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDelete(product);
+                            }}
+                            title="Xóa sản phẩm"
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -507,7 +561,7 @@ const ProductManagementPage = () => {
                     <select
                       id="unit"
                       className="h-11 w-full rounded-md border border-amber-200 bg-amber-50/40 px-3 text-sm transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
-                      {...register('unit', {
+                      {...register('unitId', {
                         required: 'Đơn vị là bắt buộc',
                         valueAsNumber: true,
                       })}
@@ -519,7 +573,7 @@ const ProductManagementPage = () => {
                         </option>
                       ))}
                     </select>
-                    {errors.unit && <FieldError errors={[errors.unit]} />}
+                    {errors.unitId && <FieldError errors={[errors.unitId]} />}
                   </FieldContent>
                 </Field>
 
@@ -556,6 +610,52 @@ const ProductManagementPage = () => {
                   {errors.imageUrl && <FieldError errors={[errors.imageUrl]} />}
                 </FieldContent>
               </Field>
+
+              
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="price" className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold">
+                    <Tag className="size-4 text-emerald-500" />
+                    Đơn giá (VNĐ)
+                  </FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="price"
+                      type="number"
+                      placeholder="Ví dụ: 50000"
+                      className="h-11 border-amber-200 bg-amber-50/40 focus:border-amber-500 focus:ring-amber-200"
+                      {...register('price', {
+                        required: 'Giá sản phẩm là bắt buộc',
+                        min: { value: 0, message: 'Giá không được âm' },
+                        valueAsNumber: true,
+                      })}
+                    />
+                    {errors.price && <FieldError errors={[errors.price]} />}
+                  </FieldContent>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="shelfLifeDays" className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold">
+                    <CheckCircle2 className="size-4 text-emerald-500" />
+                    Hạn sử dụng (Ngày)
+                  </FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="shelfLifeDays"
+                      type="number"
+                      placeholder="Ví dụ: 30"
+                      className="h-11 border-amber-200 bg-amber-50/40 focus:border-amber-500 focus:ring-amber-200"
+                      {...register('shelfLifeDays', {
+                        required: 'Hạn sử dụng là bắt buộc',
+                        min: { value: 1, message: 'Tối thiểu 1 ngày' },
+                        valueAsNumber: true,
+                      })}
+                    />
+                    {errors.shelfLifeDays && <FieldError errors={[errors.shelfLifeDays]} />}
+                  </FieldContent>
+                </Field>
+              </div>
 
               <Field>
                 <FieldLabel
@@ -788,6 +888,105 @@ const ProductManagementPage = () => {
               Xác nhận xóa
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Chi tiết sản phẩm */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent
+          onClose={() => setDetailDialogOpen(false)}
+          className="max-w-2xl min-w-[320px] overflow-hidden border-none p-0 shadow-2xl"
+        >
+          {editingProduct && (
+            <div className="flex max-h-[80vh] flex-col overflow-hidden rounded-2xl">
+              <DialogHeader className="bg-gradient-to-r from-amber-500 to-orange-500 px-8 pb-6 pt-8 text-white">
+                <DialogTitle className="flex items-center gap-2 text-2xl font-bold">
+                  <Info className="size-6" />
+                  Chi tiết sản phẩm
+                </DialogTitle>
+                <p className="mt-1 text-sm text-amber-50/80">
+                  Thông tin hiện tại của {editingProduct.productName}
+                </p>
+              </DialogHeader>
+
+              <div className="flex-1 space-y-6 overflow-y-auto bg-white px-8 py-6">
+                <div className="flex items-center gap-6">
+                  <div className="flex size-24 items-center justify-center overflow-hidden rounded-xl border border-amber-100 bg-amber-50 flex-shrink-0">
+                    {editingProduct.imageUrl ? (
+                      <img src={editingProduct.imageUrl} alt={editingProduct.productName} className="size-full object-cover" />
+                    ) : (
+                      <ImageIcon className="size-10 text-amber-500/50" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-stone-900">{editingProduct.productName}</h3>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                        <Tag className="size-3 text-amber-500" />
+                        {editingProduct.categoryName}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-700">
+                        <Scale className="size-3 text-amber-500" />
+                        {editingProduct.unitName}
+                      </span>
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold border shadow-sm',
+                          statusColor[(editingProduct.status as 'ACTIVE' | 'INACTIVE') ?? 'INACTIVE']
+                        )}
+                      >
+                        {(editingProduct.status ?? 'INACTIVE') === 'ACTIVE' ? (
+                          <CheckCircle2 className="size-3" />
+                        ) : (
+                          <XCircle className="size-3" />
+                        )}
+                        {statusLabel[(editingProduct.status as 'ACTIVE' | 'INACTIVE') ?? 'INACTIVE']}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2 rounded-xl border border-stone-100 bg-stone-50/50 p-5">
+                  <div>
+                    <span className="block text-xs font-semibold uppercase text-stone-500 mb-1">Đơn giá</span>
+                    <p className="text-lg font-bold text-stone-900">
+                      {editingProduct.price ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(editingProduct.price) : '0 ₫'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold uppercase text-stone-500 mb-1">Hạn sử dụng</span>
+                    <p className="text-stone-900 font-medium">{editingProduct.shelfLifeDays} ngày</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <span className="block text-xs font-semibold uppercase text-stone-500 mb-1">Mô tả</span>
+                    <p className="text-stone-700 text-sm whitespace-pre-wrap leading-relaxed">
+                      {editingProduct.description || <span className="italic text-stone-400">Không có mô tả.</span>}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="gap-3 border-t border-stone-100 bg-stone-50 px-8 py-5">
+                <Button
+                  variant="outline"
+                  className="h-10 border-stone-300 text-stone-700 hover:bg-white hover:text-stone-900"
+                  onClick={() => setDetailDialogOpen(false)}
+                >
+                  Đóng
+                </Button>
+                <Button
+                  className="h-10 bg-amber-500 hover:bg-amber-600 text-white gap-2"
+                  onClick={() => {
+                    setDetailDialogOpen(false);
+                    openEdit(editingProduct);
+                  }}
+                >
+                  <Pencil className="size-4" />
+                  Chỉnh sửa
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
