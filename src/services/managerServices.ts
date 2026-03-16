@@ -56,13 +56,15 @@ export interface CategoryResponse {
 export interface ProductsResponse {
   productId: number;
   productName: string;
-  unit: number;
-  unitName: string | null;
   imageUrl: string;
   description: string;
-  status: 'ACTIVE' | 'INACTIVE';
+  status: string;
+  price: number;
+  shelfLifeDays: number;
+  categoryId: number;
   categoryName: string;
-  categoryId?: number;
+  unitId: number;
+  unitName: string;
 }
 
 /**
@@ -130,6 +132,18 @@ export const managerServices = {
     const response = await http.get<Response<ProductsResponse[]>>('/api/v1/products');
     return response.data;
   },
+  
+  /**
+   * Lấy ra chi tiết sản phẩm
+   * GET /api/v1/products/{id}
+   * 
+   * @param id ID của sản phẩm
+   * @returns {Promise<Response<ProductsResponse>>}
+   */
+  getProductDetail: async (id: number) => {
+    const response = await http.get<Response<ProductsResponse>>(`/api/v1/products/${id}`);
+    return response.data;
+  },
 
   /**
    * Tạo một sản phẩm mới
@@ -142,6 +156,8 @@ export const managerServices = {
     imageUrl: string;
     description: string;
     categoryId: number;
+    price: number;
+    shelfLifeDays: number;
   }) => {
     const response = await http.post<Response<ProductsResponse>>('/api/v1/products', body);
     return response.data;
@@ -155,7 +171,7 @@ export const managerServices = {
    */
   updateProduct: async (
     id: number,
-    body: { productName: string; unitId: number; imageUrl: string; description: string; categoryId: number }
+    body: { productName: string; unitId: number; imageUrl: string; description: string; categoryId: number; price: number; shelfLifeDays: number; }
   ) => {
     const response = await http.patch(`/api/v1/products/${id}`, body);
     return response.data;
@@ -252,6 +268,7 @@ export const managerServices = {
     });
     return res.data;
   },
+
 
   /**
    * Top cửa hàng nhập lớn nhất
