@@ -672,9 +672,7 @@ const DeliverySchedulePage = () => {
                               Phiếu: {note.exportCode ?? `#${note.exportId ?? '—'}`}
                             </p>
                           </div>
-                          <span className="text-xs font-semibold text-amber-800">
-                            {Array.isArray(note.items) ? `${note.items.length} mặt hàng` : '—'}
-                          </span>
+                          <span className="text-xs font-semibold text-amber-800">—</span>
                         </div>
                       ))
                     ) : (

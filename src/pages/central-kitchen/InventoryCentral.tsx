@@ -127,13 +127,6 @@ function isNearExpiry(expiryDate: string | null, daysThreshold = 3): boolean {
   return diffDays >= 0 && diffDays <= daysThreshold;
 }
 
-const BATCH_STATUS_LABEL: Record<BatchStatus, string> = {
-  WAITING_FOR_STOCK: 'Chờ nhập kho',
-  AVAILABLE: 'Đang sử dụng',
-  OUT_OF_STOCK: 'Hết hàng',
-  EXPIRED: 'Hết hạn',
-};
-
 const BATCH_STATUS_CLASS: Record<BatchStatus, string> = {
   WAITING_FOR_STOCK: 'bg-sky-50 text-sky-700 border-sky-200',
   AVAILABLE: 'bg-emerald-50 text-emerald-700 border-emerald-200',
