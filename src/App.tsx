@@ -32,6 +32,7 @@ import {
 } from './pages/franchise-store/index.ts';
 import { RoleRoute, ProtectedRoute } from './routes/index.ts';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { CartProvider } from '@/contexts/CartContext';
 import ProtectRoleRoute from './routes/ProtectRoleRoute.tsx';
 import { ADMIN_SIDEBAR_ITEMS } from './components/layout/index.ts';
 import RoleShell from './components/layout/RoleShell.tsx';
@@ -101,7 +102,11 @@ function App() {
               {/* Routing riêng của franchise store */}
               <Route element={<ProtectRoleRoute roleProtect={Role.FRANCHISE_STORE_STAFF} />}>
                 <Route
-                  element={<RoleShell sidebarItems={FRANCHISEE_SIDEBAR_ITEMS} roleLabel={Role.FRANCHISE_STORE_STAFF} />}
+                  element={
+                    <CartProvider>
+                      <RoleShell sidebarItems={FRANCHISEE_SIDEBAR_ITEMS} roleLabel={Role.FRANCHISE_STORE_STAFF} />
+                    </CartProvider>
+                  }
                 >
                   <Route path="/franchise-store/create-order" element={<CreateOrderPage />}></Route>
                   <Route path="/franchise-store/order-tracking" element={<OrderTrackingPage />}></Route>
