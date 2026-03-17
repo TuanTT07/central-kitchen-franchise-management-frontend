@@ -44,7 +44,7 @@ const ManagerReceiptsPage = () => {
   const [exportNotes, setExportNotes] = useState<ExportNotesResponse[]>([]);
   const [isLoadingExport, setIsLoadingExport] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [selectedExport, setSelectedExport] = useState<ExportNotesResponse['items'][number] | null>(null);
+  const [selectedExport, setSelectedExport] = useState<ExportNotesResponse | null>(null);
   const [isExportDetailOpen, setIsExportDetailOpen] = useState(false);
   const [isLoadingExportDetail, setIsLoadingExportDetail] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<InventoryReceiptApi | null>(null);
@@ -86,16 +86,14 @@ const ManagerReceiptsPage = () => {
   };
 
   const handleOpenExportDetail = async (note: ExportNotesResponse) => {
-    if (!note.items || note.items.length === 0) return;
     // Ở context Manager, Supply đã tổng hợp sẵn chi tiết items trong ExportNotesResponse,
     // nên ta chỉ cần mở modal và hiển thị danh sách mặt hàng từ note.items.
     // Nếu sau này backend bổ sung API chi tiết riêng (ví dụ /export-notes/:id),
     // có thể mở rộng tại đây để gọi thêm.
     setIsLoadingExportDetail(true);
     try {
-      // Giữ đúng tinh thần "không mock" – dùng trực tiếp dữ liệu từ API /export-notes.
-      // Chọn trước item đầu tiên để đảm bảo modal có anchor, nhưng vẫn hiển thị full note.items bên dưới.
-      setSelectedExport(note.items[0]);
+      // Dùng trực tiếp dữ liệu từ API /export-notes cho phiếu xuất được chọn.
+      setSelectedExport(note);
       setIsExportDetailOpen(true);
     } finally {
       setIsLoadingExportDetail(false);
@@ -406,7 +404,7 @@ const ManagerReceiptsPage = () => {
                             <p className="text-[11px] text-stone-500">ID: {note.exportId}</p>
                           </td>
                           <td className="px-4 py-2 text-[11px] text-stone-800">
-                            {note.storeName ?? `Cửa hàng #${note.storeId}`}
+                            {note.storeName ?? '—'}
                           </td>
                           <td className="px-4 py-2 text-[11px] text-stone-800">
                             {note.exportDate
@@ -419,7 +417,7 @@ const ManagerReceiptsPage = () => {
                           </td>
                           <td className="px-4 py-2 text-right">
                             <span className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
-                              {note.exportStatus ?? '—'}
+                              {note.status ?? '—'}
                             </span>
                           </td>
                           <td className="px-4 py-2 text-right">
@@ -488,13 +486,13 @@ const ManagerReceiptsPage = () => {
                         <div className="space-y-1">
                           <p className="font-medium text-stone-500">Mã phiếu xuất</p>
                           <p className="font-semibold text-stone-900">
-                            {selectedExport.exportCode ?? '—'}
+                            {selectedExport.exportCode}
                           </p>
                         </div>
                         <div className="space-y-1">
                           <p className="font-medium text-stone-500">Cửa hàng</p>
                           <p className="font-semibold text-stone-900">
-                            {selectedExport.storeName ?? '—'}
+                            {selectedExport.storeName}
                           </p>
                         </div>
                         <div className="space-y-1">
@@ -515,7 +513,7 @@ const ManagerReceiptsPage = () => {
                         <div className="space-y-1">
                           <p className="font-medium text-stone-500">Trạng thái</p>
                           <p className="font-semibold text-amber-800">
-                            {selectedExport.status ?? selectedExport.exportStatus ?? '—'}
+                            {selectedExport.status ?? '—'}
                           </p>
                         </div>
                       </div>
@@ -534,8 +532,8 @@ const ManagerReceiptsPage = () => {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-amber-50">
-                              {selectedExport.items?.map((item) => (
-                                <tr key={item.productName + item.quantity} className="hover:bg-amber-50/60">
+                              {selectedExport.items.map((item) => (
+                                <tr key={item.productId} className="hover:bg-amber-50/60">
                                   <td className="px-4 py-2 font-medium text-stone-800">
                                     {item.productName}
                                   </td>
@@ -545,7 +543,7 @@ const ManagerReceiptsPage = () => {
                                   <td className="px-4 py-2 text-stone-700">{item.unitName}</td>
                                 </tr>
                               ))}
-                              {!selectedExport.items?.length && (
+                              {!selectedExport.items.length && (
                                 <tr>
                                   <td
                                     colSpan={3}

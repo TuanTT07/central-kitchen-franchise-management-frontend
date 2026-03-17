@@ -5,7 +5,6 @@ import {
   managerServices,
   type NearExpiryItem,
   type TopStoreReportItem,
-  type TopProductReportItem,
   type InventoryReportResponse,
 } from '@/services/managerServices';
 import { kitchenServices, type InventoryTransactionResponse } from '@/services/kitchenServices';
@@ -30,7 +29,6 @@ function ReportsPage() {
   /** Tổng số lô sắp hết hạn từ API (totalElements), để KPI và bảng cùng nguồn */
   const [nearExpiryTotal, setNearExpiryTotal] = useState(0);
   const [topStores, setTopStores] = useState<TopStoreReportItem[]>([]);
-  const [topProducts, setTopProducts] = useState<TopProductReportItem[]>([]);
   const [inventoryTransactions, setInventoryTransactions] = useState<InventoryTransactionResponse[]>([]);
 
   useEffect(() => {
@@ -40,11 +38,10 @@ function ReportsPage() {
       setLoading(true);
       setError(null);
       try {
-        const [stockRes, nearExpiryRes, topStoresRes, topProductsRes, inventoryTxRes] = await Promise.all([
+        const [stockRes, nearExpiryRes, topStoresRes, inventoryTxRes] = await Promise.all([
           managerServices.getInventoryStock(),
           managerServices.getNearExpiryBatches(NEAR_EXPIRY_DAYS),
           managerServices.getTopImportingStores(10),
-          managerServices.getTopConsumedProducts(10),
           kitchenServices.getInventoryTransaction(),
         ]);
 
@@ -66,9 +63,6 @@ function ReportsPage() {
 
         const storesList = (topStoresRes as unknown as { data?: { items?: TopStoreReportItem[] } })?.data?.items ?? [];
         setTopStores(Array.isArray(storesList) ? storesList : []);
-
-        const productsList = (topProductsRes as unknown as { data?: { items?: TopProductReportItem[] } })?.data?.items ?? [];
-        setTopProducts(Array.isArray(productsList) ? productsList : []);
 
         const txPayload = inventoryTxRes as unknown as {
           success?: boolean;
