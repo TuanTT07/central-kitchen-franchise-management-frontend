@@ -400,6 +400,20 @@ const UserManagementPage = () => {
                           <Pencil className="size-4" />
                         </Button>
 
+                        {user.role === 'FRANCHISE_STORE_STAFF' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-9 rounded-full text-amber-600 hover:bg-amber-100 hover:text-amber-700 transition-colors"
+                            onClick={() => {
+                              console.log('Chỉnh sửa cửa hàng cho user', user.userId, user.storeId);
+                            }}
+                            title="Chỉnh sửa cửa hàng"
+                          >
+                            <Store className="size-4" />
+                          </Button>
+                        )}
+
                         {user.status === 'ACTIVE' && (
                           <Button
                             variant="ghost"
