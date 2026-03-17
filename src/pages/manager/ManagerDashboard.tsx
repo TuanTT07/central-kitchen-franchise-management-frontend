@@ -1,34 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Boxes, UtensilsCrossed, Package, Loader2, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Boxes, UtensilsCrossed, Package, Loader2, AlertTriangle } from 'lucide-react';
 import { MANAGER_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
-import { cn } from '@/lib/utils';
 import { managerServices } from '@/services/managerServices';
 import { kitchenServices } from '@/services/kitchenServices';
 import type { CategoryResponse, ManagerOrderItem, NearExpiryItem, ProductsResponse } from '@/services/managerServices';
 import type { ProductBatchesResponse } from '@/services/kitchenServices';
 
-const DAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Chờ duyệt',
-  APPROVED: 'Đã duyệt',
-  CONSOLIDATED: 'Đã gộp',
-  CANCELLED: 'Đã hủy',
-  AWAITING_DELIVERY: 'Chờ giao hàng',
-  DONE: 'Hoàn thành',
-};
-
-const STATUS_STYLE: Record<string, string> = {
-  PENDING: 'bg-amber-100 text-amber-800',
-  APPROVED: 'bg-emerald-100 text-emerald-800',
-  CONSOLIDATED: 'bg-sky-100 text-sky-800',
-  CANCELLED: 'bg-slate-100 text-slate-600',
-  AWAITING_DELIVERY: 'bg-sky-100 text-sky-800',
-  DONE: 'bg-emerald-100 text-emerald-800',
-};
 
 const CATEGORY_COLORS = ['#d97706', '#ea580c', '#b45309', '#c2410c'];
 
@@ -44,8 +23,6 @@ function parsePaginatedItems<T>(data: unknown): T[] {
   return Array.isArray(arr) ? arr : [];
 }
 
-const PAGE_SIZE_ORDERS = 10;
-
 const ManagerDashboard = () => {
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [products, setProducts] = useState<ProductsResponse[]>([]);
@@ -54,8 +31,6 @@ const ManagerDashboard = () => {
   const [batches, setBatches] = useState<ProductBatchesResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [orderPage, setOrderPage] = useState(0);
-
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -107,16 +82,6 @@ const ManagerDashboard = () => {
     () => orders.filter((o) => o.orderDate?.slice(0, 10) === todayStr).length,
     [orders, todayStr]
   );
-  const ordersByDay = useMemo(() => {
-    const count: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
-    orders.forEach((o) => {
-      const d = new Date(o.orderDate);
-      const i = d.getDay() === 0 ? 6 : d.getDay() - 1;
-      count[i] = (count[i] ?? 0) + 1;
-    });
-    return DAY_LABELS.map((day, i) => ({ day, count: count[i] ?? 0 }));
-  }, [orders]);
-  const maxOrdersByDay = Math.max(...ordersByDay.map((d) => d.count), 1);
   const categoryStats = useMemo(() => {
     const total = products.length;
     return categories
@@ -127,22 +92,8 @@ const ManagerDashboard = () => {
       })
       .filter((c) => c.count > 0);
   }, [categories, products]);
-  const donutSegments = useMemo(() => {
-    return categoryStats.reduce(
-      (acc, cat, i) => {
-        const start = i === 0 ? 0 : acc[i - 1].end;
-        acc.push({ start, end: start + cat.percent, color: cat.color });
-        return acc;
-      },
-      [] as { start: number; end: number; color: string }[]
-    );
-  }, [categoryStats]);
 
-  const orderTotalPages = Math.max(1, Math.ceil(orders.length / PAGE_SIZE_ORDERS));
-  const paginatedOrders = orders.slice(
-    orderPage * PAGE_SIZE_ORDERS,
-    (orderPage + 1) * PAGE_SIZE_ORDERS
-  );
+  // Giữ placeholder cho phân trang đơn yêu cầu (đã ẩn UI)
 
   if (loading) {
     return (
@@ -252,132 +203,8 @@ const ManagerDashboard = () => {
             </Card>
           </section>
 
-          <section className="grid gap-6 lg:grid-cols-2">
-            <Card className="border-0 bg-white shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold text-slate-900">
-                  Đơn yêu cầu theo ngày
-                </CardTitle>
-                <CardDescription className="text-sm text-slate-500">
-                  Theo dữ liệu đơn hàng (API)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <div className="flex h-40 items-end gap-2">
-                  {ordersByDay.map((d) => (
-                    <div key={d.day} className="flex flex-1 flex-col items-center gap-2">
-                      <div
-                        className="w-full rounded-t-md bg-amber-200/80 transition-colors hover:bg-amber-300/80"
-                        style={{
-                          height: `${Math.max((d.count / maxOrdersByDay) * 100, 16)}%`,
-                          minHeight: 24,
-                        }}
-                      />
-                      <span className="text-xs font-medium text-slate-600">{d.day}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 bg-white shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold text-slate-900">
-                  Loại sản phẩm
-                </CardTitle>
-                <CardDescription className="text-sm text-slate-500">
-                  Tỷ lệ theo danh mục (dữ liệu API)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-2">
-                {categoryStats.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-slate-500">Chưa có dữ liệu danh mục.</p>
-                ) : (
-                  <div className="flex items-center gap-6">
-                    <div
-                      className="h-28 w-28 shrink-0 rounded-full border-4 border-white shadow-inner"
-                      style={{
-                        background: `conic-gradient(${donutSegments.map((s) => `${s.color} ${s.start}% ${s.end}%`).join(', ')})`,
-                      }}
-                    />
-                    <div className="min-w-0 flex-1 space-y-2">
-                      {categoryStats.map((cat) => (
-                        <div key={cat.categoryId} className="flex items-center justify-between gap-2 text-sm">
-                          <span className="flex items-center gap-2">
-                            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
-                            <span className="text-slate-700">{cat.categoryName}</span>
-                          </span>
-                          <span className="font-medium text-slate-900">{cat.percent}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </section>
-
           <section className="grid gap-6 lg:grid-cols-3">
             <Card className="border-0 bg-white shadow-sm lg:col-span-2">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold text-slate-900">
-                  Đơn yêu cầu gần đây
-                </CardTitle>
-                <CardDescription className="text-sm text-slate-500">
-                  {orders.length} đơn · trang {orderPage + 1}/{orderTotalPages} (dữ liệu API)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                {orders.length === 0 ? (
-                  <p className="px-6 py-10 text-center text-sm text-slate-500">Chưa có đơn nào.</p>
-                ) : (
-                  <>
-                    <ul className="divide-y divide-slate-100">
-                      {paginatedOrders.map((o) => (
-                        <li key={o.orderId} className="flex items-center justify-between gap-4 px-6 py-4 hover:bg-slate-50/80">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-slate-900">{o.orderCode}</p>
-                            <p className="mt-0.5 text-sm text-slate-500">
-                              {o.storeName ?? `Cửa hàng #${o.storeId}`} · Giao {formatDate(o.deliveryDate)}
-                            </p>
-                          </div>
-                          <span className={cn('shrink-0 rounded-full border px-3 py-1 text-xs font-medium', STATUS_STYLE[o.status] ?? 'bg-slate-100 text-slate-600')}>
-                            {STATUS_LABEL[o.status] ?? 'Khác'}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
-                      <span className="text-sm text-slate-500">
-                        Trang {orderPage + 1} / {orderTotalPages}
-                      </span>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8"
-                          onClick={() => setOrderPage((p) => Math.max(0, p - 1))}
-                          disabled={orderPage === 0}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8"
-                          onClick={() => setOrderPage((p) => Math.min(orderTotalPages - 1, p + 1))}
-                          disabled={orderPage >= orderTotalPages - 1}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 bg-white shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base font-semibold text-slate-900">
                   Lô sắp hết hạn
@@ -407,6 +234,54 @@ const ManagerDashboard = () => {
                       </div>
                     </div>
                   ))
+                )}
+              </CardContent>
+            </Card>
+            <Card className="border-0 bg-white shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold text-slate-900">
+                  Top danh mục sản phẩm
+                </CardTitle>
+                <CardDescription className="text-sm text-slate-500">
+                  Biểu đồ cột ngang theo số lượng (dữ liệu API)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-3">
+                {categoryStats.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-slate-500">Chưa có dữ liệu danh mục.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {categoryStats
+                      .slice()
+                      .sort((a, b) => b.count - a.count)
+                      .slice(0, 6)
+                      .map((cat) => (
+                        <div key={cat.categoryId} className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="min-w-0 truncate font-medium text-slate-800">
+                              {cat.categoryName}
+                            </span>
+                            <span className="shrink-0 text-xs text-slate-500">
+                              {cat.count} SP · {cat.percent}%
+                            </span>
+                          </div>
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className="h-full rounded-full"
+                              style={{
+                                width: `${Math.min(100, Math.max(0, cat.percent))}%`,
+                                backgroundColor: cat.color,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+
+                    <div className="pt-1 text-xs text-slate-500">
+                      Tổng: <span className="font-medium text-slate-800">{products.length}</span> sản phẩm ·{' '}
+                      <span className="font-medium text-slate-800">{categories.length}</span> danh mục
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>

@@ -1,15 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import {
-  Boxes,
-  AlertTriangle,
-  Store as StoreIcon,
-  UtensilsCrossed,
-  ArrowUpRight,
-  ArrowDownRight,
-  CalendarClock,
-  Loader2,
-} from 'lucide-react';
+import { Boxes, AlertTriangle, Store as StoreIcon, UtensilsCrossed, CalendarClock, Loader2 } from 'lucide-react';
 import {
   managerServices,
   type NearExpiryItem,
@@ -17,6 +8,7 @@ import {
   type TopProductReportItem,
   type InventoryReportResponse,
 } from '@/services/managerServices';
+import { kitchenServices, type InventoryTransactionResponse } from '@/services/kitchenServices';
 
 const NEAR_EXPIRY_DAYS = 3;
 
@@ -29,16 +21,6 @@ function getItems<T>(res: { data?: { items?: T[]; data?: { items?: T[] } } }): T
   return (inner?.items && Array.isArray(inner.items)) ? inner.items : [];
 }
 
-/** Lấy totalElements từ response phân trang */
-function getTotal(res: { data?: { totalElements?: number; data?: { totalElements?: number } } }): number {
-  const d = res?.data;
-  if (!d) return 0;
-  const t = (d as { totalElements?: number }).totalElements;
-  if (typeof t === 'number') return t;
-  const inner = (d as { data?: { totalElements?: number } }).data;
-  return typeof inner?.totalElements === 'number' ? inner.totalElements : 0;
-}
-
 function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,10 +29,9 @@ function ReportsPage() {
   const [nearExpiryBatches, setNearExpiryBatches] = useState<NearExpiryItem[]>([]);
   /** Tổng số lô sắp hết hạn từ API (totalElements), để KPI và bảng cùng nguồn */
   const [nearExpiryTotal, setNearExpiryTotal] = useState(0);
-  const [totalStoreOrders, setTotalStoreOrders] = useState(0);
-  const [approvedOrders, setApprovedOrders] = useState(0);
   const [topStores, setTopStores] = useState<TopStoreReportItem[]>([]);
   const [topProducts, setTopProducts] = useState<TopProductReportItem[]>([]);
+  const [inventoryTransactions, setInventoryTransactions] = useState<InventoryTransactionResponse[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,15 +40,13 @@ function ReportsPage() {
       setLoading(true);
       setError(null);
       try {
-        const [stockRes, nearExpiryRes, ordersRes, approvedRes, topStoresRes, topProductsRes] =
-          await Promise.all([
-            managerServices.getInventoryStock(),
-            managerServices.getNearExpiryBatches(NEAR_EXPIRY_DAYS),
-            managerServices.getOrders(0, 1),
-            managerServices.getOrders(0, 1, { status: 'APPROVED' }),
-            managerServices.getTopImportingStores(10),
-            managerServices.getTopConsumedProducts(10),
-          ]);
+        const [stockRes, nearExpiryRes, topStoresRes, topProductsRes, inventoryTxRes] = await Promise.all([
+          managerServices.getInventoryStock(),
+          managerServices.getNearExpiryBatches(NEAR_EXPIRY_DAYS),
+          managerServices.getTopImportingStores(10),
+          managerServices.getTopConsumedProducts(10),
+          kitchenServices.getInventoryTransaction(),
+        ]);
 
         if (cancelled) return;
 
@@ -85,14 +64,21 @@ function ReportsPage() {
         const total = nearPayload?.totalElements ?? (Array.isArray(nearItems) ? nearItems.length : 0);
         setNearExpiryTotal(total);
 
-        setTotalStoreOrders(getTotal(ordersRes as never));
-        setApprovedOrders(getTotal(approvedRes as never));
-
         const storesList = (topStoresRes as unknown as { data?: { items?: TopStoreReportItem[] } })?.data?.items ?? [];
         setTopStores(Array.isArray(storesList) ? storesList : []);
 
         const productsList = (topProductsRes as unknown as { data?: { items?: TopProductReportItem[] } })?.data?.items ?? [];
         setTopProducts(Array.isArray(productsList) ? productsList : []);
+
+        const txPayload = inventoryTxRes as unknown as {
+          success?: boolean;
+          data?: { items?: InventoryTransactionResponse[] };
+        };
+        if (txPayload?.success && Array.isArray(txPayload.data?.items)) {
+          setInventoryTransactions(txPayload.data.items);
+        } else if (Array.isArray((txPayload as { data?: InventoryTransactionResponse[] }).data)) {
+          setInventoryTransactions((txPayload as { data: InventoryTransactionResponse[] }).data);
+        }
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : 'Không tải được báo cáo');
@@ -128,7 +114,7 @@ function ReportsPage() {
   return (
     <div className="h-full w-full space-y-6">
       {/* KPI Row */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card className="border-border bg-white">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold text-stone-900">
@@ -173,27 +159,6 @@ function ReportsPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-white">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-stone-900">
-              <StoreIcon className="size-5 text-amber-600" />
-              Đơn yêu cầu cửa hàng
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Tổng đơn từ API /orders
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-end justify-between px-6 pb-5 pt-0">
-            <div>
-              <p className="text-2xl font-bold text-stone-900">
-                {totalStoreOrders.toLocaleString('vi-VN')}
-              </p>
-              <p className="text-xs text-stone-500">
-                {approvedOrders} đơn đã duyệt
-              </p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Lô sắp hết hạn + Top cửa hàng nhập */}
@@ -296,15 +261,15 @@ function ReportsPage() {
         </Card>
       </div>
 
-      {/* Top sản phẩm tiêu thụ — không có nút Xuất báo cáo (không có API) */}
+      {/* Giao dịch tồn kho mới nhất – dùng API inventory-transactions */}
       <Card className="border-border bg-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-sm font-semibold text-stone-900">
             <UtensilsCrossed className="size-5 text-amber-600" />
-            Món tiêu thụ mạnh nhất
+            Giao dịch tồn kho mới nhất
           </CardTitle>
           <CardDescription className="text-xs">
-            API top-consumed
+            Dữ liệu thật từ API inventory-transactions (nhật ký nhập/xuất gần nhất)
           </CardDescription>
         </CardHeader>
         <CardContent className="px-0 pb-4 pt-0">
@@ -312,47 +277,63 @@ function ReportsPage() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-amber-100 bg-amber-50/60 text-left text-[11px] font-semibold uppercase tracking-wide text-amber-900">
+                  <th className="px-4 py-3">Mã giao dịch</th>
+                  <th className="px-4 py-3">Loại</th>
                   <th className="px-4 py-3">Sản phẩm</th>
-                  <th className="px-4 py-3 text-right">SL tiêu thụ</th>
-                  <th className="px-4 py-3 text-right">Xu hướng</th>
+                  <th className="px-4 py-3 text-right">Số lượng</th>
+                  <th className="px-4 py-3">Thời gian</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-50">
-                {topProducts.map((row, index) => (
-                  <tr key={`${row.product}-${index}`} className="hover:bg-amber-50/60">
-                    <td className="px-4 py-2.5 text-[11px] font-medium text-stone-800">
-                      {index < 3 ? (
-                        <span className="mr-1 inline-flex size-4 items-center justify-center rounded-full bg-amber-100 text-[10px] font-semibold text-amber-700">
-                          {index + 1}
+                {inventoryTransactions
+                  .slice()
+                  .sort(
+                    (a, b) =>
+                      new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
+                  )
+                  .slice(0, 5)
+                  .map((row) => (
+                    <tr key={row.transactionId} className="hover:bg-amber-50/60">
+                      <td className="px-4 py-2.5 text-[11px] font-mono font-medium text-stone-800">
+                        {row.referenceCode}
+                      </td>
+                      <td className="px-4 py-2.5 text-[11px]">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
+                            row.transactionType === 'IMPORT'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : row.transactionType === 'EXPORT'
+                                ? 'bg-sky-50 text-sky-700'
+                                : 'bg-amber-50 text-amber-700'
+                          }`}
+                        >
+                          {row.transactionType === 'IMPORT'
+                            ? 'Nhập kho'
+                            : row.transactionType === 'EXPORT'
+                              ? 'Xuất kho'
+                              : 'Điều chỉnh'}
                         </span>
-                      ) : null}
-                      {row.product}
-                    </td>
-                    <td className="px-4 py-2.5 text-right text-[11px] font-semibold text-stone-900">
-                      {Number(row.totalConsumed).toLocaleString('vi-VN')}
-                    </td>
-                    <td className="px-4 py-2.5 text-right text-[11px]">
-                      {index === 0 ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-700">
-                          <ArrowUpRight className="size-3" />
-                          Tăng
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-stone-50 px-3 py-1 text-[11px] font-medium text-stone-600">
-                          <ArrowDownRight className="size-3" />
-                          Ổn định
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {topProducts.length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="px-4 py-10 text-center text-xs text-amber-700/70">
-                      Chưa có dữ liệu tiêu thụ.
-                    </td>
-                  </tr>
-                )}
+                      </td>
+                      <td className="px-4 py-2.5 text-[11px] font-medium text-stone-800">
+                        {row.productName}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-[11px] font-semibold text-stone-900">
+                        {row.quantity.toLocaleString('vi-VN')} {row.unit}
+                      </td>
+                      <td className="px-4 py-2.5 text-[11px] text-stone-600">
+                        {row.transactionDate
+                          ? new Date(row.transactionDate).toLocaleString('vi-VN', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false,
+                            })
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
