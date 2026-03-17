@@ -189,10 +189,14 @@ export const supplyServices = {
    * Lấy danh sách tất cả các phiếu xuất kho (Export Notes)
    * Hỗ trợ phân trang và lọc dữ liệu.
    *
+   * @param page Số trang hiện tại (bắt đầu từ 0)
+   * @param size Số lượng bản ghi trên mỗi trang (mặc định 10)
    * @returns Promise<Response<PaginatedResponse<ExportNotesResponse[]>>>
    */
-  getAllExportNote: async () => {
-    return await http.get<Response<PaginatedResponse<ExportNotesResponse[]>>>('/export-notes');
+  getAllExportNote: async (page: number = 0, size: number = 10) => {
+    return await http.get<Response<PaginatedResponse<ExportNotesResponse[]>>>(
+      `/export-notes?page=${page}&size=${size}`
+    );
   },
   /**
    * Phê duyệt đơn hàng từ chi nhánh
