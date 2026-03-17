@@ -63,6 +63,42 @@ export interface ExportNotesResponse {
   items: ExportNoteItem[];
 }
 
+/**
+ * Thông tin phân bổ lô hàng khi xem trước kế hoạch xuất kho.
+ */
+export interface BatchAllocation {
+  batchId: number;
+  batchCode: string;
+  expiryDate: string;
+  manufacturingDate: string;
+  currentStock: number;
+  allocatedQuantity: number;
+}
+
+/**
+ * Chi tiết sản phẩm trong kết quả xem trước xuất kho.
+ */
+export interface PreviewProduct {
+  productId: number;
+  productName: string;
+  unit: string;
+  requiredQuantity: number;
+  fulfillableQuantity: number;
+  shortfall: number;
+  batchAllocations: BatchAllocation[];
+}
+
+/**
+ * Phản hồi xem trước kế hoạch xuất kho theo order.
+ */
+export interface PreviewOrderResponse {
+  storeOrderId: number;
+  orderCode: string;
+  storeName: string;
+  canFulfill: boolean;
+  products: PreviewProduct[];
+}
+
 export type statusType = 'PLANNED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED';
 
 export interface DeliveryPlanResponse {
@@ -109,7 +145,8 @@ export interface DeliveryDetail {
  * POST   /api/v1/manufacturing-orders -> Tạo lệnh sản xuất
  *
  *
- * GET    /export-notes     -> lấy ra danh sách phiếu xuất kho
+ * GET    /export-notes                -> lấy ra danh sách phiếu xuất kho
+ * GET    /export-notes/preview        -> xem trước kế hoạch xuất kho
  *
  *
  * GET    /delivery-plan              -> lấy ra danh sách lịch giao hàng
@@ -117,6 +154,8 @@ export interface DeliveryDetail {
  * PATCH  /deliveries/{id}/start      -> cập nhật tình trạng chuyến hàng (xuất phát)
  * PATCH  /deliveries/{id}/complete   -> cập nhật tình trạng chuyến hàng (hoàn thành)
  * PATCH  /deliveries/{id}/cancel     -> cập nhật tình trạng chuyến hàng (hủy)
+ * 
+ * 
  *
  * Authorization:
  * Bearer Token
@@ -217,6 +256,17 @@ export const supplyServices = {
    */
   createExportNote: async (orderIds: number[]) => {
     const response = await http.post<Response<ExportNotesResponse[]>>('/export-notes/createAutoNote', orderIds);
+    return response.data;
+  },
+
+  /**
+   * Xem trước kế hoạch xuất kho theo danh sách storeOrderId
+   *
+   * @param orderIds Danh sách ID các storeOrder cần xem trước
+   * @returns Promise<Response<PreviewOrderResponse[]>>
+   */
+  previewExportNote: async (orderIds: number[]) => {
+    const response = await http.post<Response<PreviewOrderResponse[]>>('/export-notes/preview', orderIds);
     return response.data;
   },
 
