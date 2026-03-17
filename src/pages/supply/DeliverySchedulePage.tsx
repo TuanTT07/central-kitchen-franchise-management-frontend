@@ -401,8 +401,11 @@ const DeliverySchedulePage = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleUpdate(plan)}
-                            className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUpdate(plan);
+                            }}
+                            className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-colors hover:cursor-pointer"
                             title="Cập nhật"
                           >
                             <Edit className="size-4" />
@@ -414,7 +417,7 @@ const DeliverySchedulePage = () => {
                               e.stopPropagation();
                               handleDeleteUI(plan);
                             }}
-                            className="h-8 w-8 p-0 text-rose-500 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors"
+                            className="h-8 w-8 p-0 text-rose-500 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors hover:cursor-pointer"
                             title="Xóa"
                           >
                             <Trash2 className="size-4" />
