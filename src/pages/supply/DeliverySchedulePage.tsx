@@ -197,9 +197,15 @@ const DeliverySchedulePage = () => {
     setSelectedNoteIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
-  // Xóa lịch giao hàng (UI only)
-  const handleDeleteUI = (plan: DeliveryPlanResponse) => {
-    console.log('Xóa lịch giao hàng (UI):', plan.deliveryId);
+  // Xóa lịch giao hàng
+  const handleDeleteUI = async (plan: DeliveryPlanResponse) => {
+    try {
+      await supplyServices.updateDeliveryStatusCancel(plan.deliveryId);
+      toast.success('Xóa lịch giao hàng thành công');
+      fetchDeliveryPlans();
+    } catch (error) {
+      toast.error('Không thể xóa lịch giao hàng');
+    }
   };
 
   const handleOpenDetail = async (plan: DeliveryPlanResponse) => {

@@ -112,8 +112,11 @@ export interface DeliveryDetail {
  * GET    /export-notes     -> lấy ra danh sách phiếu xuất kho
  *
  *
- * GET    /delivery-plan    -> lấy ra danh sách lịch giao hàng
- * GET    /deliveries/{id}  -> lấy ra chi tiết lịch giao hàng
+ * GET    /delivery-plan              -> lấy ra danh sách lịch giao hàng
+ * GET    /deliveries/{id}            -> lấy ra chi tiết lịch giao hàng
+ * PATCH  /deliveries/{id}/start      -> cập nhật tình trạng chuyến hàng (xuất phát)
+ * PATCH  /deliveries/{id}/complete   -> cập nhật tình trạng chuyến hàng (hoàn thành)
+ * PATCH  /deliveries/{id}/cancel     -> cập nhật tình trạng chuyến hàng (hủy)
  *
  * Authorization:
  * Bearer Token
@@ -278,6 +281,8 @@ export const supplyServices = {
     return response.data;
   },
 
+
+
   /**
    * cập nhật tình trang chuyến hàng (hoàn thành)
    * @param id ID của lịch giao hàng cần hủy
@@ -285,6 +290,16 @@ export const supplyServices = {
    */
   updateDeliveryStatusComplete: async (id: number) => {
     const response = await http.patch<Response<DeliveryDetail>>(`/deliveries/${id}/complete`);
+    return response.data;
+  },
+
+  /**
+   * cập nhật tình trang chuyến hàng (hủy)
+   * @param id ID của lịch giao hàng cần hủy
+   * @returns Promise<Response<DeliveryPlanResponse[]>>
+   */
+  updateDeliveryStatusCancel: async (id: number) => {
+    const response = await http.patch<Response<DeliveryPlanResponse[]>>(`/deliveries/${id}/cancel`);
     return response.data;
   },
 };
