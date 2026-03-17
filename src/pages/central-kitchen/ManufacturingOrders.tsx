@@ -357,7 +357,7 @@ function ManufacturingOrders() {
                     </ul>
                   ) : (
                     <p className="text-[11px] text-stone-500">
-                      Hiện tại không có lệnh nào ở trạng thái PLANNED/COOKING.
+                      Hiện tại không có lệnh nào ở trạng thái chờ sản xuất/đang nấu.
                     </p>
                   )} */}
                 </div>

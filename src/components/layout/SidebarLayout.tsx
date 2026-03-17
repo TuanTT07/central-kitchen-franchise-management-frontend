@@ -12,9 +12,11 @@ interface item {
 interface SideBarLayoutProps {
   items: readonly item[];
   activeItem: string;
+  /** Nội dung hiển thị ở góc dưới sidebar (vd: avatar + tên cửa hàng + đăng xuất cho Store) */
+  footerContent?: React.ReactNode;
 }
 
-export default function SideBarLayout({ items, activeItem }: SideBarLayoutProps) {
+export default function SideBarLayout({ items, activeItem, footerContent }: SideBarLayoutProps) {
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-svh w-64 flex-col border-r border-border bg-white shadow-sm">
       <div className="flex h-16 items-center gap-2 border-b border-border px-5">
@@ -47,6 +49,11 @@ export default function SideBarLayout({ items, activeItem }: SideBarLayoutProps)
           );
         })}
       </nav>
+      {footerContent && (
+        <div className="border-t border-border p-3">
+          {footerContent}
+        </div>
+      )}
     </aside>
   );
 }

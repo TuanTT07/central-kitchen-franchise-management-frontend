@@ -21,11 +21,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Package, Store, Search, Filter } from 'lucide-react';
+import { Package, Store, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import type { OrderDetailResponse, OrderResponse } from '@/services/franchiseServices';
 import type { ConsolidationProduct, ConsolidationResponse } from '@/services/supplyServices';
 import { supplyServices } from '@/services/supplyServices';
+import { translateStatus } from '@/utils/labelMapping';
 import { toast } from 'sonner';
 
 // ================= COMPONENT =================
@@ -35,6 +36,15 @@ function SummaryOrdersPage() {
   const [orders, setOrders] = useState<OrderResponse<OrderDetailResponse[]>[]>([]);
   // State phục vụ việc tìm kiếm
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+
+  // Pagination (UI)
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 8;
+
+  // Order detail (UI)
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<OrderResponse<OrderDetailResponse[]> | null>(null);
 
   // State quản lý Dialog thông báo kết quả gom đơn
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -87,31 +97,37 @@ function SummaryOrdersPage() {
       case 'PENDING':
         return (
           <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
-            Chờ xử lý
+            {translateStatus(status)}
           </span>
         );
       case 'APPROVED':
         return (
           <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-            Đã duyệt
+            {translateStatus(status)}
+          </span>
+        );
+      case 'AWAITING_DELIVERY':
+        return (
+          <span className="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-800">
+            {translateStatus(status)}
           </span>
         );
       case 'CONSOLIDATED':
         return (
           <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
-            Đã tổng hợp
+            {translateStatus(status)}
           </span>
         );
       case 'CANCELLED':
         return (
           <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
-            Đã hủy
+            {translateStatus(status)}
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
-            {status}
+            {translateStatus(status)}
           </span>
         );
     }
@@ -240,6 +256,40 @@ function SummaryOrdersPage() {
     return { total, pending, totalProducts };
   }, [orders]);
 
+  const filteredOrders = useMemo(() => {
+    let data = [...orders];
+
+    if (statusFilter !== 'ALL') {
+      data = data.filter((o) => o.status === statusFilter);
+    }
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      data = data.filter((o) => {
+        const inOrder = o.orderCode?.toLowerCase().includes(q);
+        const inStore = o.storeName?.toLowerCase().includes(q);
+        const inDetails =
+          Array.isArray(o.details) &&
+          o.details.some((d) => d.productName?.toLowerCase().includes(q));
+        return Boolean(inOrder || inStore || inDetails);
+      });
+    }
+
+    return data;
+  }, [orders, search, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
+  const paginatedOrders = filteredOrders.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(0);
+  }, [search, statusFilter]);
+
+  const openDetail = (order: OrderResponse<OrderDetailResponse[]>) => {
+    setSelectedOrder(order);
+    setDetailOpen(true);
+  };
+
   // ================= RENDER =================
   return (
     <div className="h-full w-full">
@@ -295,33 +345,25 @@ function SummaryOrdersPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">
-                {/* <button
-                  type="button"
-                  onClick={() => setTypeFilter('ALL')}
-                  className={`px-3 py-1.5 ${
-                    typeFilter === 'ALL' ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'
-                  }`}
-                >
-                  Tất cả
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTypeFilter('PO')}
-                  className={`border-l border-amber-200 px-3 py-1.5 ${
-                    typeFilter === 'PO' ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'
-                  }`}
-                >
-                  PO
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTypeFilter('TRANSFER')}
-                  className={`border-l border-amber-200 px-3 py-1.5 ${
-                    typeFilter === 'TRANSFER' ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'
-                  }`}
-                >
-                  Transfer
-                </button> */}
+                {[
+                  { key: 'ALL', label: 'Tất cả' },
+                  { key: 'PENDING', label: translateStatus('PENDING') },
+                  { key: 'APPROVED', label: translateStatus('APPROVED') },
+                  { key: 'AWAITING_DELIVERY', label: 'Đợi giao hàng' },
+                  { key: 'CONSOLIDATED', label: translateStatus('CONSOLIDATED') },
+                  { key: 'CANCELLED', label: translateStatus('CANCELLED') },
+                ].map((t, idx) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setStatusFilter(t.key)}
+                    className={`px-3 py-1.5 transition ${
+                      idx !== 0 ? 'border-l border-amber-200' : ''
+                    } ${statusFilter === t.key ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'}`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
               </div>
               <Button
                 className="h-9 rounded-full bg-amber-500 px-4 text-xs text-white hover:bg-amber-600"
@@ -360,8 +402,13 @@ function SummaryOrdersPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50">
-                      {orders.map((o) => (
-                        <tr key={o.orderId} className="hover:bg-amber-50/40">
+                      {paginatedOrders.map((o) => (
+                        <tr
+                          key={o.orderId}
+                          className="cursor-pointer hover:bg-amber-50/40"
+                          onClick={() => openDetail(o)}
+                          title="Xem chi tiết đơn hàng"
+                        >
                           <td className="px-4 py-2 font-semibold text-stone-900">{o.orderCode}</td>
                           <td className="px-4 py-2 text-stone-700">
                             <OrderStatusBadge status={o.status} />
@@ -380,7 +427,10 @@ function SummaryOrdersPage() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleApprove(o.orderId)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleApprove(o.orderId);
+                                  }}
                                   className="border-green-200 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800"
                                 >
                                   Phê duyệt
@@ -391,6 +441,33 @@ function SummaryOrdersPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="flex items-center justify-between border-t border-amber-50 px-4 py-3 text-xs">
+                  <span className="text-stone-600">
+                    Trang <span className="font-bold">{page + 1}</span> / <span className="font-bold">{totalPages}</span>
+                  </span>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 border-amber-200 text-amber-900 hover:bg-amber-50"
+                      onClick={() => setPage((p) => Math.max(0, p - 1))}
+                      disabled={page === 0}
+                    >
+                      <ChevronLeft className="size-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 border-amber-200 text-amber-900 hover:bg-amber-50"
+                      onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                      disabled={page >= totalPages - 1}
+                    >
+                      <ChevronRight className="size-4" />
+                    </Button>
+                  </div>
                 </div>
                 {/* {filteredOrders.length === 0 && (
                   <div className="py-10 text-center text-xs text-stone-500">
@@ -508,10 +585,13 @@ function SummaryOrdersPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => {
+                console.log('Đã hủy gom đơn, quay về trạng thái APPROVED');
+                setIsModalOpen(false);
+              }}
               className="rounded-full border-amber-200 px-6 text-stone-600 hover:bg-stone-50"
             >
-              Hủy bỏ
+              Hủy
             </Button>
             <Button
               onClick={handleFinalize}
@@ -610,6 +690,82 @@ function SummaryOrdersPage() {
                 Tiến hành gom đơn
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog chi tiết đơn hàng (UI only) */}
+      <Dialog
+        open={detailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open);
+          if (!open) setSelectedOrder(null);
+        }}
+      >
+        <DialogContent className="max-w-3xl overflow-hidden rounded-2xl border border-stone-200 bg-white p-0 shadow-2xl">
+          <div className="border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4">
+            <h3 className="text-base font-bold text-amber-900">Chi tiết đơn hàng</h3>
+            <p className="mt-1 text-xs text-amber-700/80">Mô phỏng UI xem chi tiết đơn khi click vào dòng.</p>
+          </div>
+          <div className="space-y-4 px-6 py-5">
+            {!selectedOrder ? (
+              <p className="text-sm text-stone-500">Đang tải...</p>
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
+                    <p className="text-[11px] font-semibold text-stone-500">Mã đơn</p>
+                    <p className="mt-1 font-bold text-stone-900">{selectedOrder.orderCode}</p>
+                  </div>
+                  <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
+                    <p className="text-[11px] font-semibold text-stone-500">Trạng thái</p>
+                    <p className="mt-1 font-bold text-stone-900">{translateStatus(selectedOrder.status)}</p>
+                  </div>
+                  <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 sm:col-span-2">
+                    <p className="text-[11px] font-semibold text-stone-500">Chi nhánh</p>
+                    <p className="mt-1 font-bold text-stone-900">{selectedOrder.storeName}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-700">Danh sách sản phẩm</p>
+                  <div className="overflow-hidden rounded-xl border border-amber-100">
+                    <table className="w-full text-xs">
+                      <thead className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
+                        <tr>
+                          <th className="px-4 py-2 font-semibold">Sản phẩm</th>
+                          <th className="px-4 py-2 font-semibold text-right">Số lượng</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-amber-50">
+                        {selectedOrder.details?.map((d, idx) => (
+                          <tr key={`${d.productId ?? idx}-${idx}`} className="bg-white">
+                            <td className="px-4 py-2 font-semibold text-stone-900">{d.productName}</td>
+                            <td className="px-4 py-2 text-right font-bold text-stone-800">{d.quantity}</td>
+                          </tr>
+                        ))}
+                        {!selectedOrder.details?.length && (
+                          <tr>
+                            <td colSpan={2} className="px-4 py-6 text-center text-xs text-stone-500">
+                              Không có dòng chi tiết.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter className="border-t border-stone-100 bg-stone-50 px-6 py-3">
+            <Button
+              variant="outline"
+              className="border-amber-200 text-amber-900 hover:bg-amber-50"
+              onClick={() => setDetailOpen(false)}
+            >
+              Đóng
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

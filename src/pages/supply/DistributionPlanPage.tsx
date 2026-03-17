@@ -16,6 +16,7 @@ import { LayoutGrid, MapPin, Search, Loader2, Package } from 'lucide-react';
 import { supplyServices, type ExportNotesResponse, type ExportNoteItem } from '@/services/supplyServices';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import type { OrderResponse, OrderDetailResponse } from '@/services/franchiseServices';
+import { translateStatus } from '@/utils/labelMapping';
 import { toast } from 'sonner';
 
 // ================= TYPES =================
@@ -25,9 +26,9 @@ type PlanStatus = 'READY' | 'SHIPPED' | 'CANCEL';
 // ================= CONSTANTS =================
 
 const STATUS_LABEL: Record<PlanStatus, string> = {
-  READY: 'Sẵn sàng giao',
-  SHIPPED: 'Đã giao',
-  CANCEL: 'Đã hủy',
+  READY: translateStatus('READY') || 'Sẵn sàng',
+  SHIPPED: translateStatus('SHIPPED') || 'Đã giao',
+  CANCEL: translateStatus('CANCEL') || 'Đã hủy',
 };
 
 const STATUS_CLASS: Record<PlanStatus, string> = {
@@ -54,6 +55,13 @@ const DistributionPlanPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [readyOrders, setReadyOrders] = useState<OrderResponse<OrderDetailResponse[]>[]>([]);
   const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
+
+  // UI Preview: chọn lô (mock) khi tạo đợt phân phối
+  const [selectedLotIds, setSelectedLotIds] = useState<string[]>([]);
+
+  // UI Detail: mở chi tiết phiếu xuất
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedExportNote, setSelectedExportNote] = useState<ExportNotesResponse | null>(null);
   
   // Loading states
   const [loading, setLoading] = useState(false);
@@ -132,6 +140,7 @@ const DistributionPlanPage = () => {
   const handleOpenCreateModal = () => {
     setIsCreateModalOpen(true);
     fetchReadyOrders();
+    setSelectedLotIds([]);
   };
 
   const handleToggleOrder = (orderId: number) => {
@@ -140,6 +149,37 @@ const DistributionPlanPage = () => {
         ? prev.filter(id => id !== orderId)
         : [...prev, orderId]
     );
+  };
+
+  const mockLots = useMemo(() => {
+    // Mock: mỗi order có 2 lô để chọn (UI only)
+    return selectedOrderIds.flatMap((orderId) => ([
+      {
+        id: `${orderId}-LOT-01`,
+        orderId,
+        lotCode: `LOT-${orderId}-01`,
+        productName: 'Nguyên liệu tổng hợp',
+        quantity: 10,
+        status: 'AVAILABLE',
+      },
+      {
+        id: `${orderId}-LOT-02`,
+        orderId,
+        lotCode: `LOT-${orderId}-02`,
+        productName: 'Nguyên liệu tổng hợp',
+        quantity: 6,
+        status: 'AVAILABLE',
+      },
+    ]));
+  }, [selectedOrderIds]);
+
+  const toggleLot = (id: string) => {
+    setSelectedLotIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const openExportDetail = (note: ExportNotesResponse) => {
+    setSelectedExportNote(note);
+    setDetailOpen(true);
   };
 
   // ================= UTILS =================
@@ -265,7 +305,12 @@ const DistributionPlanPage = () => {
                           </td>
                         </tr>
                       ) : filteredPlans.map((p: ExportNotesResponse) => (
-                        <tr key={p.exportId} className="hover:bg-amber-50/40">
+                        <tr
+                          key={p.exportId}
+                          className="cursor-pointer hover:bg-amber-50/40"
+                          onClick={() => openExportDetail(p)}
+                          title="Xem chi tiết đợt phân phối"
+                        >
                           <td className="px-4 py-3 font-semibold text-stone-900">{p.exportCode}</td>
                           <td className="px-4 py-3 text-stone-800">{p.storeName}</td>
                           <td className="px-4 py-3 text-stone-600 italic">
@@ -363,61 +408,113 @@ const DistributionPlanPage = () => {
                 <p className="text-xs text-stone-400">Tất cả đơn hàng đã được xử lý hoặc chưa được phê duyệt.</p>
               </div>
             ) : (
-              <div className="rounded-xl border border-amber-100 overflow-hidden shadow-sm">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-amber-50/60 text-amber-900 border-b border-amber-100">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold w-10 text-center">
-                        <input
-                          type="checkbox"
-                          className="size-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
-                          checked={readyOrders.length > 0 && selectedOrderIds.length === readyOrders.length}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedOrderIds(readyOrders.map(o => o.orderId));
-                            } else {
-                              setSelectedOrderIds([]);
-                            }
-                          }}
-                        />
-                      </th>
-                      <th className="px-4 py-3 font-semibold">Mã đơn hàng</th>
-                      <th className="px-4 py-3 font-semibold">Chi nhánh</th>
-                      <th className="px-4 py-3 font-semibold text-right">Tổng sản phẩm</th>
-                      <th className="px-4 py-3 font-semibold text-right">Ngày đặt</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-amber-50 bg-white">
-                    {readyOrders.map((order: OrderResponse<OrderDetailResponse[]>) => (
-                      <tr
-                        key={order.orderId}
-                        className={`hover:bg-amber-50/30 transition-colors cursor-pointer ${
-                          selectedOrderIds.includes(order.orderId) ? 'bg-amber-50/50' : ''
-                        }`}
-                        onClick={() => handleToggleOrder(order.orderId)}
-                      >
-                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-center">
-                            <input
-                              type="checkbox"
-                              className="size-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
-                              checked={selectedOrderIds.includes(order.orderId)}
-                              onChange={() => handleToggleOrder(order.orderId)}
-                            />
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 font-bold text-amber-950">{order.orderCode}</td>
-                        <td className="px-4 py-3 text-stone-700">{order.storeName}</td>
-                        <td className="px-4 py-3 text-right font-medium text-stone-900">
-                          {order.details.reduce((sum: number, d: OrderDetailResponse) => sum + d.quantity, 0)} sản phẩm
-                        </td>
-                        <td className="px-4 py-3 text-right text-stone-500">
-                          {new Date(order.orderDate).toLocaleDateString('vi-VN')}
-                        </td>
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <div className="rounded-xl border border-amber-100 overflow-hidden shadow-sm">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-amber-50/60 text-amber-900 border-b border-amber-100">
+                      <tr>
+                        <th className="px-4 py-3 font-semibold w-10 text-center">
+                          <input
+                            type="checkbox"
+                            className="size-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                            checked={readyOrders.length > 0 && selectedOrderIds.length === readyOrders.length}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedOrderIds(readyOrders.map(o => o.orderId));
+                              } else {
+                                setSelectedOrderIds([]);
+                              }
+                            }}
+                          />
+                        </th>
+                        <th className="px-4 py-3 font-semibold">Mã đơn hàng</th>
+                        <th className="px-4 py-3 font-semibold">Chi nhánh</th>
+                        <th className="px-4 py-3 font-semibold text-right">Tổng sản phẩm</th>
+                        <th className="px-4 py-3 font-semibold text-right">Ngày đặt</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-amber-50 bg-white">
+                      {readyOrders.map((order: OrderResponse<OrderDetailResponse[]>) => (
+                        <tr
+                          key={order.orderId}
+                          className={`hover:bg-amber-50/30 transition-colors cursor-pointer ${
+                            selectedOrderIds.includes(order.orderId) ? 'bg-amber-50/50' : ''
+                          }`}
+                          onClick={() => handleToggleOrder(order.orderId)}
+                        >
+                          <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-center">
+                              <input
+                                type="checkbox"
+                                className="size-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                                checked={selectedOrderIds.includes(order.orderId)}
+                                onChange={() => handleToggleOrder(order.orderId)}
+                              />
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 font-bold text-amber-950">{order.orderCode}</td>
+                          <td className="px-4 py-3 text-stone-700">{order.storeName}</td>
+                          <td className="px-4 py-3 text-right font-medium text-stone-900">
+                            {order.details.reduce((sum: number, d: OrderDetailResponse) => sum + d.quantity, 0)} sản phẩm
+                          </td>
+                          <td className="px-4 py-3 text-right text-stone-500">
+                            {new Date(order.orderDate).toLocaleDateString('vi-VN')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="rounded-xl border border-amber-100 bg-white shadow-sm">
+                  <div className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 px-4 py-3">
+                    <p className="text-sm font-bold text-amber-900">Xem trước lô hàng</p>
+                    <p className="text-[11px] text-amber-700/80">
+                      Chọn các lô (mock UI) cho đơn đã chọn.
+                    </p>
+                  </div>
+                  <div className="max-h-[420px] overflow-y-auto p-4">
+                    {selectedOrderIds.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50/40 px-4 py-6 text-center text-xs text-amber-800">
+                        Chọn đơn hàng ở bảng bên trái để xem lô hàng.
+                      </div>
+                    ) : mockLots.length === 0 ? (
+                      <div className="text-xs text-stone-500">Chưa có lô để hiển thị.</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {mockLots.map((lot) => {
+                          const checked = selectedLotIds.includes(lot.id);
+                          return (
+                            <button
+                              type="button"
+                              key={lot.id}
+                              onClick={() => toggleLot(lot.id)}
+                              className={`flex w-full items-start justify-between gap-3 rounded-lg border px-3 py-2 text-left text-xs transition ${
+                                checked
+                                  ? 'border-amber-300 bg-amber-50'
+                                  : 'border-stone-200 bg-white hover:bg-stone-50'
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <p className="font-semibold text-stone-900">{lot.lotCode}</p>
+                                <p className="mt-0.5 truncate text-[11px] text-stone-600">
+                                  {lot.productName} · {lot.quantity} · {translateStatus(lot.status)}
+                                </p>
+                              </div>
+                              <div className={`mt-1 size-4 rounded border ${checked ? 'bg-amber-500 border-amber-500' : 'border-stone-300'}`} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {selectedOrderIds.length > 0 && (
+                      <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50/50 px-3 py-2 text-[11px] text-amber-800">
+                        Đã chọn: <span className="font-bold">{selectedLotIds.length}</span> lô
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -451,6 +548,84 @@ const DistributionPlanPage = () => {
                 </Button>
               </div>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ================= MODAL: CHI TIẾT ĐỢT PHÂN PHỐI ================= */}
+      <Dialog
+        open={detailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open);
+          if (!open) setSelectedExportNote(null);
+        }}
+      >
+        <DialogContent className="max-w-3xl overflow-hidden rounded-2xl border border-stone-200 bg-white p-0 shadow-2xl">
+          <div className="border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4">
+            <h3 className="text-base font-bold text-amber-900">Chi tiết đợt phân phối</h3>
+            <p className="mt-1 text-xs text-amber-700/80">Xem chi tiết phiếu xuất kho và mặt hàng.</p>
+          </div>
+          <div className="space-y-4 px-6 py-5">
+            {!selectedExportNote ? (
+              <p className="text-sm text-stone-500">Đang tải...</p>
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
+                    <p className="text-[11px] font-semibold text-stone-500">Mã phiếu</p>
+                    <p className="mt-1 font-bold text-stone-900">{selectedExportNote.exportCode}</p>
+                  </div>
+                  <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
+                    <p className="text-[11px] font-semibold text-stone-500">Trạng thái</p>
+                    <p className="mt-1 font-bold text-stone-900">{translateStatus(selectedExportNote.status)}</p>
+                  </div>
+                  <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 sm:col-span-2">
+                    <p className="text-[11px] font-semibold text-stone-500">Chi nhánh</p>
+                    <p className="mt-1 font-bold text-stone-900">{selectedExportNote.storeName}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-700">Danh sách mặt hàng</p>
+                  <div className="overflow-hidden rounded-xl border border-amber-100">
+                    <table className="w-full text-xs">
+                      <thead className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
+                        <tr>
+                          <th className="px-4 py-2 font-semibold">Sản phẩm</th>
+                          <th className="px-4 py-2 font-semibold text-right">Số lượng</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-amber-50">
+                        {selectedExportNote.items?.map((it, idx) => (
+                          <tr key={`${it.productId ?? idx}-${idx}`} className="bg-white">
+                            <td className="px-4 py-2 font-semibold text-stone-900">{it.productName}</td>
+                            <td className="px-4 py-2 text-right font-bold text-stone-800">
+                              {it.quantity}
+                            </td>
+                          </tr>
+                        ))}
+                        {!selectedExportNote.items?.length && (
+                          <tr>
+                            <td colSpan={2} className="px-4 py-6 text-center text-xs text-stone-500">
+                              Không có mặt hàng.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter className="border-t border-stone-100 bg-stone-50 px-6 py-3">
+            <Button
+              variant="outline"
+              className="border-amber-200 text-amber-900 hover:bg-amber-50"
+              onClick={() => setDetailOpen(false)}
+            >
+              Đóng
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
