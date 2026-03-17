@@ -281,10 +281,10 @@ const ProductManagementPage = () => {
           resetUnit({ unitName: '', description: '' });
           toast.success(`${response.message}`);
         }
+      } 
+    }catch (error) {
+        toast.error('Không thể thêm đơn vị');
       }
-    } catch (error) {
-      toast.error('Không thể lưu đơn vị');
-    }
   };
 
   const openDeleteUnit = (unit: UnitResponse) => {
