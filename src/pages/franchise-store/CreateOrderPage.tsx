@@ -269,7 +269,9 @@ const CreateOrderPage = () => {
                                 {p.categoryName}
                               </span>
                             </td>
-                            <td className="px-2 py-2 text-center text-[11px] text-stone-800">{p.unitName || p.unit}</td>
+                            <td className="px-2 py-2 text-center text-[11px] text-stone-800">
+                              {p.unitName || p.unitId}
+                            </td>
                             <td className="px-2 py-2">
                               <div className="flex items-center justify-center gap-1.5">
                                 <button
@@ -374,7 +376,7 @@ const CreateOrderPage = () => {
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-stone-900">{product.productName}</p>
                             <p className="text-[11px] text-stone-600">
-                              {product.categoryName} · Đơn vị: {product.unitName || product.unit}
+                              {product.categoryName} · Đơn vị: {product.unitName || product.unitId}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
