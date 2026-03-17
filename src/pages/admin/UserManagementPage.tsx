@@ -40,10 +40,10 @@ import { toast } from 'sonner';
 // ================= CONSTANTS =================
 const ROLES: { roleId: number; roleName: Role; label: string }[] = [
   { roleId: 1, roleName: 'ADMIN', label: 'Quản trị viên' },
-  { roleId: 2, roleName: 'FRANCHISE_STORE_STAFF', label: 'Nhân viên cửa hàng phân phối' },
+  { roleId: 2, roleName: 'FRANCHISE_STORE_STAFF', label: 'Nhân viên cửa hàng' },
   { roleId: 3, roleName: 'MANAGER', label: 'Quản lý' },
-  { roleId: 4, roleName: 'SUPPLY_COORDINATOR', label: 'Điều phối nhà cung cấp' },
-  { roleId: 5, roleName: 'CENTRAL_KITCHEN_STAFF', label: 'Nhân viên bếp trung tâm' },
+  { roleId: 4, roleName: 'SUPPLY_COORDINATOR', label: 'Điều phối viên' },
+  { roleId: 5, roleName: 'CENTRAL_KITCHEN_STAFF', label: 'Bếp trung tâm' },
 ];
 
 // ================= COMPONENT =================

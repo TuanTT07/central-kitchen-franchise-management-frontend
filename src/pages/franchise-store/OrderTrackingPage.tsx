@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { CalendarClock, Receipt, Search, Truck, AlertTriangle, Loader2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { translateStatus } from '@/utils/labelMapping';
 import { franchiseServices, type OrderResponse, type OrderDetailResponse, type ExportNotesResponse } from '@/services/franchiseServices';
 import {toast} from 'sonner';
 
@@ -27,15 +28,8 @@ import {toast} from 'sonner';
  * Component Description
  * - Hiển thị danh sách đơn hàng đã đặt
  * - Theo dõi trạng thái duyệt đơn và trạng thái xuất kho
- * - Hiển thị thông tin lô hàng (phiếu xuất) tương ứng
+ * - Trạng thái hiển thị qua translateStatus() – không hardcode text.
  */
-
-const STORE_ORDER_STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Chờ duyệt',
-  APPROVED: 'Đã duyệt',
-  CONSOLIDATED: 'Đã gộp đơn',
-  CANCELLED: 'Đã hủy',
-};
 
 const STORE_ORDER_STATUS_CLASS: Record<string, string> = {
   PENDING: 'bg-amber-100 text-amber-800 border-amber-200',
@@ -252,7 +246,7 @@ const OrderTrackingPage = () => {
                       statusFilter === opt ? 'bg-amber-500 text-white font-semibold' : 'text-amber-800 hover:bg-amber-100'
                     )}
                   >
-                    {opt === 'ALL' ? 'Tất cả' : STORE_ORDER_STATUS_LABEL[opt]}
+                    {opt === 'ALL' ? 'Tất cả' : translateStatus(opt)}
                   </button>
                 ))}
               </div>
@@ -301,7 +295,7 @@ const OrderTrackingPage = () => {
                                 STORE_ORDER_STATUS_CLASS[o.status] || 'bg-stone-100 text-stone-800'
                               )}
                             >
-                              {STORE_ORDER_STATUS_LABEL[o.status] || o.status}
+                              {translateStatus(o.status)}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right">
@@ -352,7 +346,7 @@ const OrderTrackingPage = () => {
                       </div>
                       <div>
                         <p className="text-[11px] font-bold text-stone-900">Đơn chờ duyệt</p>
-                        <p className="text-[10px] text-stone-500 uppercase tracking-tighter">Pending</p>
+                        <p className="text-[10px] text-stone-500 uppercase tracking-tighter">{translateStatus('PENDING')}</p>
                       </div>
                     </div>
                     <span className="text-xl font-black text-amber-900">{pendingCount}</span>
@@ -365,7 +359,7 @@ const OrderTrackingPage = () => {
                       </div>
                       <div>
                         <p className="text-[11px] font-bold text-stone-900">Đơn đã duyệt</p>
-                        <p className="text-[10px] text-stone-500 uppercase tracking-tighter">Approved</p>
+                        <p className="text-[10px] text-stone-500 uppercase tracking-tighter">{translateStatus('APPROVED')}</p>
                       </div>
                     </div>
                     <span className="text-xl font-black text-emerald-900">{approvedCount}</span>
@@ -378,7 +372,7 @@ const OrderTrackingPage = () => {
                       </div>
                       <div>
                         <p className="text-[11px] font-bold text-stone-900">Đơn đã hủy</p>
-                        <p className="text-[10px] text-stone-500 uppercase tracking-tighter">Cancelled</p>
+                        <p className="text-[10px] text-stone-500 uppercase tracking-tighter">{translateStatus('CANCELLED')}</p>
                       </div>
                     </div>
                     <span className="text-xl font-black text-stone-900">{cancelledCount}</span>

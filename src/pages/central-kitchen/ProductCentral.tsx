@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Package, Search, Tag, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { translateStatus } from '@/utils/labelMapping';
 
 /**
  * Đồng bộ DB (public schema):
@@ -170,13 +171,13 @@ function ProductCentral() {
             </CardTitle>
             <CardDescription className="text-xs font-medium text-amber-700/80">
               Sản phẩm / nguyên liệu từ bảng <code className="font-mono">products</code> · tồn khả dụng từ{' '}
-              <code className="font-mono">product_batches</code> (lô AVAILABLE).
+              <code className="font-mono">product_batches</code> (lô {translateStatus('AVAILABLE')}).
             </CardDescription>
           </div>
           <div className="hidden items-center gap-6 md:flex">
             <div className="flex flex-col text-right">
               <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                Sản phẩm ACTIVE
+                Sản phẩm {translateStatus('ACTIVE')}
               </span>
               <span className="text-lg font-semibold text-amber-900">{totalActive}</span>
             </div>
@@ -270,7 +271,7 @@ function ProductCentral() {
                           </p>
                           {isInactive && (
                             <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-medium text-stone-600">
-                              INACTIVE
+                              {translateStatus('INACTIVE')}
                             </span>
                           )}
                         </div>
@@ -292,7 +293,9 @@ function ProductCentral() {
 
                     <div className="flex items-center justify-between gap-2 text-[11px]">
                       <div className="flex flex-col">
-                        <span className="text-stone-500">Tồn khả dụng (AVAILABLE)</span>
+                        <span className="text-stone-500">
+                          Tồn khả dụng ({translateStatus('AVAILABLE')})
+                        </span>
                         <span
                           className={cn(
                             'text-sm font-semibold',

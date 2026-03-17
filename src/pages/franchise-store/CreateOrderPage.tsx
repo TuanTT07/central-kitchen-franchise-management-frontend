@@ -6,6 +6,7 @@ import { Search, ShoppingCart, Package, Tag, Minus, Plus, Trash2, Calendar, Clip
 import { managerServices, type ProductsResponse } from '@/services/managerServices';
 import { franchiseServices, type OrderResponse, type OrderDetailResponse } from '@/services/franchiseServices';
 import { cn } from '@/lib/utils';
+import { translateStatus } from '@/utils/labelMapping';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
@@ -501,7 +502,7 @@ const CreateOrderPage = () => {
                                     : 'border-stone-200 bg-stone-100 text-stone-600'
                               )}
                             >
-                              {order.status}
+                              {translateStatus(order.status)}
                             </span>
                           </td>
                         </tr>

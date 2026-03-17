@@ -16,6 +16,7 @@ import {
   Clock3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { translateStatus } from '@/utils/labelMapping';
 
 /**
  * Đồng bộ DB (public schema):
@@ -420,7 +421,7 @@ function InventoryCentral() {
                               {batch.status === 'EXPIRED' && <XCircle className="size-3" />}
                               {batch.status === 'WAITING_FOR_STOCK' && <Clock3 className="size-3" />}
                               {batch.status === 'OUT_OF_STOCK' && <AlertTriangle className="size-3" />}
-                              {BATCH_STATUS_LABEL[batch.status]}
+                              {translateStatus(batch.status)}
                             </span>
                           </td>
                         </tr>
