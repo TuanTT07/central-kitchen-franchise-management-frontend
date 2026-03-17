@@ -245,6 +245,7 @@ const ProductManagementPage = () => {
     setDeleteConfirmOpen(false);
     setProductToDelete(null);
   };
+
   const openSettingUnit = () => {
     setEditingUnit(false);
     setUnitDialogOpen(true);
@@ -271,7 +272,10 @@ const ProductManagementPage = () => {
           toast.success(`${response.message}`);
         }
       } else {
-        const response = await managerServices.createUnit({ unitName: data.unitName, description: data.description });
+        const response = await managerServices.createUnit({
+          unitName: data.unitName,
+          description: data.description,
+        });
         if (response) {
           getUnits();
           resetUnit({ unitName: '', description: '' });
@@ -279,7 +283,7 @@ const ProductManagementPage = () => {
         }
       }
     } catch (error) {
-      toast.error('Không thể thêm đơn vị');
+      toast.error('Không thể lưu đơn vị');
     }
   };
 
