@@ -1,5 +1,5 @@
 import LoginPage from './pages/auth/LoginPage.tsx';
-import { BrowserRouter, Route, Routes } from 'react-router';
+import { BrowserRouter, Route, Routes, Navigate } from 'react-router';
 import {
   AdminDashboard,
   BranchManagementPage,
@@ -21,15 +21,7 @@ import {
   SummaryOrdersPage,
 } from './pages/supply/index.ts';
 
-import {
-  CentralKitchenDashboard,
-  InventoryCentral,
-  InventoryTransactions,
-  ManufacturingOrders,
-  ProductBatches,
-  ProductCentral,
-  Receipts,
-} from './pages/central-kitchen/index.ts';
+import { ManufacturingOrders, ProductBatches, Receipts } from './pages/central-kitchen/index.ts';
 
 import {
   FranchiseStoreDashboard,
@@ -73,7 +65,7 @@ function App() {
                     franchise={<FranchiseStoreDashboard />}
                     manager={<ManagerDashboard />}
                     supplier={<SupplyDashboard />}
-                    centralKitchen={<CentralKitchenDashboard />}
+                    centralKitchen={<Navigate to="/central-kitchen/orders" replace />}
                   />
                 }
               ></Route>
@@ -104,9 +96,6 @@ function App() {
                   <Route path="/central-kitchen/orders" element={<ManufacturingOrders />}></Route>
                   <Route path="/central-kitchen/receipts" element={<Receipts />}></Route>
                   <Route path="/central-kitchen/product-batches" element={<ProductBatches />}></Route>
-                  <Route path="/central-kitchen/inventory" element={<InventoryCentral />}></Route>
-                  <Route path="/central-kitchen/inventory-transactions" element={<InventoryTransactions />}></Route>
-                  <Route path="/central-kitchen/products" element={<ProductCentral />}></Route>
                 </Route>
               </Route>
               {/* Routing riêng của franchise store */}

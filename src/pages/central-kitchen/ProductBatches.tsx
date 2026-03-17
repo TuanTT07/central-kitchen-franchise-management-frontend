@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Boxes, CalendarClock, Search } from 'lucide-react';
+import { AlertTriangle, Boxes, CalendarClock, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { kitchenServices, type ProductBatchesResponse, type ProductBatchStatus } from '@/services/kitchenServices';
 import {
@@ -65,9 +65,16 @@ function ProductBatches() {
   // Quản lý trạng thái đóng/mở popup nhập kho hàng loạt
   const [isStockInModalOpen, setIsStockInModalOpen] = useState(false);
 
-
   // Lưu trữ ID các lô được chọn trong Modal nhập kho
   const [selectedBatchIds, setSelectedBatchIds] = useState<number[]>([]);
+
+  // Popup cập nhật số lượng nấu thực tế cho từng lô
+  const [isCookUpdateOpen, setIsCookUpdateOpen] = useState(false);
+  const [selectedBatchForCook, setSelectedBatchForCook] = useState<ProductBatchesResponse | null>(null);
+  const [actualCookQuantity, setActualCookQuantity] = useState<string>('');
+
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
 
   // react hook form (validate cho phần tạo phiếu nhập kho)
@@ -75,7 +82,6 @@ function ProductBatches() {
   const {
     register,
     handleSubmit,
-    setValue,
     clearErrors,
     formState: { errors },
   } = useForm<{
@@ -140,30 +146,20 @@ function ProductBatches() {
     return data;
   }, [search, statusFilter, productBatches]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredBatches.length / PAGE_SIZE)),
+    [filteredBatches.length]
+  );
+  const paginatedBatches = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredBatches.slice(start, start + PAGE_SIZE);
+  }, [filteredBatches, page]);
+
   // ================= HANDLER =================
-
-  /**
-   * Mở popup nhập kho hàng loạt cho các lô WAITING_FOR_STOCK
-   */
-  const handleOpenStockIn = () => {
-    const waitingBatches = productBatches.filter((b) => b.status === 'WAITING_FOR_STOCK');
-
-    if (waitingBatches.length === 0) {
-      toast.error('Không có lô hàng nào đang ở trạng thái Chờ nhập kho.');
-      return;
-    }
-
-    const initialQtys: Record<number, number> = {};
-    waitingBatches.forEach((b) => {
-      const qty = 0; // Mặc định là 0 để người dùng tự nhập
-      initialQtys[b.batchId] = qty;
-      // Đồng bộ giá trị vào react-hook-form
-      setValue(`quantities.${b.batchId}`, qty);
-    });
-
-    setSelectedBatchIds(waitingBatches.map((b) => b.batchId)); // Mặc định chọn tất cả khi mở
-    setIsStockInModalOpen(true);
-  };
 
   /**
    * Chọn/Bỏ chọn một lô hàng cụ thể
@@ -256,29 +252,21 @@ function ProductBatches() {
         </CardHeader>
 
         <CardContent className="space-y-5 p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-xl border border-amber-100 bg-amber-50/40 p-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 -mt-2 text-amber-600" />
+              <Search className="absolute left-3 top-1/2 -mt-2 size-4 -translate-y-1/2 text-amber-600" />
               <Input
                 placeholder="Tìm theo mã lô, tên sản phẩm..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
+                className="border-none bg-white pl-9 text-xs shadow-sm focus-visible:ring-amber-300"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 rounded-full border-amber-200 text-[11px] font-semibold text-amber-900 hover:bg-amber-50"
-                  onClick={() => handleOpenStockIn()}
-                >
-                  Tạo phiếu nhập kho
-                </Button>
-              </div>
-
-              <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
+                Trạng thái lô
+              </span>
+              <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-white text-xs">
                 {FILTER_OPTIONS.map((opt) => (
                   <button
                     key={opt}
@@ -287,7 +275,7 @@ function ProductBatches() {
                     className={cn(
                       'px-3 py-1.5 transition',
                       opt !== 'ALL' && 'border-l border-amber-200',
-                      statusFilter === opt ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'
+                      statusFilter === opt ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-50'
                     )}
                   >
                     {opt === 'ALL' ? 'Tất cả' : BATCH_STATUS_LABEL[opt]}
@@ -319,10 +307,11 @@ function ProductBatches() {
                         <th className="px-2 py-2 font-semibold text-center">SL hiện tại</th>
                         <th className="px-4 py-2 font-semibold text-center">Hạn dùng</th>
                         <th className="px-4 py-2 font-semibold text-right">Trạng thái</th>
+                        <th className="px-4 py-2 font-semibold text-right">Hành động</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50">
-                      {productBatches.map((b) => (
+                      {paginatedBatches.map((b) => (
                         <tr key={b.batchId} className="hover:bg-amber-50/40">
                           <td className="px-4 py-2">
                             <p className="text-sm font-semibold text-stone-900">{b.batchCode}</p>
@@ -363,12 +352,26 @@ function ProductBatches() {
                               {BATCH_STATUS_LABEL[b.status]}
                             </span>
                           </td>
-                          
+                          <td className="px-4 py-2 text-right">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 border-amber-200 bg-white text-[11px] text-amber-900 hover:bg-amber-50"
+                              onClick={() => {
+                                setSelectedBatchForCook(b);
+                                setActualCookQuantity('');
+                                setIsCookUpdateOpen(true);
+                              }}
+                            >
+                              Chi tiết
+                            </Button>
+                          </td>
                         </tr>
                       ))}
                       {filteredBatches.length === 0 && (
                         <tr>
-                          <td colSpan={7} className="px-4 py-6 text-center text-xs text-stone-500">
+                          <td colSpan={8} className="px-4 py-6 text-center text-xs text-stone-500">
                             Không có lô nào khớp với bộ lọc.
                           </td>
                         </tr>
@@ -377,6 +380,40 @@ function ProductBatches() {
                   </table>
                 </div>
               </CardContent>
+              <div className="flex flex-col gap-3 border-t border-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-[11px] text-stone-500">
+                  Hiển thị{' '}
+                  <span className="font-semibold text-stone-800">
+                    {filteredBatches.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredBatches.length)}
+                  </span>{' '}
+                  / <span className="font-semibold text-stone-800">{filteredBatches.length}</span> lô
+                </p>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 border-amber-200 bg-white px-2 text-[11px] text-amber-900 hover:bg-amber-50"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                  >
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                  <span className="min-w-[110px] text-center text-[11px] font-medium text-stone-700">
+                    Trang {page} / {totalPages}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 border-amber-200 bg-white px-2 text-[11px] text-amber-900 hover:bg-amber-50"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                  >
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </div>
+              </div>
             </Card>
 
             <Card className="border-amber-100 bg-amber-50/60 shadow-sm">
@@ -446,7 +483,7 @@ function ProductBatches() {
         </CardContent>
       </Card>
 
-      {/* ================= RENDER MODAL ================= */}
+      {/* ================= RENDER MODAL NHẬP KHO HÀNG LOẠT ================= */}
       <Dialog open={isStockInModalOpen} onOpenChange={setIsStockInModalOpen}>
         <DialogContent className="max-w-3xl overflow-hidden p-0 sm:rounded-2xl">
           <DialogHeader className="border-b border-amber-100 bg-amber-50 px-6 py-4">
@@ -553,6 +590,85 @@ function ProductBatches() {
               className="bg-amber-600 text-white shadow-sm hover:bg-amber-700 font-bold"
             >
               Xác nhận nhập kho
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ================= RENDER MODAL CẬP NHẬT LÔ SẢN PHẨM ================= */}
+      <Dialog open={isCookUpdateOpen} onOpenChange={setIsCookUpdateOpen}>
+        <DialogContent className="max-w-md rounded-2xl border border-amber-200 bg-white px-6 py-5">
+          <DialogHeader className="pb-3">
+            <DialogTitle className="text-base font-semibold text-amber-900">
+              Cập nhật lô sản phẩm
+            </DialogTitle>
+            <p className="text-[11px] text-stone-600">
+              Nhập <span className="font-semibold">số lượng nấu thực tế</span> cho lô đang chọn để phục vụ báo cáo sản xuất.
+            </p>
+          </DialogHeader>
+
+          {selectedBatchForCook && (
+            <div className="space-y-3 text-[11px]">
+              <div className="rounded-lg bg-amber-50/70 p-3">
+                <p className="text-xs font-semibold text-stone-900">
+                  {selectedBatchForCook.batchCode} · {selectedBatchForCook.productName}
+                </p>
+                <p className="mt-1 text-[11px] text-stone-600">
+                  SL hiện tại:{' '}
+                  <span className="font-semibold text-stone-900">
+                    {selectedBatchForCook.currentQuantity.toLocaleString('vi-VN')}
+                  </span>
+                </p>
+                <p className="text-[11px] text-stone-600">
+                  HSD: <span className="font-semibold">{formatDate(selectedBatchForCook.expiryDate)}</span>
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-stone-700">
+                  Số lượng nấu thực tế
+                  <span className="ml-0.5 text-rose-500">*</span>
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={actualCookQuantity}
+                  onChange={(e) => setActualCookQuantity(e.target.value)}
+                  placeholder="Nhập số lượng đã nấu..."
+                  className="h-9 border-amber-200 text-xs focus-visible:ring-amber-300"
+                />
+                <p className="text-[10px] text-stone-500">
+                  Giá trị này hiện chỉ dùng cho báo cáo nội bộ, chưa gửi lên API.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="mt-4 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 border-amber-200 text-[11px]"
+              onClick={() => setIsCookUpdateOpen(false)}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 bg-amber-600 text-[11px] text-white hover:bg-amber-700"
+              onClick={() => {
+                // UI-only: lưu tạm thời, có thể log ra console cho dev
+                // eslint-disable-next-line no-console
+                console.log('Số lượng nấu thực tế', {
+                  batchId: selectedBatchForCook?.batchId,
+                  actualCookQuantity,
+                });
+                setIsCookUpdateOpen(false);
+              }}
+            >
+              Lưu
             </Button>
           </DialogFooter>
         </DialogContent>

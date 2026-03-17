@@ -19,7 +19,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, CalendarClock, ChefHat, Search } from 'lucide-react';
+import { AlertTriangle, CalendarClock, ChefHat, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { kitchenServices, type ManufacturingOrderResponse, type ManuOrderStatus } from '@/services/kitchenServices';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -71,6 +71,8 @@ function ManufacturingOrders() {
   const [manufacturingOrder, setManufacturingOrder] = useState<ManufacturingOrderResponse[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ManuOrderStatus | 'ALL'>('ALL');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
   // Lệnh đang chọn để cập nhật trạng thái
   const [selectedOrder, setSelectedOrder] = useState<ManufacturingOrderResponse | null>(null);
   // Trạng thái đóng/mở popup xác nhận
@@ -139,6 +141,16 @@ function ManufacturingOrders() {
     return data;
   }, [manufacturingOrder, search, statusFilter]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE)), [filteredOrders.length]);
+  const paginatedOrders = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredOrders.slice(start, start + PAGE_SIZE);
+  }, [filteredOrders, page]);
+
   const stats = useMemo(() => {
     return {
       total: manufacturingOrder.length,
@@ -186,18 +198,21 @@ function ManufacturingOrders() {
         </CardHeader>
 
         <CardContent className="space-y-5 p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-xl border border-amber-100 bg-amber-50/40 p-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 -mt-2 text-amber-600" />
+              <Search className="absolute left-3 top-1/2 -mt-2 size-4 -translate-y-1/2 text-amber-600" />
               <Input
                 placeholder="Tìm theo mã lệnh, tên món..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
+                className="border-none bg-white pl-9 text-xs shadow-sm focus-visible:ring-amber-300"
               />
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
+                Trạng thái
+              </span>
+              <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-white text-xs">
                 {FILTER_OPTIONS.map((opt) => (
                   <button
                     key={opt}
@@ -206,7 +221,7 @@ function ManufacturingOrders() {
                     className={cn(
                       'px-3 py-1.5 transition',
                       opt !== 'ALL' && 'border-l border-amber-200',
-                      statusFilter === opt ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'
+                      statusFilter === opt ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-50'
                     )}
                   >
                     {opt === 'ALL' ? 'Tất cả' : MANU_ORDER_STATUS_LABEL[opt]}
@@ -216,8 +231,8 @@ function ManufacturingOrders() {
             </div>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-3">
-            <Card className="border-amber-100 bg-white shadow-sm lg:col-span-2">
+          <div className="grid gap-5 lg:grid-cols-1">
+            <Card className="border-amber-100 bg-white shadow-sm">
               <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
                 <CardTitle className="flex items-center gap-2 text-sm font-bold text-amber-900">
                   <CalendarClock className="size-4 text-amber-500" />
@@ -241,7 +256,7 @@ function ManufacturingOrders() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50">
-                      {filteredOrders.map((o) => (
+                      {paginatedOrders.map((o) => (
                         <tr key={o.manuOrderId} className="hover:bg-amber-50/40">
                           <td className="px-2 py-2">
                             <p className="text-sm font-semibold text-stone-900">{o.orderCode}</p>
@@ -299,69 +314,42 @@ function ManufacturingOrders() {
                   </table>
                 </div>
               </CardContent>
-            </Card>
-
-            <Card className="border-amber-100 bg-amber-50/60 shadow-sm">
-              <CardHeader className="border-b border-amber-100 pb-3">
-                <CardTitle className="flex items-center gap-2 text-sm font-bold text-amber-900">
-                  <CalendarClock className="size-4 text-amber-500" />
-                  Tình hình sản xuất
-                </CardTitle>
-                <CardDescription className="text-[11px] text-amber-700/80">
-                  Tóm tắt trạng thái lệnh sản xuất hiện tại.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 pt-3">
-                <div className="grid grid-cols-2 gap-3 text-[11px]">
-                  <div className="rounded-lg bg-white/80 p-3 shadow-sm">
-                    <p className="font-medium text-stone-500">Đang nấu</p>
-                    <p className="mt-1 text-xl font-semibold text-amber-900">{}</p>
-                  </div>
-                  <div className="rounded-lg bg-white/80 p-3 shadow-sm">
-                    <p className="font-medium text-stone-500">Chờ sản xuất</p>
-                    <p className="mt-1 text-xl font-semibold text-amber-900">{}</p>
-                  </div>
-                  <div className="rounded-lg bg-white/80 p-3 shadow-sm">
-                    <p className="font-medium text-stone-500">Đã hoàn thành</p>
-                    <p className="mt-1 text-xl font-semibold text-emerald-700">{}</p>
-                  </div>
+              <div className="flex flex-col gap-3 border-t border-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-[11px] text-stone-500">
+                  Hiển thị{' '}
+                  <span className="font-semibold text-stone-800">
+                    {filteredOrders.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}
+                    –
+                    {Math.min(page * PAGE_SIZE, filteredOrders.length)}
+                  </span>{' '}
+                  / <span className="font-semibold text-stone-800">{filteredOrders.length}</span> lệnh
+                </p>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 border-amber-200 bg-white px-2 text-[11px] text-amber-900 hover:bg-amber-50"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                  >
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                  <span className="min-w-[110px] text-center text-[11px] font-medium text-stone-700">
+                    Trang {page} / {totalPages}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 border-amber-200 bg-white px-2 text-[11px] text-amber-900 hover:bg-amber-50"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                  >
+                    <ChevronRight className="size-4" />
+                  </Button>
                 </div>
-
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px]">
-                  <div className="mb-2 flex items-center gap-2">
-                    <AlertTriangle className="size-4 text-amber-500" />
-                    <p className="font-semibold text-amber-900">Lệnh đang hoạt động</p>
-                  </div>
-                  {/* {activeOrders.length > 0 ? (
-                    <ul className="space-y-1.5">
-                      {activeOrders.map((o) => (
-                        <li key={o.manu_order_id} className="flex items-center justify-between">
-                          <div>
-                            <p className="text-[11px] font-semibold text-stone-900">
-                              {o.order_code} · {o.product_name}
-                            </p>
-                            <p className="text-[10px] text-stone-500">
-                              SL kế hoạch: {o.quantity_planned.toLocaleString('vi-VN')}
-                            </p>
-                          </div>
-                          <span
-                            className={cn(
-                              'inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-[10px] font-semibold',
-                              MANU_ORDER_STATUS_CLASS[o.status]
-                            )}
-                          >
-                            {MANU_ORDER_STATUS_LABEL[o.status]}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-[11px] text-stone-500">
-                      Hiện tại không có lệnh nào ở trạng thái chờ sản xuất/đang nấu.
-                    </p>
-                  )} */}
-                </div>
-              </CardContent>
+              </div>
             </Card>
           </div>
         </CardContent>

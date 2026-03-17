@@ -37,13 +37,10 @@ export const SUPPLY_COORDINATOR_SIDEBAR_ITEMS = [
 ] as const;
 
 export const CENTRAL_KITCHEN_SIDEBAR_ITEMS = [
-  { label: 'Trang chủ', href: '/', icon: LayoutDashboard },
+  // Ẩn Dashboard riêng, chỉ giữ Đơn hàng + Lô + Phiếu nhập kho theo yêu cầu UX mới
   { label: 'Đơn hàng', href: '/central-kitchen/orders', icon: ShoppingCart },
-  { label: 'Biên lai', href: '/central-kitchen/receipts', icon: Users },
+  { label: 'Phiếu nhập kho', href: '/central-kitchen/receipts', icon: Users },
   { label: 'Lô sản phẩm', href: '/central-kitchen/product-batches', icon: Users },
-  { label: 'Tồn kho', href: '/central-kitchen/inventory', icon: Boxes },
-  { label: 'Giao dịch hàng tồn kho', href: '/central-kitchen/inventory-transactions', icon: Users },
-  { label: 'Sản phẩm', href: '/central-kitchen/products', icon: UtensilsCrossed },
 ] as const;
 
 export const FRANCHISEE_SIDEBAR_ITEMS = [
