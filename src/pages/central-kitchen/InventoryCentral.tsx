@@ -16,6 +16,7 @@ import {
   Clock3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { translateStatus } from '@/utils/labelMapping';
 
 /**
  * Đồng bộ DB (public schema):
@@ -125,13 +126,6 @@ function isNearExpiry(expiryDate: string | null, daysThreshold = 3): boolean {
   const diffDays = (exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
   return diffDays >= 0 && diffDays <= daysThreshold;
 }
-
-const BATCH_STATUS_LABEL: Record<BatchStatus, string> = {
-  WAITING_FOR_STOCK: 'Chờ nhập kho',
-  AVAILABLE: 'Đang sử dụng',
-  OUT_OF_STOCK: 'Hết hàng',
-  EXPIRED: 'Hết hạn',
-};
 
 const BATCH_STATUS_CLASS: Record<BatchStatus, string> = {
   WAITING_FOR_STOCK: 'bg-sky-50 text-sky-700 border-sky-200',
@@ -420,7 +414,7 @@ function InventoryCentral() {
                               {batch.status === 'EXPIRED' && <XCircle className="size-3" />}
                               {batch.status === 'WAITING_FOR_STOCK' && <Clock3 className="size-3" />}
                               {batch.status === 'OUT_OF_STOCK' && <AlertTriangle className="size-3" />}
-                              {BATCH_STATUS_LABEL[batch.status]}
+                              {translateStatus(batch.status)}
                             </span>
                           </td>
                         </tr>

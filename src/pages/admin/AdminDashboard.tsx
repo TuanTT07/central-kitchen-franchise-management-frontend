@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { adminService, type StoreResponse, type UserResponse } from '@/services/adminServices';
 import { cn } from '@/lib/utils';
+import { translateRole, translateStatus } from '@/utils/labelMapping';
 import { AlertTriangle, Building2, RefreshCcw, Shield, Store, Users, UserX, Loader2 } from 'lucide-react';
 
 type LoadState = 'idle' | 'loading' | 'error';
@@ -124,7 +125,12 @@ const AdminDashboard = () => {
   const storeStatusRows = useMemo(() => {
     const total = Math.max(1, metrics.totalStores);
     return [
-      { label: 'ACTIVE', count: metrics.activeStores, pct: (metrics.activeStores / total) * 100, tone: 'ok' as const },
+      {
+        label: 'ACTIVE',
+        count: metrics.activeStores,
+        pct: (metrics.activeStores / total) * 100,
+        tone: 'ok' as const,
+      },
       {
         label: 'INACTIVE',
         count: metrics.inactiveStores,
@@ -182,7 +188,7 @@ const AdminDashboard = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                      Tổng user
+                      Tổng tài khoản
                     </p>
                     <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
                       {metrics.totalUsers}
@@ -201,7 +207,7 @@ const AdminDashboard = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                      User active
+                      Tài khoản hoạt động
                     </p>
                     <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
                       {metrics.activeUsers}
@@ -225,7 +231,7 @@ const AdminDashboard = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                      Tổng store
+                      Tổng cửa hàng
                     </p>
                     <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
                       {metrics.totalStores}
@@ -244,7 +250,7 @@ const AdminDashboard = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                      Store active
+                      Cửa hàng hoạt động
                     </p>
                     <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
                       {metrics.activeStores}
@@ -272,7 +278,7 @@ const AdminDashboard = () => {
                   Phân bố tài khoản theo role
                 </CardTitle>
                 <CardDescription className="text-sm text-slate-500">
-                  Tính theo danh sách users hiện tại
+                  Tính theo danh sách tài khoản hiện tại
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 pt-2">
@@ -281,7 +287,9 @@ const AdminDashboard = () => {
                 ) : (
                   roleRows.map((r) => (
                     <div key={r.role} className="flex items-center gap-3">
-                      <div className="w-44 text-xs font-semibold text-slate-800">{r.role}</div>
+                      <div className="w-44 text-xs font-semibold text-slate-800">
+                        {translateRole(r.role)}
+                      </div>
                       <div className="flex-1">
                         <div className="h-2.5 overflow-hidden rounded-full border border-amber-100 bg-amber-50">
                           <div
@@ -303,7 +311,7 @@ const AdminDashboard = () => {
                   Trạng thái cửa hàng
                 </CardTitle>
                 <CardDescription className="text-sm text-slate-500">
-                  Tỷ lệ ACTIVE / INACTIVE (donut)
+                  Tỷ lệ trạng thái cửa hàng (donut)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 pt-2">
@@ -326,7 +334,7 @@ const AdminDashboard = () => {
                               s.tone === 'ok' ? 'bg-emerald-500' : 'bg-stone-400'
                             )}
                           />
-                          {s.label}
+                          {translateStatus(s.label)}
                         </span>
                         <span className="font-semibold text-slate-800">
                           {s.count}{' '}
@@ -361,13 +369,13 @@ const AdminDashboard = () => {
                 <div className="flex items-start gap-2 text-slate-700">
                   <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" />
                   <div>
-                    <span className="font-semibold">{metrics.activeStoresNoStaff.length}</span> store chưa có staff
+                    <span className="font-semibold">{metrics.activeStoresNoStaff.length}</span> cửa hàng chưa có nhân viên
                   </div>
                 </div>
                 <div className="flex items-start gap-2 text-slate-700">
                   <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" />
                   <div>
-                    <span className="font-semibold">{metrics.staffNoStore.length}</span> staff chưa gán store
+                    <span className="font-semibold">{metrics.staffNoStore.length}</span> nhân viên chưa gán cửa hàng
                   </div>
                 </div>
                 <div className="flex items-start gap-2 text-slate-700">
@@ -376,13 +384,13 @@ const AdminDashboard = () => {
                     <span className="font-semibold">
                       {metrics.storesInactiveButHasStaff.length}
                     </span>{' '}
-                    store INACTIVE còn staff
+                    cửa hàng ngừng hoạt động nhưng vẫn còn nhân viên
                   </div>
                 </div>
                 <div className="flex items-start gap-2 text-slate-700">
                   <UserX className="mt-0.5 h-4 w-4 text-rose-500" />
                   <div>
-                    <span className="font-semibold">{metrics.inactiveUsers}</span> user đang INACTIVE
+                    <span className="font-semibold">{metrics.inactiveUsers}</span> tài khoản đang ngừng hoạt động
                   </div>
                 </div>
               </CardContent>
@@ -409,7 +417,7 @@ const AdminDashboard = () => {
                       <div className="min-w-0">
                         <div className="truncate text-sm font-semibold text-slate-900">{store.storeName}</div>
                         <div className="text-[11px] text-slate-500">
-                          {store.status} · ID #{store.storeId}
+                          {translateStatus(store.status)} · ID #{store.storeId}
                         </div>
                       </div>
                       <div

@@ -1,15 +1,11 @@
 import { useState } from 'react';
-import { Bell, ChevronDown, LogOut, Package, Search, Settings } from 'lucide-react';
+import { Bell, Package, Search, Settings } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
 
 interface HeaderLayoutProps {
-  profileOpen: boolean;
-  setProfileOpen: (open: boolean) => void;
-  handleLogout: () => void;
   userName: string;
-  roleName: string;
 }
 
 /** Mock: danh sách thông báo (sau có thể thay bằng API) */
@@ -49,13 +45,7 @@ const MOCK_NOTIFICATIONS: NotificationItem[] = [
   },
 ];
 
-export default function HeaderLayout({
-  profileOpen,
-  setProfileOpen,
-  handleLogout,
-  userName,
-  roleName,
-}: HeaderLayoutProps) {
+export default function HeaderLayout({ userName }: HeaderLayoutProps) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications] = useState<NotificationItem[]>(MOCK_NOTIFICATIONS);
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -77,7 +67,6 @@ export default function HeaderLayout({
             className="relative size-9"
             onClick={() => {
               setNotifOpen((o) => !o);
-              if (profileOpen) setProfileOpen(false);
             }}
             aria-label="Thông báo"
           >
@@ -156,36 +145,6 @@ export default function HeaderLayout({
         <Button variant="ghost" size="icon" className="size-9">
           <Settings className="size-5" />
         </Button>
-        <div className="relative">
-          <button
-            onClick={() => {
-              setProfileOpen(!profileOpen);
-              if (notifOpen) setNotifOpen(false);
-            }}
-            className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 hover:bg-muted/50"
-          >
-            <div className="flex size-8 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-              {userName.charAt(0)}
-            </div>
-            <span className="text-sm font-medium">{userName}</span>
-            <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">{roleName}</span>
-            <ChevronDown className="size-4" />
-          </button>
-          {profileOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
-              <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border border-border bg-white py-1 shadow-lg">
-                <button
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted/50"
-                >
-                  <LogOut className="size-4" />
-                  Đăng xuất
-                </button>
-              </div>
-            </>
-          )}
-        </div>
       </div>
     </header>
   );

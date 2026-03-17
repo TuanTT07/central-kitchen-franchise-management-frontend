@@ -9,15 +9,9 @@ import { Role } from '@/Types';
 import { kitchenServices, type ProductBatchesResponse } from '@/services/kitchenServices';
 import { managerServices, type ManagerOrderItem } from '@/services/managerServices';
 import { supplyServices, type ExportNotesResponse } from '@/services/supplyServices';
+import { translateStatus } from '@/utils/labelMapping';
 
 type ProductBatchStatus = 'WAITING_FOR_STOCK' | 'AVAILABLE' | 'OUT_OF_STOCK' | 'EXPIRED';
-
-const BATCH_STATUS_LABEL: Record<ProductBatchStatus, string> = {
-  WAITING_FOR_STOCK: 'Chờ nhập kho',
-  AVAILABLE: 'Khả dụng',
-  OUT_OF_STOCK: 'Hết hàng',
-  EXPIRED: 'Hết hạn',
-};
 
 
 const CentralKitchenDashboard = () => {
@@ -146,7 +140,9 @@ const CentralKitchenDashboard = () => {
                     <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
                       {plannedCount}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500">Đơn cửa hàng trạng thái PENDING</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Đơn cửa hàng trạng thái {translateStatus('PENDING')}
+                    </p>
                   </div>
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
                     <ChefHat className="h-5 w-5" />
@@ -165,7 +161,9 @@ const CentralKitchenDashboard = () => {
                     <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
                       {cookingCount}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500">Đơn APPROVED / CONSOLIDATED</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Đơn {translateStatus('APPROVED')} / {translateStatus('CONSOLIDATED')}
+                    </p>
                   </div>
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
                     <UtensilsCrossed className="h-5 w-5" />
@@ -184,7 +182,9 @@ const CentralKitchenDashboard = () => {
                     <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
                       {outOfStockCount}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500">Lô OUT_OF_STOCK / EXPIRED</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Lô {translateStatus('OUT_OF_STOCK')} / {translateStatus('EXPIRED')}
+                    </p>
                   </div>
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
                     <AlertTriangle className="h-5 w-5" />
@@ -236,7 +236,7 @@ const CentralKitchenDashboard = () => {
                               {formatDate(o.deliveryDate)}
                             </td>
                             <td className="px-4 py-3 text-right text-xs font-medium text-slate-700">
-                              {o.status}
+                              {translateStatus(o.status)}
                             </td>
                           </tr>
                         ))}
@@ -259,15 +259,21 @@ const CentralKitchenDashboard = () => {
               </CardHeader>
               <CardContent className="space-y-3 pt-2 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-600">Đơn chờ sản xuất (PENDING)</span>
+                  <span className="text-slate-600">
+                    Đơn chờ sản xuất ({translateStatus('PENDING')})
+                  </span>
                   <span className="font-semibold text-slate-900">{plannedCount}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-600">Đơn đang xử lý (APPROVED/CONSOLIDATED)</span>
+                  <span className="text-slate-600">
+                    Đơn đang xử lý ({translateStatus('APPROVED')}/{translateStatus('CONSOLIDATED')})
+                  </span>
                   <span className="font-semibold text-slate-900">{cookingCount}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-600">Phiếu READY</span>
+                  <span className="text-slate-600">
+                    Phiếu {translateStatus('READY')}
+                  </span>
                   <span className="font-semibold text-slate-900">{exportReadyCount}</span>
                 </div>
                 {batchesAlert.length > 0 && (
@@ -279,7 +285,7 @@ const CentralKitchenDashboard = () => {
                           {b.batchCode ?? (b as { batch_code?: string }).batch_code}
                         </span>
                         <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-800">
-                          {BATCH_STATUS_LABEL[(b.status as ProductBatchStatus) ?? 'OUT_OF_STOCK']}
+                          {translateStatus((b.status as ProductBatchStatus) ?? 'OUT_OF_STOCK')}
                         </span>
                       </div>
                     ))}
@@ -325,7 +331,7 @@ const CentralKitchenDashboard = () => {
                             </td>
                             <td className="px-4 py-3 text-slate-700">{e.storeName ?? '—'}</td>
                             <td className="px-4 py-3 text-right text-xs font-medium text-slate-700">
-                              {e.status}
+                              {translateStatus(e.status)}
                             </td>
                           </tr>
                         ))}

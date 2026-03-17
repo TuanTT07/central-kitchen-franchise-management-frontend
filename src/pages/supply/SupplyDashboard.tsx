@@ -5,6 +5,7 @@ import { AlertTriangle, Loader2, Package, Truck } from 'lucide-react';
 import { SUPPLY_COORDINATOR_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 import { Role } from '@/Types';
 import { supplyServices, type DeliveryPlanResponse, type ExportNotesResponse } from '@/services/supplyServices';
+import { translateStatus } from '@/utils/labelMapping';
 
 const SupplyDashboard = () => {
   const [exportNotes, setExportNotes] = useState<ExportNotesResponse[]>([]);
@@ -133,7 +134,9 @@ const SupplyDashboard = () => {
                     <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
                       {readyOrInTransitExports.length}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500">Phiếu READY / IN_TRANSIT</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Phiếu {translateStatus('READY')} / {translateStatus('IN_TRANSIT')}
+                    </p>
                   </div>
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-600">
                     <Package className="h-5 w-5" />
@@ -225,15 +228,15 @@ const SupplyDashboard = () => {
               </CardHeader>
               <CardContent className="space-y-3 pt-2 text-sm">
                 <div className="flex items-center justify-between rounded-lg bg-slate-50/80 px-3 py-2">
-                  <span className="text-slate-600">Chờ thực hiện (PLANNED)</span>
+                  <span className="text-slate-600">Chờ thực hiện ({translateStatus('PLANNED')})</span>
                   <span className="font-semibold text-slate-900">{plannedTrips}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-lg bg-slate-50/80 px-3 py-2">
-                  <span className="text-slate-600">Đang giao (IN_TRANSIT)</span>
+                  <span className="text-slate-600">Đang giao ({translateStatus('IN_TRANSIT')})</span>
                   <span className="font-semibold text-slate-900">{inTransitTrips}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-lg bg-slate-50/80 px-3 py-2">
-                  <span className="text-slate-600">Hoàn thành (COMPLETED)</span>
+                  <span className="text-slate-600">Hoàn thành ({translateStatus('COMPLETED')})</span>
                   <span className="font-semibold text-slate-900">{completedTrips}</span>
                 </div>
                 <div className="flex items-center justify-between border-t border-slate-200 pt-3">

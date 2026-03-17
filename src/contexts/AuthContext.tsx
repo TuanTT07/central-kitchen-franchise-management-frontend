@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return userJson ? JSON.parse(userJson) : null;
   });
 
-  const userName = user?.userFullName ?? 'User';
+  const userName = user?.userFullName ?? 'Người dùng';
 
   const logout = useCallback(() => {
     try {

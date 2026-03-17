@@ -15,22 +15,15 @@ import {
 import { FRANCHISEE_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 import { Role } from '@/Types';
 import { cn } from '@/lib/utils';
+import { translateStatus } from '@/utils/labelMapping';
 import { franchiseServices, type OrderResponse } from '@/services/franchiseServices';
 import { supplyServices, type ExportNotesResponse } from '@/services/supplyServices';
 import { useAuth } from '@/contexts/AuthContext';
 
 /**
  * Dashboard Franchise Store: Chỉ dữ liệu từ API (orders, export-notes).
- * Bỏ mục không có API; bố cục gọn, dễ đọc.
+ * Trạng thái hiển thị qua translateStatus() – không hardcode text.
  */
-
-const ORDER_STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Chờ duyệt',
-  APPROVED: 'Đã duyệt',
-  CONSOLIDATED: 'Đã gộp',
-  CANCELLED: 'Đã hủy',
-  AWAITING_DELIVERY: 'Chờ giao hàng',
-};
 
 const ORDER_STATUS_CLASS: Record<string, string> = {
   PENDING: 'bg-amber-100 text-amber-800 border-amber-200',
@@ -38,14 +31,6 @@ const ORDER_STATUS_CLASS: Record<string, string> = {
   CONSOLIDATED: 'bg-sky-100 text-sky-800 border-sky-200',
   CANCELLED: 'bg-stone-100 text-stone-600 border-stone-200',
   AWAITING_DELIVERY: 'bg-sky-100 text-sky-800 border-sky-200',
-};
-
-const EXPORT_STATUS_LABEL: Record<string, string> = {
-  READY: 'Sẵn sàng giao',
-  SHIPPED: 'Đã giao',
-  IN_TRANSIT: 'Đang giao',
-  COMPLETED: 'Hoàn thành',
-  CANCEL: 'Hủy',
 };
 
 const EXPORT_STATUS_CLASS: Record<string, string> = {
@@ -203,7 +188,7 @@ const FranchiseStoreDashboard = () => {
                     <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
                       {pendingCount}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500">PENDING</p>
+                    <p className="mt-0.5 text-xs text-slate-500">Đơn trạng thái {translateStatus('PENDING')}</p>
                   </div>
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
                     <Receipt className="h-5 w-5" />
@@ -260,7 +245,7 @@ const FranchiseStoreDashboard = () => {
                     <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
                       {readyExports.length}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500">READY / IN_TRANSIT</p>
+                    <p className="mt-0.5 text-xs text-slate-500">Phiếu {translateStatus('READY')} / {translateStatus('IN_TRANSIT')}</p>
                   </div>
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-600">
                     <FileText className="h-5 w-5" />
@@ -328,7 +313,7 @@ const FranchiseStoreDashboard = () => {
                                 ORDER_STATUS_CLASS[o.status] ?? 'bg-slate-100 text-slate-600'
                               )}
                             >
-                              {ORDER_STATUS_LABEL[o.status] ?? o.status}
+                              {translateStatus(o.status)}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right">
@@ -339,7 +324,7 @@ const FranchiseStoreDashboard = () => {
                                   EXPORT_STATUS_CLASS[o.export_status] ?? 'bg-slate-100 text-slate-600'
                                 )}
                               >
-                                {EXPORT_STATUS_LABEL[o.export_status] ?? o.export_status}
+                                {translateStatus(o.export_status)}
                               </span>
                             ) : (
                               <span className="text-xs text-slate-400">—</span>
@@ -463,7 +448,7 @@ const FranchiseStoreDashboard = () => {
                                   EXPORT_STATUS_CLASS[e.status] ?? 'bg-slate-100 text-slate-600'
                                 )}
                               >
-                                {EXPORT_STATUS_LABEL[e.status] ?? e.status}
+                                {translateStatus(e.status)}
                               </span>
                             </td>
                           </tr>

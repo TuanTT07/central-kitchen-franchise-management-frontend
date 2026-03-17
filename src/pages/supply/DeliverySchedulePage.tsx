@@ -16,6 +16,7 @@ import { useForm } from 'react-hook-form';
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { translateStatus } from '@/utils/labelMapping';
 
 import { toast } from 'sonner';
 
@@ -58,6 +59,10 @@ const DeliverySchedulePage = () => {
   // ---------------- Status Modal State ----------------
   const [isStatusModalOpen, setIsStatusModalOpen] = useState<boolean>(false);
   const [selectedPlanForStatus, setSelectedPlanForStatus] = useState<DeliveryPlanResponse | null>(null);
+
+  // ---------------- Detail Modal State (UI only) ----------------
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState<boolean>(false);
+  const [selectedPlanForDetail, setSelectedPlanForDetail] = useState<DeliveryPlanResponse | null>(null);
 
   // ================= FORM =================
 
@@ -162,12 +167,14 @@ const DeliverySchedulePage = () => {
     );
   };
 
-  // Xử lý khi nhấn nút Hủy chuyến
-  const handleCancel = (id: number) => {
-    if (confirm("Bạn có chắc chắn muốn hủy lịch trình giao hàng này không?")) {
-      console.log("Yêu cầu hủy chuyến:", id);
-      // Logic gọi API hủy sẽ thực hiện tại đây
-    }
+  // Xóa lịch giao hàng (UI only)
+  const handleDeleteUI = (plan: DeliveryPlanResponse) => {
+    console.log('Xóa lịch giao hàng (UI):', plan.deliveryId);
+  };
+
+  const handleOpenDetail = (plan: DeliveryPlanResponse) => {
+    setSelectedPlanForDetail(plan);
+    setIsDetailModalOpen(true);
   };
 
   // Xử lý khi nhấn nút Cập nhật
@@ -221,10 +228,10 @@ const DeliverySchedulePage = () => {
     };
 
     const statusLabels: Record<string, string> = {
-      PLANNED: "Chờ giao",
-      IN_TRANSIT: "Đang giao",
-      COMPLETED: "Hoàn tất",
-      CANCELLED: "Đã hủy",
+      PLANNED: translateStatus('PLANNED') || 'Chờ giao',
+      IN_TRANSIT: translateStatus('IN_TRANSIT') || 'Đang giao',
+      COMPLETED: translateStatus('COMPLETED') || 'Hoàn tất',
+      CANCELLED: translateStatus('CANCELLED') || 'Đã hủy',
     };
 
     return (
@@ -317,7 +324,12 @@ const DeliverySchedulePage = () => {
               <tbody className="divide-y divide-amber-50/50">
                 {filteredPlans.length > 0 ? (
                   filteredPlans.map((plan) => (
-                    <tr key={plan.deliveryId} className="group hover:bg-amber-50/20 transition-all">
+                    <tr
+                      key={plan.deliveryId}
+                      className="group cursor-pointer hover:bg-amber-50/20 transition-all"
+                      onClick={() => handleOpenDetail(plan)}
+                      title="Xem chi tiết lịch giao hàng"
+                    >
                       <td className="px-6 py-4">
                         <span className="font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded-md text-[11px] border border-amber-100">
                           {plan.deliveryCode}
@@ -364,9 +376,12 @@ const DeliverySchedulePage = () => {
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            onClick={() => handleCancel(plan.deliveryId)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteUI(plan);
+                            }}
                             className="h-8 w-8 p-0 text-rose-500 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors"
-                            title="Hủy chuyến"
+                            title="Xóa"
                           >
                             <Trash2 className="size-4" />
                           </Button>
@@ -601,6 +616,85 @@ const DeliverySchedulePage = () => {
       </Dialog>
       
       {/* MODAL XÁC NHẬN CẬP NHẬT TRẠNG THÁI */}
+      {/* MODAL CHI TIẾT LỊCH GIAO HÀNG (UI only) */}
+      <Dialog
+        open={isDetailModalOpen}
+        onOpenChange={(open) => {
+          setIsDetailModalOpen(open);
+          if (!open) setSelectedPlanForDetail(null);
+        }}
+      >
+        <DialogContent className="max-w-2xl overflow-hidden rounded-2xl border border-stone-200 bg-white p-0 shadow-2xl">
+          <div className="border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4">
+            <h3 className="text-base font-bold text-amber-900">Chi tiết lịch giao hàng</h3>
+            <p className="mt-1 text-xs text-amber-700/80">Mô phỏng UI hiển thị chi tiết chuyến giao.</p>
+          </div>
+          <div className="space-y-4 px-6 py-5 text-sm">
+            {!selectedPlanForDetail ? (
+              <p className="text-sm text-stone-500">Đang tải...</p>
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
+                    <p className="text-[11px] font-semibold text-stone-500">Mã chuyến</p>
+                    <p className="mt-1 font-bold text-stone-900">{selectedPlanForDetail.deliveryCode}</p>
+                  </div>
+                  <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
+                    <p className="text-[11px] font-semibold text-stone-500">Trạng thái</p>
+                    <p className="mt-1 font-bold text-stone-900">{translateStatus(selectedPlanForDetail.status)}</p>
+                  </div>
+                  <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
+                    <p className="text-[11px] font-semibold text-stone-500">Tài xế</p>
+                    <p className="mt-1 font-bold text-stone-900">{selectedPlanForDetail.driverName}</p>
+                  </div>
+                  <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
+                    <p className="text-[11px] font-semibold text-stone-500">Biển số</p>
+                    <p className="mt-1 font-bold text-stone-900">{selectedPlanForDetail.vehiclePlate ?? '—'}</p>
+                  </div>
+                  <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 sm:col-span-2">
+                    <p className="text-[11px] font-semibold text-stone-500">Ngày dự kiến</p>
+                    <p className="mt-1 font-bold text-stone-900">{formatDate(selectedPlanForDetail.scheduledDate)}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-700">Danh sách phiếu xuất</p>
+                  <div className="space-y-2">
+                    {selectedPlanForDetail.exportNotes?.length ? (
+                      selectedPlanForDetail.exportNotes.map((note, idx) => (
+                        <div
+                          key={`${note.exportId ?? idx}-${idx}`}
+                          className="flex items-center justify-between rounded-lg border border-amber-100 bg-amber-50/40 px-4 py-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-stone-900">{note.storeName}</p>
+                            <p className="text-[11px] text-stone-600">
+                              Phiếu: {note.exportCode ?? `#${note.exportId ?? '—'}`}
+                            </p>
+                          </div>
+                          <span className="text-xs font-semibold text-amber-800">—</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-stone-500">Chưa có phiếu xuất nào.</p>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter className="border-t border-stone-100 bg-stone-50 px-6 py-3">
+            <Button
+              variant="outline"
+              className="border-amber-200 text-amber-900 hover:bg-amber-50"
+              onClick={() => setIsDetailModalOpen(false)}
+            >
+              Đóng
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={isStatusModalOpen} onOpenChange={setIsStatusModalOpen}>
         <DialogContent className="max-w-md overflow-hidden p-0 rounded-2xl border-none shadow-2xl">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white text-center">
