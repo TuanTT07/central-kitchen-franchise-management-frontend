@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { LayoutGrid, MapPin, Search, Loader2, Package } from 'lucide-react';
+import { LayoutGrid, MapPin, Search, Loader2, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supplyServices, type ExportNotesResponse, type ExportNoteItem } from '@/services/supplyServices';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import type { OrderResponse, OrderDetailResponse } from '@/services/franchiseServices';
@@ -63,6 +63,11 @@ const DistributionPlanPage = () => {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedExportNote, setSelectedExportNote] = useState<ExportNotesResponse | null>(null);
   
+  // Phân trang
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const PAGE_SIZE = 10;
+
   // Loading states
   const [loading, setLoading] = useState(false);
   const [isFetchingReady, setIsFetchingReady] = useState(false);
@@ -70,9 +75,10 @@ const DistributionPlanPage = () => {
 
   // ================= EFFECT =================
 
+  // Gọi lại API khi trang thay đổi
   useEffect(() => {
     getExportNotes();
-  }, []);
+  }, [page]);
 
   // ================= API =================
 
@@ -82,9 +88,11 @@ const DistributionPlanPage = () => {
   const getExportNotes = async () => {
     try {
       setLoading(true);
-      const response = await supplyServices.getAllExportNote();
+      const response = await supplyServices.getAllExportNote(page, PAGE_SIZE);
       if (response.data.success) {
         setExportNotes(response.data.data.items);
+        // Lưu tổng số trang từ response phân trang
+        setTotalPages(response.data.data.totalPages || 1);
       }
     } catch (error) {
       toast.error('Không thể tải danh sách phiếu xuất kho');
@@ -335,6 +343,54 @@ const DistributionPlanPage = () => {
                 {!loading && filteredPlans.length === 0 && (
                   <div className="py-10 text-center text-xs text-stone-500">Không có đợt phân phối nào phù hợp.</div>
                 )}
+
+                {/* ================= PAGINATION ================= */}
+                <div className="flex items-center justify-between border-t border-amber-50 px-4 py-3 text-xs">
+                  <span className="text-stone-500">
+                    Trang <span className="font-bold text-amber-900">{page + 1}</span> / <span className="font-bold text-amber-900">{totalPages}</span>
+                  </span>
+                  <div className="flex gap-1">
+                    {/* Nút Trang trước */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 border-amber-200 text-amber-900 hover:bg-amber-50 disabled:opacity-40"
+                      onClick={() => setPage((p) => Math.max(0, p - 1))}
+                      disabled={page === 0 || loading}
+                    >
+                      <ChevronLeft className="size-4" />
+                    </Button>
+
+                    {/* Hiển thị các số trang */}
+                    {Array.from({ length: totalPages }, (_, i) => i).map((p) => (
+                      <Button
+                        key={p}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(p)}
+                        disabled={loading}
+                        className={`h-8 w-8 border-amber-200 text-xs font-semibold ${
+                          p === page
+                            ? 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600'
+                            : 'text-amber-900 hover:bg-amber-50'
+                        }`}
+                      >
+                        {p + 1}
+                      </Button>
+                    ))}
+
+                    {/* Nút Trang sau */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 border-amber-200 text-amber-900 hover:bg-amber-50 disabled:opacity-40"
+                      onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                      disabled={page >= totalPages - 1 || loading}
+                    >
+                      <ChevronRight className="size-4" />
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
