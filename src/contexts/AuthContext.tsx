@@ -40,6 +40,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       localStorage.removeItem('authToken');
       localStorage.removeItem('userRole');
       localStorage.removeItem('user');
+      localStorage.removeItem('franchise_cart_v1');
     }
     setRefreshToken(null);
     setToken(null);

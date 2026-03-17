@@ -33,6 +33,7 @@ import {
 import { RoleRoute, ProtectedRoute } from './routes/index.ts';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CartProvider } from '@/contexts/CartContext';
+import FranchiseCartOverlay from '@/components/cart/FranchiseCartOverlay';
 import ProtectRoleRoute from './routes/ProtectRoleRoute.tsx';
 import { ADMIN_SIDEBAR_ITEMS } from './components/layout/index.ts';
 import RoleShell from './components/layout/RoleShell.tsx';
@@ -104,7 +105,9 @@ function App() {
                 <Route
                   element={
                     <CartProvider>
-                      <RoleShell sidebarItems={FRANCHISEE_SIDEBAR_ITEMS} roleLabel={Role.FRANCHISE_STORE_STAFF} />
+                      <FranchiseCartOverlay>
+                        <RoleShell sidebarItems={FRANCHISEE_SIDEBAR_ITEMS} roleLabel={Role.FRANCHISE_STORE_STAFF} />
+                      </FranchiseCartOverlay>
                     </CartProvider>
                   }
                 >

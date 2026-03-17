@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useReducer } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
 
 export type CartItem = {
   productId: number;
@@ -23,6 +23,8 @@ type CartAction =
   | { type: 'REMOVE_ITEM'; payload: RemovePayload }
   | { type: 'CLEAR' };
 
+const CART_STORAGE_KEY = 'franchise_cart_v1';
+
 const CartContext = createContext<{
   items: CartItem[];
   totalQuantity: number;
@@ -31,6 +33,30 @@ const CartContext = createContext<{
   removeItem: (payload: RemovePayload) => void;
   clear: () => void;
 } | null>(null);
+
+function safeLoadCartState(): CartState {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return { items: [] };
+    const parsed = JSON.parse(raw) as Partial<CartState> | null;
+    const items = Array.isArray(parsed?.items) ? parsed!.items : [];
+
+    const normalized: CartItem[] = items
+      .map((i: any) => ({
+        productId: Number(i?.productId),
+        name: String(i?.name ?? ''),
+        unitName: i?.unitName ? String(i.unitName) : undefined,
+        unitPrice: i?.unitPrice != null ? Number(i.unitPrice) : undefined,
+        imageUrl: i?.imageUrl ? String(i.imageUrl) : undefined,
+        quantity: Number(i?.quantity ?? 0),
+      }))
+      .filter((i) => Number.isFinite(i.productId) && i.productId > 0 && !!i.name && Number.isFinite(i.quantity) && i.quantity > 0);
+
+    return { items: normalized };
+  } catch {
+    return { items: [] };
+  }
+}
 
 function cartReducer(state: CartState, action: CartAction): CartState {
   switch (action.type) {
@@ -84,7 +110,19 @@ function cartReducer(state: CartState, action: CartAction): CartState {
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(cartReducer, { items: [] });
+  const [state, dispatch] = useReducer(cartReducer, undefined, safeLoadCartState);
+
+  useEffect(() => {
+    try {
+      if (state.items.length === 0) {
+        localStorage.removeItem(CART_STORAGE_KEY);
+        return;
+      }
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({ items: state.items }));
+    } catch {
+      // ignore storage errors (quota/private mode)
+    }
+  }, [state.items]);
 
   const value = useMemo(() => {
     const totalQuantity = state.items.reduce((sum, i) => sum + i.quantity, 0);
