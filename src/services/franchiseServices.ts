@@ -114,6 +114,15 @@ export const franchiseServices = {
   cancelOrder: async (id: number, body: {cancelReason: string}) => {
     return (await http.post<Response<OrderResponse<OrderDetailResponse[]>[]>>(`/orders/${id}/cancel`, body)).data;
   },
+
+  /**
+   * Lấy chi tiết một đơn hàng theo ID
+   * GET /orders/{id}
+   */
+  getOrderById: async (id: number) => {
+    const response = await http.get<Response<OrderResponse<OrderDetailResponse[]>>>(`/orders/${id}`);
+    return response.data;
+  },
   /**
    * Lấy danh sách phiếu xuất kho và thông tin lô hàng
    * @returns {Promise<Response<ExportNotesResponse>>}
