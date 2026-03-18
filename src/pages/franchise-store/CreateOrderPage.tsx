@@ -8,6 +8,12 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useCart } from '@/contexts/CartContext';
 
+const formatCurrencyVND = (value?: number) => {
+  const amount = Number(value ?? 0);
+  if (!Number.isFinite(amount) || amount <= 0) return 'Liên hệ';
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+};
+
 const CreateOrderPage = () => {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<number | 'ALL'>('ALL');
@@ -173,6 +179,9 @@ const CreateOrderPage = () => {
                         </p>
                         <p className="text-[11px] text-stone-600">
                           Đơn vị: <span className="font-medium text-stone-800">{p.unitName}</span>
+                        </p>
+                        <p className="text-xs font-semibold text-amber-700">
+                          Giá: <span className="text-amber-800">{formatCurrencyVND(p.price)}</span>
                         </p>
                       </div>
 
