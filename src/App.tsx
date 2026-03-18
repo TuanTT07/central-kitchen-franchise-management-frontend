@@ -24,10 +24,8 @@ import {
 import { ManufacturingOrders, ProductBatches, Receipts } from './pages/central-kitchen/index.ts';
 
 import {
-  FranchiseStoreDashboard,
   CreateOrderPage,
   OrderTrackingPage,
-  ProductsFranchise,
   StoreProfile,
 } from './pages/franchise-store/index.ts';
 import { RoleRoute, ProtectedRoute } from './routes/index.ts';
@@ -64,7 +62,7 @@ function App() {
                 element={
                   <RoleRoute
                     admin={<AdminDashboard />}
-                    franchise={<FranchiseStoreDashboard />}
+                    franchise={<Navigate to="/franchise-store/create-order" replace />}
                     manager={<ManagerDashboard />}
                     supplier={<SupplyDashboard />}
                     centralKitchen={<Navigate to="/central-kitchen/orders" replace />}
@@ -113,7 +111,6 @@ function App() {
                 >
                   <Route path="/franchise-store/create-order" element={<CreateOrderPage />}></Route>
                   <Route path="/franchise-store/order-tracking" element={<OrderTrackingPage />}></Route>
-                  <Route path="/franchise-store/products" element={<ProductsFranchise />}></Route>
                   <Route path="/franchise-store/store-profile" element={<StoreProfile />}></Route>
                 </Route>
               </Route>

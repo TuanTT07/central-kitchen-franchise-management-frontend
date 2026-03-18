@@ -44,9 +44,7 @@ export const CENTRAL_KITCHEN_SIDEBAR_ITEMS = [
 ] as const;
 
 export const FRANCHISEE_SIDEBAR_ITEMS = [
-  { label: 'Trang chủ', href: '/', icon: LayoutDashboard },
-  { label: 'Đơn đặt hàng', href: '/franchise-store/create-order', icon: ShoppingCart },
+  { label: 'Thực đơn', href: '/franchise-store/create-order', icon: ShoppingCart },
   { label: 'Đơn hàng', href: '/franchise-store/order-tracking', icon: ReceiptText },
-  { label: 'Sản phẩm', href: '/franchise-store/products', icon: Package },
   { label: 'Thông tin cửa hàng', href: '/franchise-store/store-profile', icon: Info },
 ] as const;
