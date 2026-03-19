@@ -116,6 +116,10 @@ export const adminService = {
    *
    * @returns Promise<Response<PaginatedResponse<StoreResponse[]>>>
    */
+  getStoreById: async (id: number) => {
+    return await http.get<Response<StoreResponse>>(`/admin/stores/${id}`);
+  },
+
   getAllStores: async (page: number = 0, size: number = 10) => {
     return await http.get<Response<PaginatedResponse<StoreResponse[]>>>('/admin/stores', {
       params: { page, size },
