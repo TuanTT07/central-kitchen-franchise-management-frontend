@@ -1,19 +1,10 @@
 /**
- * =========================================================
- * Component: SummaryOrdersPage
+ * File: SummaryOrdersPage.tsx
  * Description: Trang tổng hợp đơn hàng từ các chi nhánh (Supply Coordination).
  *             Cho phép xem danh sách đơn hàng, thực hiện gom đơn tự động/thủ công
  *             và tạo lệnh sản xuất thực tế.
  * Author: Tuan Tran
- * Created: 2026-03-08
- *
- * Features:
- * - Hiển thị danh sách và thống kê đơn hàng từ chi nhánh.
- * - Gom đơn tự động (Auto Consolidate) các đơn hàng APPROVED.
- * - Gom đơn thủ công (Manual Consolidate) tùy chọn.
- * - Chỉnh sửa số lượng sản phẩm sau khi gom.
- * - Tạo lệnh sản xuất (Manufacturing Order) dựa trên kết quả gom đơn.
- * =========================================================
+ * Created: 2026
  */
 
 // ================= IMPORT =================
@@ -58,6 +49,11 @@ function SummaryOrdersPage() {
   // State quản lý trạng thái đang gửi API
   const [isFinalizing, setIsFinalizing] = useState(false);
 
+  // ================= EFFECT =================
+  useEffect(() => {
+    getAllOrders();
+  }, []);
+
   // ================= API =================
   /**
    * Gọi API lấy danh sách đơn hàng từ chi nhánh
@@ -74,64 +70,7 @@ function SummaryOrdersPage() {
     }
   };
 
-  // ================= EFFECT =================
-  useEffect(() => {
-    getAllOrders();
-  }, []);
 
-  // ================= UTIL =================
-  /**
-   * Component con hiển thị Badge trạng thái với màu sắc tương ứng
-   *
-   * @param status Chuỗi trạng thái từ API (PENDING, APPROVED, CONSOLIDATED, CANCELLED)
-   */
-  function OrderStatusBadge({ status }: { status: string | undefined }) {
-    if (!status)
-      return (
-        <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
-          Chưa có trạng thái
-        </span>
-      );
-
-    switch (status) {
-      case 'PENDING':
-        return (
-          <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
-            {translateStatus(status)}
-          </span>
-        );
-      case 'APPROVED':
-        return (
-          <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-            {translateStatus(status)}
-          </span>
-        );
-      case 'AWAITING_DELIVERY':
-        return (
-          <span className="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-800">
-            {translateStatus(status)}
-          </span>
-        );
-      case 'CONSOLIDATED':
-        return (
-          <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
-            {translateStatus(status)}
-          </span>
-        );
-      case 'CANCELLED':
-        return (
-          <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
-            {translateStatus(status)}
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
-            {translateStatus(status)}
-          </span>
-        );
-    }
-  }
 
   // ================= HANDLER =================
   /**
@@ -201,7 +140,7 @@ function SummaryOrdersPage() {
 
   /**
    * Nghiệp vụ: Phê duyệt đơn hàng
-   * 
+   *
    * @param orderId ID của đơn hàng cần phê duyệt
    */
   const handleApprove = async (orderId: number) => {
@@ -213,6 +152,27 @@ function SummaryOrdersPage() {
       }
     } catch (error) {
       toast.error('Phê duyệt đơn hàng thất bại');
+    }
+  };
+
+  /**
+   * Nghiệp vụ: Hủy gom đơn
+   *
+   * @param orderIds ID của đơn hàng đã được gom
+   */
+  const handleCancelConsolidate = async (orderIds: number[]) => {
+    try {
+      const response = await supplyServices.cancelConsolidate(orderIds);
+      if (response.success) {
+        toast.success('Hủy gom đơn thành công');
+        // Đóng các modal liên quan
+        setDetailOpen(false);
+        setIsModalOpen(false);
+        // Tải lại danh sách đơn hàng
+        getAllOrders();
+      }
+    } catch (error) {
+      toast.error('Hủy gom đơn thất bại');
     }
   };
 
@@ -268,9 +228,7 @@ function SummaryOrdersPage() {
       data = data.filter((o) => {
         const inOrder = o.orderCode?.toLowerCase().includes(q);
         const inStore = o.storeName?.toLowerCase().includes(q);
-        const inDetails =
-          Array.isArray(o.details) &&
-          o.details.some((d) => d.productName?.toLowerCase().includes(q));
+        const inDetails = Array.isArray(o.details) && o.details.some((d) => d.productName?.toLowerCase().includes(q));
         return Boolean(inOrder || inStore || inDetails);
       });
     }
@@ -289,6 +247,61 @@ function SummaryOrdersPage() {
     setSelectedOrder(order);
     setDetailOpen(true);
   };
+
+  // ================= UTILS =================
+
+  /**
+   * Component con hiển thị Badge trạng thái với màu sắc tương ứng
+   *
+   * @param status Chuỗi trạng thái từ API (PENDING, APPROVED, CONSOLIDATED, CANCELLED)
+   */
+  function OrderStatusBadge({ status }: { status: string | undefined }) {
+    if (!status)
+      return (
+        <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+          Chưa có trạng thái
+        </span>
+      );
+
+    switch (status) {
+      case 'PENDING':
+        return (
+          <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
+            {translateStatus(status)}
+          </span>
+        );
+      case 'APPROVED':
+        return (
+          <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+            {translateStatus(status)}
+          </span>
+        );
+      case 'AWAITING_DELIVERY':
+        return (
+          <span className="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-800">
+            {translateStatus(status)}
+          </span>
+        );
+      case 'CONSOLIDATED':
+        return (
+          <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+            {translateStatus(status)}
+          </span>
+        );
+      case 'CANCELLED':
+        return (
+          <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+            {translateStatus(status)}
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+            {translateStatus(status)}
+          </span>
+        );
+    }
+  }
 
   // ================= RENDER =================
   return (
@@ -422,20 +435,19 @@ function SummaryOrdersPage() {
                             {o.details?.reduce((acc, curr) => acc + curr.quantity, 0) || 0}
                           </td>
                           {o.status === 'PENDING' && (
-                          <td className="px-2 py-2 text-center text-stone-800">
-                              
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleApprove(o.orderId);
-                                  }}
-                                  className="border-green-200 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800"
-                                >
-                                  Phê duyệt
-                                </Button>
-                          </td>
+                            <td className="px-2 py-2 text-center text-stone-800">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleApprove(o.orderId);
+                                }}
+                                className="border-green-200 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800"
+                              >
+                                Phê duyệt
+                              </Button>
+                            </td>
                           )}
                         </tr>
                       ))}
@@ -446,7 +458,8 @@ function SummaryOrdersPage() {
                 {/* Pagination */}
                 <div className="flex items-center justify-between border-t border-amber-50 px-4 py-3 text-xs">
                   <span className="text-stone-600">
-                    Trang <span className="font-bold">{page + 1}</span> / <span className="font-bold">{totalPages}</span>
+                    Trang <span className="font-bold">{page + 1}</span> /{' '}
+                    <span className="font-bold">{totalPages}</span>
                   </span>
                   <div className="flex gap-1">
                     <Button
@@ -586,8 +599,11 @@ function SummaryOrdersPage() {
             <Button
               variant="outline"
               onClick={() => {
-                console.log('Đã hủy gom đơn, quay về trạng thái APPROVED');
-                setIsModalOpen(false);
+                if (consolidationResult?.orderIds) {
+                  handleCancelConsolidate(consolidationResult.orderIds);
+                } else {
+                  setIsModalOpen(false);
+                }
               }}
               className="rounded-full border-amber-200 px-6 text-stone-600 hover:bg-stone-50"
             >

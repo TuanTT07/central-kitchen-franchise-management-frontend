@@ -142,6 +142,7 @@ export interface DeliveryDetail {
  * GET    /orders                      -> Danh sách đơn hàng từ chi nhánh
  * POST   /orders/consolidate/auto     -> Gộp đơn hàng tự động
  * POST   /orders/consolidate/manual   -> Gộp đơn hàng thủ công
+ * POST   /orders/consolidate/cancel   -> huỷ gộp đơn hàng
  * POST   /api/v1/manufacturing-orders -> Tạo lệnh sản xuất
  *
  *
@@ -154,8 +155,8 @@ export interface DeliveryDetail {
  * PATCH  /deliveries/{id}/start      -> cập nhật tình trạng chuyến hàng (xuất phát)
  * PATCH  /deliveries/{id}/complete   -> cập nhật tình trạng chuyến hàng (hoàn thành)
  * PATCH  /deliveries/{id}/cancel     -> cập nhật tình trạng chuyến hàng (hủy)
- * 
- * 
+ *
+ *
  *
  * Authorization:
  * Bearer Token
@@ -284,8 +285,10 @@ export const supplyServices = {
    * API: Delivery Plan Service (Quản lý Lên lịch giao hàng)
    * @returns Promise<Response<DeliveryPlanResponse[]>>
    */
-  getDeliveryPlan: async () => {
-    const response = await http.get<Response<PaginatedResponse<DeliveryPlanResponse[]>>>('/deliveries');
+  getDeliveryPlan: async (page: number = 0, size: number = 10) => {
+    const response = await http.get<Response<PaginatedResponse<DeliveryPlanResponse[]>>>(
+      `/deliveries?page=${page}&size=${size}`
+    );
     return response.data;
   },
 

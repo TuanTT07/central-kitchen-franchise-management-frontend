@@ -155,7 +155,6 @@ function ProductBatches() {
 
         <CardContent className="px-6 pb-6 pt-4 space-y-5">
           <div className="flex h-10 items-center justify-between gap-3">
-            {/* Nhóm trái: Search + Filter */}
             <div className="flex h-full flex-1 items-center gap-3">
               <div className="relative h-full max-w-xs flex-1">
                 <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-500" />
