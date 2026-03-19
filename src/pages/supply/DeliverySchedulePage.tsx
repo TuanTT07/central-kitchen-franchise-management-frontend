@@ -82,6 +82,10 @@ const DeliverySchedulePage = () => {
   // ---------------- Detail Modal State ----------------
   const [isDetailModalOpen, setIsDetailModalOpen] = useState<boolean>(false);
 
+  // ---------------- Pagination State ----------------
+  const [currentPage, setCurrentPage] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(0);
+
   // ================= FORM =================
 
   const {
@@ -93,10 +97,10 @@ const DeliverySchedulePage = () => {
 
   // ================= EFFECT =================
 
-  // Tự động fetch data khi component mount
+  // Tự động fetch data khi currentPage thay đổi
   useEffect(() => {
-    fetchDeliveryPlans();
-  }, []);
+    fetchDeliveryPlans(currentPage);
+  }, [currentPage]);
 
   // Fetch phiếu xuất kho khi mở modal
   useEffect(() => {
@@ -108,13 +112,14 @@ const DeliverySchedulePage = () => {
   // ================= API =================
 
   // Gọi API lấy danh sách lịch giao hàng
-  const fetchDeliveryPlans = async () => {
+  const fetchDeliveryPlans = async (page: number = 0) => {
     try {
       setLoading(true);
-      const response = await supplyServices.getDeliveryPlan();
+      const response = await supplyServices.getDeliveryPlan(page);
       // Truy cập vào đúng cấu trúc JSON: response.data.items
       if (response && response.data && Array.isArray(response.data.items)) {
         setDeliveryPlans(response.data.items);
+        setTotalPages(response.data.totalPages || 0);
       } else {
         toast.error('Không thể lấy danh sách lịch giao hàng');
         setDeliveryPlans([]);
@@ -351,102 +356,131 @@ const DeliverySchedulePage = () => {
           </div>
 
           {/* Main Table */}
-          <div className="overflow-hidden rounded-2xl border border-amber-100 bg-white shadow-sm shadow-amber-50">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-amber-50 bg-amber-50/30 text-[10px] font-black uppercase tracking-widest text-amber-900/60">
-                  <th className="px-6 py-4">Mã chuyến</th>
-                  <th className="px-6 py-4">Chi nhánh nhận</th>
-                  <th className="px-6 py-4">Tài xế phụ trách</th>
-                  <th className="px-6 py-4">Ngày dự kiến</th>
-                  <th className="px-6 py-4">Trạng thái</th>
-                  <th className="px-6 py-4 text-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-amber-50/50">
-                {filteredPlans.length > 0 ? (
-                  filteredPlans.map((plan) => (
-                    <tr
-                      key={plan.deliveryId}
-                      className="group cursor-pointer hover:bg-amber-50/20 transition-all"
-                      onClick={() => handleOpenDetail(plan)}
-                      title="Xem chi tiết lịch giao hàng"
-                    >
-                      <td className="px-6 py-4">
-                        <span className="font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded-md text-[11px] border border-amber-100">
-                          {plan.deliveryCode}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col gap-1">
-                          {plan.exportNotes.map((note, idx) => (
-                            <div key={idx} className="flex items-center gap-2 font-semibold text-stone-800">
-                              <MapPin className="size-3 text-amber-500" />
-                              <span className="truncate max-w-[150px]">{note.storeName}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-100 to-orange-100 text-amber-700 ring-2 ring-white">
-                            <User className="size-4" />
+            <div className="overflow-hidden rounded-2xl border border-amber-100 bg-white shadow-sm shadow-amber-50">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-amber-50 bg-amber-50/30 text-[10px] font-black uppercase tracking-widest text-amber-900/60">
+                    <th className="px-6 py-4">Mã chuyến</th>
+                    <th className="px-6 py-4">Chi nhánh nhận</th>
+                    <th className="px-6 py-4">Tài xế phụ trách</th>
+                    <th className="px-6 py-4">Ngày dự kiến</th>
+                    <th className="px-6 py-4">Trạng thái</th>
+                    <th className="px-6 py-4 text-center">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-amber-50/50">
+                  {filteredPlans.length > 0 ? (
+                    filteredPlans.map((plan) => (
+                      <tr
+                        key={plan.deliveryId}
+                        className="group cursor-pointer hover:bg-amber-50/20 transition-all border-b border-amber-100"
+                        onClick={() => handleOpenDetail(plan)}
+                        title="Xem chi tiết lịch giao hàng"
+                      >
+                        <td className="px-6 py-4">
+                          <span className="font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded-md text-[11px] border border-amber-100">
+                            {plan.deliveryCode}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-1">
+                            {Array.from(new Set(plan.exportNotes.map((note) => note.storeName))).map(
+                              (storeName, idx) => (
+                                <div key={idx} className="flex items-center gap-2 font-semibold text-stone-800">
+                                  <MapPin className="size-3 text-amber-500" />
+                                  <span className="truncate max-w-[150px]">{storeName}</span>
+                                </div>
+                              )
+                            )}
                           </div>
-                          <span className="text-xs font-bold text-stone-700">{plan.driverName}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 text-stone-600 font-medium whitespace-nowrap">
-                          <Calendar className="size-3.5 text-stone-400" />
-                          {formatDate(plan.scheduledDate)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">{renderStatusBadge(plan.status)}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleUpdate(plan);
-                            }}
-                            className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-colors hover:cursor-pointer"
-                            title="Cập nhật"
-                          >
-                            <Edit className="size-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteUI(plan);
-                            }}
-                            className="h-8 w-8 p-0 text-rose-500 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors hover:cursor-pointer"
-                            title="Xóa"
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-100 to-orange-100 text-amber-700 ring-2 ring-white">
+                              <User className="size-4" />
+                            </div>
+                            <span className="text-xs font-bold text-stone-700">{plan.driverName}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2 text-stone-600 font-medium whitespace-nowrap">
+                            <Calendar className="size-3.5 text-stone-400" />
+                            {formatDate(plan.scheduledDate)}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">{renderStatusBadge(plan.status)}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpdate(plan);
+                              }}
+                              className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-colors hover:cursor-pointer"
+                              title="Cập nhật"
+                            >
+                              <Edit className="size-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteUI(plan);
+                              }}
+                              className="h-8 w-8 p-0 text-rose-500 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors hover:cursor-pointer"
+                              title="Xóa"
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center">
+                        <div className="flex flex-col items-center gap-2 opacity-50">
+                          <Truck className="size-8 text-stone-300" />
+                          <span className="text-xs font-medium text-stone-400 italic">
+                            {loading ? 'Đang tải dữ liệu...' : 'Không tìm thấy chuyến giao hàng nào.'}
+                          </span>
                         </div>
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center">
-                      <div className="flex flex-col items-center gap-2 opacity-50">
-                        <Truck className="size-8 text-stone-300" />
-                        <span className="text-xs font-medium text-stone-400 italic">
-                          {loading ? 'Đang tải dữ liệu...' : 'Không tìm thấy chuyến giao hàng nào.'}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  )}
+                </tbody>
+              </table>
+
+              {/* Pagination UI */}
+              <div className="flex items-center justify-between border-t border-amber-50 px-6 py-4 bg-amber-50/10">
+                <div className="text-[11px] font-bold text-stone-500">
+                  Trang <span className="text-amber-600">{currentPage + 1}</span> / {totalPages || 1}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+                    disabled={currentPage === 0 || loading}
+                    className="h-8 w-8 p-0 rounded-lg border-amber-200 text-amber-700 hover:bg-amber-50 disabled:opacity-30"
+                  >
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+                    disabled={currentPage >= totalPages - 1 || loading}
+                    className="h-8 w-8 p-0 rounded-lg border-amber-200 text-amber-700 hover:bg-amber-50 disabled:opacity-30"
+                  >
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
         </CardContent>
       </Card>
 
@@ -605,23 +639,23 @@ const DeliverySchedulePage = () => {
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl bg-orange-50 border border-orange-100">
-                  <p className="text-[11px] font-bold text-orange-800 mb-2 uppercase tracking-wide">
-                    Chi tiết chuyến giao:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {readyNotes
-                      .filter((n) => selectedNoteIds.includes(n.exportId))
-                      .map((n) => (
+                  <div className="p-4 rounded-xl bg-orange-50 border border-orange-100">
+                    <p className="text-[11px] font-bold text-orange-800 mb-2 uppercase tracking-wide">
+                      Chi tiết chuyến giao:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from(
+                        new Set(readyNotes.filter((n) => selectedNoteIds.includes(n.exportId)).map((n) => n.storeName))
+                      ).map((storeName, idx) => (
                         <span
-                          key={n.exportId}
+                          key={idx}
                           className="px-3 py-1 bg-white border border-orange-200 rounded-full text-[10px] font-black text-orange-700 truncate max-w-[150px]"
                         >
-                          {n.storeName}
+                          {storeName}
                         </span>
                       ))}
+                    </div>
                   </div>
-                </div>
               </form>
             )}
           </div>
@@ -680,7 +714,6 @@ const DeliverySchedulePage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL XÁC NHẬN CẬP NHẬT TRẠNG THÁI */}
       {/* MODAL CHI TIẾT LỊCH GIAO HÀNG */}
       <Dialog
         open={isDetailModalOpen}
@@ -805,6 +838,7 @@ const DeliverySchedulePage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* MODAL XÁC NHẬN CẬP NHẬT TRẠNG THÁI */}
 
       <Dialog open={isStatusModalOpen} onOpenChange={setIsStatusModalOpen}>
         <DialogContent className="max-w-md overflow-hidden p-0 rounded-2xl border-none shadow-2xl">
