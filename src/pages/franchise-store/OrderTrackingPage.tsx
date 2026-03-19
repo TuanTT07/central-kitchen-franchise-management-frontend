@@ -21,6 +21,7 @@ import {
 import { CalendarClock, Eye, Receipt, Search, Truck, AlertTriangle, Loader2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { translateStatus } from '@/utils/labelMapping';
+import StatusBadge from '@/components/ui/StatusBadge';
 import { franchiseServices, type OrderResponse, type OrderDetailResponse, type ExportNotesResponse } from '@/services/franchiseServices';
 import {toast} from 'sonner';
 
@@ -30,13 +31,6 @@ import {toast} from 'sonner';
  * - Theo dõi trạng thái duyệt đơn và trạng thái xuất kho
  * - Trạng thái hiển thị qua translateStatus() – không hardcode text.
  */
-
-const STORE_ORDER_STATUS_CLASS: Record<string, string> = {
-  PENDING: 'bg-amber-100 text-amber-800 border-amber-200',
-  APPROVED: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  CONSOLIDATED: 'bg-blue-100 text-blue-800 border-blue-200',
-  CANCELLED: 'bg-stone-100 text-stone-600 border-stone-200',
-};
 
 const FILTER_OPTIONS = ['ALL', 'PENDING', 'APPROVED', 'CONSOLIDATED', 'CANCELLED'] as const;
 type FilterStatus = (typeof FILTER_OPTIONS)[number];
@@ -316,14 +310,7 @@ const OrderTrackingPage = () => {
                             {o.deliveryDate}
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <span
-                              className={cn(
-                                'inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold shadow-sm',
-                                STORE_ORDER_STATUS_CLASS[o.status] || 'bg-stone-100 text-stone-800'
-                              )}
-                            >
-                              {translateStatus(o.status)}
-                            </span>
+                            <StatusBadge status={o.status} />
                           </td>
                           <td className="px-4 py-3 text-center">
                             <button
@@ -597,14 +584,9 @@ const OrderTrackingPage = () => {
                   <div className="rounded-xl border border-amber-100 bg-amber-50/40 px-4 py-3 flex items-start justify-between">
                     <div>
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Trạng thái</p>
-                      <span
-                        className={cn(
-                          'mt-2 inline-flex rounded-full border px-3 py-1 text-xs font-bold',
-                          STORE_ORDER_STATUS_CLASS[orderDetail.status] || 'bg-stone-100 text-stone-800'
-                        )}
-                      >
-                        {translateStatus(orderDetail.status)}
-                      </span>
+                      <div className="mt-2">
+                        <StatusBadge status={orderDetail.status} />
+                      </div>
                     </div>
                   </div>
                 </div>
