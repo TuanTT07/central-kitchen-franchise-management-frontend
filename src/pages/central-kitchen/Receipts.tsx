@@ -3,23 +3,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { CalendarClock, FileText, Hash, Search, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import StatusBadge from '@/components/ui/StatusBadge';
 import { cn } from '@/lib/utils';
+import { translateStatus } from '@/utils/labelMapping';
 import { kitchenServices, type InventoryReceiptApi, type ProductBatchesResponse } from '@/services/kitchenServices';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
 type ReceiptStatus = 'DRAFT' | 'COMPLETED';
-
-const RECEIPT_STATUS_LABEL: Record<ReceiptStatus, string> = {
-  DRAFT: 'Nháp',
-  COMPLETED: 'Hoàn thành',
-};
-
-const RECEIPT_STATUS_CLASS: Record<ReceiptStatus, string> = {
-  DRAFT: 'bg-amber-100 text-amber-800 border-amber-200',
-  COMPLETED: 'bg-emerald-500 text-white border-emerald-600 shadow-sm',
-};
 
 const FILTER_OPTIONS: (ReceiptStatus | 'ALL')[] = ['ALL', 'DRAFT', 'COMPLETED'];
 
@@ -218,24 +210,12 @@ function Receipts() {
             </CardDescription>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              size="sm"
-              className="h-9 rounded-full bg-amber-600 px-4 text-[11px] font-semibold text-white hover:bg-amber-700"
-              onClick={handleOpenStockIn}
-            >
-              Tạo phiếu nhập kho
-            </Button>
-
-            <div className="hidden items-center gap-6 md:flex">
+          <div className="hidden items-center gap-6 md:flex">
             <div className="flex flex-col text-right">
               <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
                 Tổng biên lai
               </span>
-              <span className="text-lg font-semibold text-amber-900">
-                {receipts.length}
-              </span>
+              <span className="text-lg font-semibold text-amber-900">{receipts.length}</span>
             </div>
             <div className="h-10 w-px bg-amber-200/70" />
             <div className="flex flex-col text-right">
@@ -251,7 +231,6 @@ function Receipts() {
               </span>
               <span className="text-lg font-semibold text-amber-900">{completedCount}</span>
             </div>
-          </div>
           </div>
         </CardHeader>
 
@@ -281,10 +260,18 @@ function Receipts() {
                         : 'text-amber-800 hover:bg-amber-100'
                     )}
                   >
-                    {opt === 'ALL' ? 'Tất cả' : RECEIPT_STATUS_LABEL[opt]}
+                    {opt === 'ALL' ? 'Tất cả' : translateStatus(opt)}
                   </button>
                 ))}
               </div>
+              <Button
+                type="button"
+                size="sm"
+                className="ml-auto h-9 rounded-full bg-amber-600 px-4 text-[11px] font-semibold text-white hover:bg-amber-700"
+                onClick={handleOpenStockIn}
+              >
+                + Tạo phiếu nhập kho
+              </Button>
             </div>
           </div>
 
@@ -321,14 +308,7 @@ function Receipts() {
                             {formatDateTime(r.receiptDate)}
                           </td>
                           <td className="px-4 py-2 text-right">
-                            <span
-                              className={cn(
-                                'inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-semibold',
-                                RECEIPT_STATUS_CLASS[r.status]
-                              )}
-                            >
-                              {RECEIPT_STATUS_LABEL[r.status]}
-                            </span>
+                            <StatusBadge status={r.status} />
                           </td>
                           <td className="px-4 py-2 text-right">
                             <Button
@@ -438,14 +418,7 @@ function Receipts() {
                       <p className="mt-0.5 text-xs text-stone-500">ID: {selectedReceipt.receiptId}</p>
                     </div>
                   </div>
-                  <span
-                    className={cn(
-                      'inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold',
-                      RECEIPT_STATUS_CLASS[selectedReceipt.status]
-                    )}
-                  >
-                    {RECEIPT_STATUS_LABEL[selectedReceipt.status]}
-                  </span>
+                  <StatusBadge status={selectedReceipt.status} className="px-4 py-2 text-xs" />
                 </div>
               </div>
 

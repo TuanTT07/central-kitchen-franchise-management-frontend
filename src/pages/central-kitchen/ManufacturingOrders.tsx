@@ -21,31 +21,15 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, CalendarClock, ChefHat, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { translateStatus } from '@/utils/labelMapping';
 import { kitchenServices, type ManufacturingOrderResponse, type ManuOrderStatus } from '@/services/kitchenServices';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import {toast} from 'sonner';
+import { toast } from 'sonner';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 // ================= TYPES =================
 
 const FILTER_OPTIONS: (ManuOrderStatus | 'ALL')[] = ['ALL', 'PLANNED', 'COOKING', 'COMPLETED'];
-
-/**
- * Mapping nhãn hiển thị cho trạng thái lệnh sản xuất
- */
-const MANU_ORDER_STATUS_LABEL: Record<ManuOrderStatus, string> = {
-  PLANNED: 'Chờ sản xuất',
-  COOKING: 'Đang nấu',
-  COMPLETED: 'Hoàn thành',
-};
-
-/**
- * Mapping class CSS cho từng trạng thái
- */
-const MANU_ORDER_STATUS_CLASS: Record<ManuOrderStatus, string> = {
-  PLANNED: 'border-blue-200 bg-blue-50 text-blue-700',
-  COOKING: 'border-amber-200 bg-amber-50 text-amber-700',
-  COMPLETED: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-};
 
 // ================= UTIL =================
 /**
@@ -198,40 +182,35 @@ function ManufacturingOrders() {
         </CardHeader>
 
         <CardContent className="space-y-5 p-6">
-          <div className="flex flex-col gap-3 rounded-xl border border-amber-100 bg-amber-50/40 p-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 -mt-2 size-4 -translate-y-1/2 text-amber-600" />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative max-w-sm flex-1">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-500" />
               <Input
                 placeholder="Tìm theo mã lệnh, tên món..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="border-none bg-white pl-9 text-xs shadow-sm focus-visible:ring-amber-300"
+                className="border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                Trạng thái
-              </span>
-              <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-white text-xs">
-                {FILTER_OPTIONS.map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => setStatusFilter(opt)}
-                    className={cn(
-                      'px-3 py-1.5 transition',
-                      opt !== 'ALL' && 'border-l border-amber-200',
-                      statusFilter === opt ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-50'
-                    )}
-                  >
-                    {opt === 'ALL' ? 'Tất cả' : MANU_ORDER_STATUS_LABEL[opt]}
-                  </button>
-                ))}
-              </div>
+            <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">
+              {FILTER_OPTIONS.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setStatusFilter(opt)}
+                  className={cn(
+                    'px-3 py-1.5 transition',
+                    opt !== 'ALL' && 'border-l border-amber-200',
+                    statusFilter === opt ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'
+                  )}
+                >
+                  {opt === 'ALL' ? 'Tất cả' : translateStatus(opt)}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-1">
+          <div>
             <Card className="border-amber-100 bg-white shadow-sm">
               <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
                 <CardTitle className="flex items-center gap-2 text-sm font-bold text-amber-900">
@@ -281,14 +260,7 @@ function ManufacturingOrders() {
                           </td>
 
                           <td className="px-2 py-2 text-right">
-                            <span
-                              className={cn(
-                                'inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-semibold',
-                                MANU_ORDER_STATUS_CLASS[o.status as ManuOrderStatus]
-                              )}
-                            >
-                              {MANU_ORDER_STATUS_LABEL[o.status as ManuOrderStatus] || o.status}
-                            </span>
+                            <StatusBadge status={o.status} />
                           </td>
                           <td className="px-2 py-2 text-right">
                             <Button
@@ -371,30 +343,16 @@ function ManufacturingOrders() {
             <div className="mt-4 flex items-center justify-center gap-4 rounded-lg bg-amber-50 p-4 border border-amber-100">
               <div className="flex flex-col items-center">
                 <span className="text-[10px] uppercase text-stone-500">Hiện tại</span>
-                <span
-                  className={cn(
-                    'mt-1 rounded-full border px-3 py-1 text-xs font-semibold',
-                    selectedOrder ? MANU_ORDER_STATUS_CLASS[selectedOrder.status as ManuOrderStatus] : ''
-                  )}
-                >
-                  {selectedOrder ? MANU_ORDER_STATUS_LABEL[selectedOrder.status as ManuOrderStatus] : ''}
-                </span>
+                <div className="mt-1">
+                  <StatusBadge status={selectedOrder?.status} />
+                </div>
               </div>
               <div className="h-px w-8 bg-amber-300" />
               <div className="flex flex-col items-center">
                 <span className="text-[10px] uppercase text-stone-500">Tiếp theo</span>
-                <span
-                  className={cn(
-                    'mt-1 rounded-full border px-3 py-1 text-xs font-semibold',
-                    selectedOrder?.status === 'PLANNED'
-                      ? MANU_ORDER_STATUS_CLASS.COOKING
-                      : MANU_ORDER_STATUS_CLASS.COMPLETED
-                  )}
-                >
-                  {selectedOrder?.status === 'PLANNED'
-                    ? MANU_ORDER_STATUS_LABEL.COOKING
-                    : MANU_ORDER_STATUS_LABEL.COMPLETED}
-                </span>
+                <div className="mt-1">
+                  <StatusBadge status={selectedOrder?.status === 'PLANNED' ? 'COOKING' : 'COMPLETED'} />
+                </div>
               </div>
             </div>
           </div>
