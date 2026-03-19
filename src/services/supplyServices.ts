@@ -285,8 +285,10 @@ export const supplyServices = {
    * API: Delivery Plan Service (Quản lý Lên lịch giao hàng)
    * @returns Promise<Response<DeliveryPlanResponse[]>>
    */
-  getDeliveryPlan: async () => {
-    const response = await http.get<Response<PaginatedResponse<DeliveryPlanResponse[]>>>('/deliveries');
+  getDeliveryPlan: async (page: number = 0, size: number = 10) => {
+    const response = await http.get<Response<PaginatedResponse<DeliveryPlanResponse[]>>>(
+      `/deliveries?page=${page}&size=${size}`
+    );
     return response.data;
   },
 
