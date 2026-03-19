@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { CalendarClock, Receipt, Search, Truck, AlertTriangle, Loader2, XCircle } from 'lucide-react';
+import { CalendarClock, Eye, Receipt, Search, Truck, AlertTriangle, Loader2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { translateStatus } from '@/utils/labelMapping';
 import { franchiseServices, type OrderResponse, type OrderDetailResponse, type ExportNotesResponse } from '@/services/franchiseServices';
@@ -293,16 +293,16 @@ const OrderTrackingPage = () => {
                         <th className="px-4 py-3 font-bold">Mã đơn</th>
                         <th className="px-4 py-3 font-bold">Ngày đặt</th>
                         <th className="px-4 py-3 font-bold text-center">Ngày giao</th>
-                        <th className="px-4 py-3 font-bold text-right">Trạng thái</th>
+                        <th className="px-4 py-3 font-bold text-center">Trạng thái</th>
+                        <th className="px-4 py-3 font-bold text-center">Chi tiết</th>
                         <th className="px-4 py-3 font-bold text-right">Thao tác</th>
-
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50/50">
                       {filteredOrders.map((o) => (
                         <tr
                           key={o.orderId}
-                          className="cursor-pointer hover:bg-amber-50/30 transition-colors"
+                          className="group cursor-pointer hover:bg-amber-50/50 transition-colors"
                           onClick={() => handleOpenOrderDetail(o.orderId)}
                         >
                           <td className="px-4 py-3">
@@ -315,7 +315,7 @@ const OrderTrackingPage = () => {
                           <td className="px-4 py-3 text-center text-stone-800 font-medium">
                             {o.deliveryDate}
                           </td>
-                          <td className="px-4 py-3 text-right">
+                          <td className="px-4 py-3 text-center">
                             <span
                               className={cn(
                                 'inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold shadow-sm',
@@ -324,6 +324,19 @@ const OrderTrackingPage = () => {
                             >
                               {translateStatus(o.status)}
                             </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenOrderDetail(o.orderId);
+                              }}
+                              className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-white p-2 text-amber-700 shadow-sm transition hover:bg-amber-500 hover:text-white hover:border-amber-500 group-hover:border-amber-400"
+                              title="Xem chi tiết đơn hàng"
+                            >
+                              <Eye className="size-4" />
+                            </button>
                           </td>
                           <td className="px-4 py-3 text-right">
                             <Button
@@ -536,93 +549,123 @@ const OrderTrackingPage = () => {
           if (!open) setOrderDetail(null);
         }}
       >
-        <DialogContent className="sm:max-w-2xl border-amber-100">
-          <DialogHeader>
-            <DialogTitle className="text-amber-900">Chi tiết đơn hàng</DialogTitle>
-            <p className="text-sm text-stone-500">
-              Thông tin đơn hàng và danh sách mặt hàng từ API.
-            </p>
-          </DialogHeader>
+        <DialogContent className="w-[min(95vw,680px)] max-w-none overflow-hidden rounded-2xl border border-amber-100 p-0 shadow-2xl">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-100 px-6 py-5">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-lg font-bold text-amber-900">
+                <Receipt className="size-5 text-amber-500" />
+                Chi tiết đơn hàng
+              </DialogTitle>
+              {orderDetail && (
+                <p className="text-xs text-stone-500 mt-0.5">
+                  Mã đơn: <span className="font-semibold text-stone-700">{orderDetail.orderCode}</span>
+                </p>
+              )}
+            </DialogHeader>
+          </div>
 
-          {isLoadingDetail && (
-            <div className="flex items-center justify-center gap-2 py-10 text-sm text-amber-700">
-              <Loader2 className="h-5 w-5 animate-spin text-amber-500" />
-              Đang tải chi tiết đơn hàng...
-            </div>
-          )}
-
-          {!isLoadingDetail && orderDetail && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 rounded-lg border border-amber-100 bg-amber-50/30 p-3 text-xs">
-                <div>
-                  <p className="text-[11px] font-bold text-stone-700">Mã đơn</p>
-                  <p className="mt-1 font-semibold text-stone-900">{orderDetail.orderCode}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[11px] font-bold text-stone-700">Trạng thái</p>
-                  <span
-                    className={cn(
-                      'mt-1 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold',
-                      STORE_ORDER_STATUS_CLASS[orderDetail.status] || 'bg-stone-100 text-stone-800'
-                    )}
-                  >
-                    {translateStatus(orderDetail.status)}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-[11px] font-bold text-stone-700">Ngày đặt</p>
-                  <p className="mt-1 font-medium text-stone-900">
-                    {new Date(orderDetail.orderDate).toLocaleString('vi-VN')}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[11px] font-bold text-stone-700">Ngày giao dự kiến</p>
-                  <p className="mt-1 font-medium text-stone-900">
-                    {orderDetail.deliveryDate ? new Date(orderDetail.deliveryDate).toLocaleDateString('vi-VN') : '—'}
-                  </p>
-                </div>
+          {/* Body */}
+          <div className="px-6 py-5 space-y-5 max-h-[65dvh] overflow-y-auto">
+            {isLoadingDetail && (
+              <div className="flex items-center justify-center gap-2 py-12 text-sm text-amber-700">
+                <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
+                <span className="font-medium">Đang tải chi tiết đơn hàng...</span>
               </div>
+            )}
 
-              <div className="overflow-hidden rounded-lg border border-amber-100">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="bg-amber-50/60 text-left text-[11px] font-bold uppercase tracking-wide text-amber-900">
-                      <th className="px-4 py-2">Sản phẩm</th>
-                      <th className="px-4 py-2 text-right">Số lượng</th>
-                      <th className="px-4 py-2">Đơn vị</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-amber-50/60">
-                    {orderDetail.details?.map((d) => (
-                      <tr key={d.orderDetailId} className="hover:bg-amber-50/30">
-                        <td className="px-4 py-2 font-medium text-stone-900">{d.productName}</td>
-                        <td className="px-4 py-2 text-right font-bold text-stone-900">{d.quantity}</td>
-                        <td className="px-4 py-2 text-stone-700">{d.unitName ?? d.unit ?? '—'}</td>
-                      </tr>
-                    ))}
-                    {!orderDetail.details?.length && (
-                      <tr>
-                        <td colSpan={3} className="px-4 py-6 text-center text-xs text-stone-500">
-                          Đơn hàng chưa có mặt hàng chi tiết.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+            {!isLoadingDetail && orderDetail && (
+              <>
+                {/* Thông tin chung */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-amber-100 bg-amber-50/40 px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Ngày đặt</p>
+                    <p className="mt-1 text-sm font-bold text-stone-900">
+                      {new Date(orderDetail.orderDate).toLocaleDateString('vi-VN')}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-amber-100 bg-amber-50/40 px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Ngày giao dự kiến</p>
+                    <p className="mt-1 text-sm font-bold text-stone-900">
+                      {orderDetail.deliveryDate ? new Date(orderDetail.deliveryDate).toLocaleDateString('vi-VN') : '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-amber-100 bg-amber-50/40 px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Cửa hàng</p>
+                    <p className="mt-1 text-sm font-bold text-stone-900">{orderDetail.storeName || '—'}</p>
+                  </div>
+                  <div className="rounded-xl border border-amber-100 bg-amber-50/40 px-4 py-3 flex items-start justify-between">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Trạng thái</p>
+                      <span
+                        className={cn(
+                          'mt-2 inline-flex rounded-full border px-3 py-1 text-xs font-bold',
+                          STORE_ORDER_STATUS_CLASS[orderDetail.status] || 'bg-stone-100 text-stone-800'
+                        )}
+                      >
+                        {translateStatus(orderDetail.status)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-          <DialogFooter className="flex sm:justify-end gap-2">
+                {/* Danh sách mặt hàng */}
+                <div>
+                  <p className="mb-2 text-sm font-bold text-stone-800">
+                    Danh sách mặt hàng
+                    <span className="ml-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+                      {orderDetail.details?.length ?? 0} món
+                    </span>
+                  </p>
+                  <div className="overflow-hidden rounded-xl border border-amber-100">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-amber-50 text-left text-[11px] font-bold uppercase tracking-wide text-amber-900">
+                          <th className="px-4 py-3">#</th>
+                          <th className="px-4 py-3">Sản phẩm</th>
+                          <th className="px-4 py-3 text-center">Số lượng</th>
+                          <th className="px-4 py-3">Đơn vị</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-amber-50">
+                        {orderDetail.details?.map((d, idx) => (
+                          <tr key={d.orderDetailId} className="hover:bg-amber-50/40 transition-colors">
+                            <td className="px-4 py-3 text-xs text-stone-400 font-medium">{idx + 1}</td>
+                            <td className="px-4 py-3 font-semibold text-stone-900">{d.productName}</td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="inline-flex items-center justify-center rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-800 min-w-[2.5rem]">
+                                {d.quantity}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-stone-600">{d.unitName ?? d.unit ?? '—'}</td>
+                          </tr>
+                        ))}
+                        {!orderDetail.details?.length && (
+                          <tr>
+                            <td colSpan={4} className="px-4 py-10 text-center text-sm text-stone-400">
+                              Đơn hàng chưa có mặt hàng chi tiết.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="border-t border-amber-100 bg-amber-50/30 px-6 py-4 flex justify-end">
             <Button
               type="button"
               variant="outline"
               onClick={() => setOpenDetailDialog(false)}
-              className="text-xs font-bold border-amber-200 hover:bg-amber-50"
+              className="h-9 border-amber-200 px-5 text-sm font-semibold text-amber-900 hover:bg-amber-50"
             >
               Đóng
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

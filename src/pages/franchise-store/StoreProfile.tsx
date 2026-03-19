@@ -1,234 +1,241 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect, useState } from 'react';
 import {
   Store,
   MapPin,
   Phone,
-  User,
-  Info,
-  CheckCircle,
+  CheckCircle2,
+  ClipboardList,
+  Clock,
+  BadgeCheck,
+  User2,
+  IdCard,
+  Mail,
+  ShieldCheck,
+  Loader2,
   XCircle,
-  Receipt,
-  Package,
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { franchiseServices, type OrderResponse, type OrderDetailResponse } from '@/services/franchiseServices';
 import { cn } from '@/lib/utils';
 
-/**
- * Đồng bộ DB (public schema):
- *
- * stores:
- *   store_id (PK, identity), store_name (NOT NULL), address, phone,
- *   is_active (boolean), manager_id (FK users, nullable)
- *
- * users (cho manager): user_id, full_name, user_name, email, role_id (FK role)
- */
-
-interface StoreInfo {
-  store_id: number;
-  store_name: string;
-  address: string | null;
-  phone: string | null;
-  is_active: boolean;
-  manager_id: number | null;
+interface StoreBasicInfo {
+  storeId: number;
+  storeName: string;
 }
-
-interface UserInfo {
-  user_id: number;
-  full_name: string | null;
-  user_name: string;
-  email: string | null;
-}
-
-const CURRENT_STORE_ID = 1;
-
-const MOCK_STORE: StoreInfo = {
-  store_id: 1,
-  store_name: 'Cửa hàng phân phối Quận 1',
-  address: '123 Nguyễn Huệ, Quận 1, TP.HCM',
-  phone: '028 3825 1234',
-  is_active: true,
-  manager_id: 10,
-};
-
-const MOCK_MANAGER: UserInfo = {
-  user_id: 10,
-  full_name: 'Nguyễn Văn Quản lý',
-  user_name: 'manager_q1',
-  email: 'manager.q1@example.com',
-};
-
-/** Số đơn của cửa hàng (từ store_orders) — giả lập */
-const MOCK_ORDER_STATS = {
-  total: 24,
-  pending: 2,
-  approved: 18,
-};
 
 function StoreProfile() {
-  const manager = MOCK_STORE.manager_id != null ? MOCK_MANAGER : null;
+  const { user, userName } = useAuth();
+
+  const [storeInfo, setStoreInfo] = useState<StoreBasicInfo | null>(null);
+  const [orders, setOrders] = useState<OrderResponse<OrderDetailResponse[]>[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const resolveUserAndStore = () => {
+    let u: any = user;
+    if (!u) {
+      try {
+        const raw = localStorage.getItem('user');
+        if (raw) u = JSON.parse(raw);
+      } catch { /* ignore */ }
+    }
+    return u;
+  };
+
+  useEffect(() => {
+    franchiseServices.getOrders(0, 200)
+      .then((res) => {
+        if (res.success && res.data) {
+          const items = res.data.items ?? [];
+          setOrders(items);
+          if (items.length > 0 && items[0].storeId && items[0].storeName) {
+            setStoreInfo({ storeId: items[0].storeId, storeName: items[0].storeName });
+          }
+        }
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const currentUser = resolveUserAndStore();
+  const userId = Number(currentUser?.id);
+  const userUsername = currentUser?.username ?? currentUser?.userName ?? '—';
+  const userEmail = currentUser?.email ?? '—';
+  const userFullName = currentUser?.userFullName ?? currentUser?.fullName ?? userName ?? '—';
+
+  const totalOrders = orders.length;
+  const pendingOrders = orders.filter((o) => o.status === 'PENDING').length;
+  const approvedOrders = orders.filter((o) => o.status === 'APPROVED').length;
+  const cancelledOrders = orders.filter((o) => o.status === 'CANCELLED').length;
+
+  if (loading) {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-3 py-24">
+        <Loader2 className="size-10 animate-spin text-amber-500" />
+        <p className="text-sm font-medium text-amber-700">Đang tải thông tin cửa hàng...</p>
+      </div>
+    );
+  }
+
+  const avatarInitial = userFullName !== '—' ? userFullName.charAt(0).toUpperCase() : 'U';
 
   return (
-    <div className="h-full w-full">
-      <Card className="border-amber-200/60 bg-white shadow-md">
-        <CardHeader className="border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
-          <div className="flex flex-col gap-1">
-            <CardTitle className="flex items-center gap-2 text-xl font-bold text-amber-900">
-              <Store className="size-6 text-amber-500" />
-              Thông tin cửa hàng
-            </CardTitle>
-            <CardDescription className="text-xs font-medium text-amber-700/80">
-              Thông tin từ bảng stores · manager_id tham chiếu users
-            </CardDescription>
+    <div className="min-h-full space-y-6 p-1">
+
+      {/* ── STAT CARDS ── */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          {
+            label: 'Tổng đơn hàng',
+            value: totalOrders,
+            icon: ClipboardList,
+            bg: 'bg-amber-50',
+            border: 'border-amber-200',
+            iconColor: 'text-amber-500',
+            textColor: 'text-amber-900',
+            badgeBg: 'bg-amber-500',
+          },
+          {
+            label: 'Chờ duyệt',
+            value: pendingOrders,
+            icon: Clock,
+            bg: 'bg-orange-50',
+            border: 'border-orange-200',
+            iconColor: 'text-orange-500',
+            textColor: 'text-orange-900',
+            badgeBg: 'bg-orange-500',
+          },
+          {
+            label: 'Đã duyệt',
+            value: approvedOrders,
+            icon: BadgeCheck,
+            bg: 'bg-emerald-50',
+            border: 'border-emerald-200',
+            iconColor: 'text-emerald-500',
+            textColor: 'text-emerald-900',
+            badgeBg: 'bg-emerald-500',
+          },
+          {
+            label: 'Đã huỷ',
+            value: cancelledOrders,
+            icon: XCircle,
+            bg: 'bg-rose-50',
+            border: 'border-rose-200',
+            iconColor: 'text-rose-400',
+            textColor: 'text-rose-900',
+            badgeBg: 'bg-rose-400',
+          },
+        ].map(({ label, value, icon: Icon, bg, border, iconColor, textColor, badgeBg }) => (
+          <div
+            key={label}
+            className={cn(
+              'relative overflow-hidden rounded-2xl border p-5 shadow-sm transition hover:shadow-md',
+              bg, border
+            )}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">{label}</p>
+                <p className={cn('mt-2 text-4xl font-extrabold', textColor)}>{value}</p>
+              </div>
+              <div className={cn('flex size-11 shrink-0 items-center justify-center rounded-xl shadow-inner', badgeBg + '/15')}>
+                <Icon className={cn('size-6', iconColor)} />
+              </div>
+            </div>
+            <div className={cn('absolute -bottom-3 -right-3 size-16 rounded-full opacity-10', badgeBg)} />
           </div>
-        </CardHeader>
+        ))}
+      </div>
 
-        <CardContent className="space-y-6 p-6">
-          {/* Thông tin cơ bản */}
-          <Card className="border-amber-100 bg-white shadow-sm">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm font-bold text-amber-900">
-                <Info className="size-4 text-amber-500" />
-                Thông tin cơ bản
-              </CardTitle>
-              <CardDescription className="text-[11px] text-amber-700/80">
-                stores.store_id, store_name, address, phone, is_active
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-4">
-              <div className="flex items-start gap-3 rounded-lg border border-amber-100 bg-amber-50/40 px-4 py-3">
-                <Store className="mt-0.5 size-5 shrink-0 text-amber-600" />
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700/80">
-                    Tên cửa hàng
-                  </p>
-                  <p className="text-sm font-semibold text-stone-900">{MOCK_STORE.store_name}</p>
-                  <p className="mt-0.5 text-[11px] text-stone-500">ID: {MOCK_STORE.store_id}</p>
+      {/* ── BOTTOM GRID: Store Info + Account Info ── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+
+        {/* Store detail card */}
+        <div className="rounded-2xl border border-amber-100 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-center gap-2">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-amber-100">
+              <Store className="size-4 text-amber-600" />
+            </div>
+            <h2 className="font-bold text-stone-800">Chi tiết cửa hàng</h2>
+          </div>
+
+          {storeInfo ? (
+            <div className="space-y-3">
+              <InfoRow icon={Store} label="Tên cửa hàng" value={storeInfo.storeName} />
+              <InfoRow icon={IdCard} label="Mã cửa hàng" value={`#${storeInfo.storeId}`} />
+              <InfoRow icon={MapPin} label="Địa chỉ" value="Chưa có thông tin" muted />
+              <InfoRow icon={Phone} label="Điện thoại" value="Chưa có thông tin" muted />
+              <div className="mt-2 flex items-center justify-between rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                <div className="flex items-center gap-2 text-emerald-700">
+                  <CheckCircle2 className="size-4" />
+                  <span className="text-sm font-medium">Trạng thái hoạt động</span>
                 </div>
+                <span className="rounded-full bg-emerald-500 px-3 py-0.5 text-xs font-bold text-white shadow-sm">
+                  Hoạt động
+                </span>
               </div>
-
-              <div className="flex items-start gap-3 rounded-lg border border-amber-100 bg-amber-50/40 px-4 py-3">
-                <MapPin className="mt-0.5 size-5 shrink-0 text-amber-600" />
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700/80">
-                    Địa chỉ
-                  </p>
-                  <p className="text-sm text-stone-800">
-                    {MOCK_STORE.address ?? '—'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 rounded-lg border border-amber-100 bg-amber-50/40 px-4 py-3">
-                <Phone className="mt-0.5 size-5 shrink-0 text-amber-600" />
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700/80">
-                    Số điện thoại
-                  </p>
-                  <p className="text-sm text-stone-800">{MOCK_STORE.phone ?? '—'}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 rounded-lg border border-amber-100 bg-amber-50/40 px-4 py-3">
-                {MOCK_STORE.is_active ? (
-                  <CheckCircle className="size-5 shrink-0 text-emerald-600" />
-                ) : (
-                  <XCircle className="size-5 shrink-0 text-stone-400" />
-                )}
-                <div className="flex items-center justify-between gap-2 flex-1">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700/80">
-                      Trạng thái hoạt động
-                    </p>
-                    <p className="text-sm font-semibold text-stone-900">
-                      {MOCK_STORE.is_active ? 'Đang hoạt động' : 'Tạm ngưng'}
-                    </p>
-                  </div>
-                  <span
-                    className={cn(
-                      'rounded-full border px-3 py-1 text-[11px] font-semibold',
-                      MOCK_STORE.is_active
-                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                        : 'border-stone-200 bg-stone-100 text-stone-600'
-                    )}
-                  >
-                    {MOCK_STORE.is_active ? 'ACTIVE' : 'INACTIVE'}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quản lý cửa hàng (stores.manager_id → users) */}
-          {manager && (
-            <Card className="border-amber-100 bg-white shadow-sm">
-              <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-                <CardTitle className="flex items-center gap-2 text-sm font-bold text-amber-900">
-                  <User className="size-4 text-amber-500" />
-                  Quản lý cửa hàng
-                </CardTitle>
-                <CardDescription className="text-[11px] text-amber-700/80">
-                  stores.manager_id → users (full_name, user_name, email)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-3 rounded-lg border border-amber-100 bg-amber-50/40 px-4 py-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-sm font-bold text-white">
-                    {manager.full_name?.charAt(0) ?? manager.user_name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-stone-900">
-                      {manager.full_name ?? manager.user_name}
-                    </p>
-                    <p className="text-[11px] text-stone-600">@{manager.user_name}</p>
-                    {manager.email && (
-                      <p className="text-[11px] text-stone-500">{manager.email}</p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-2 py-10 text-stone-400">
+              <Store className="size-10 opacity-30" />
+              <p className="text-sm italic">Chưa có đơn hàng, không xác định được cửa hàng</p>
+            </div>
           )}
+        </div>
 
-          {/* Thống kê nhanh (từ store_orders) */}
-          <Card className="border-amber-100 bg-white shadow-sm">
-            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm font-bold text-amber-900">
-                <Receipt className="size-4 text-amber-500" />
-                Thống kê đơn hàng
-              </CardTitle>
-              <CardDescription className="text-[11px] text-amber-700/80">
-                store_orders (store_store_id = {CURRENT_STORE_ID}) · giả lập
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="flex items-center justify-between rounded-lg border border-amber-100 bg-amber-50/50 px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <Receipt className="size-5 text-amber-600" />
-                    <span className="text-xs font-medium text-stone-700">Tổng đơn</span>
-                  </div>
-                  <span className="text-lg font-bold text-amber-900">{MOCK_ORDER_STATS.total}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-amber-100 bg-amber-50/50 px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <Package className="size-5 text-amber-600" />
-                    <span className="text-xs font-medium text-stone-700">Chờ duyệt</span>
-                  </div>
-                  <span className="text-lg font-bold text-amber-900">{MOCK_ORDER_STATS.pending}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-emerald-100 bg-emerald-50/50 px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="size-5 text-emerald-600" />
-                    <span className="text-xs font-medium text-stone-700">Đã duyệt</span>
-                  </div>
-                  <span className="text-lg font-bold text-emerald-900">
-                    {MOCK_ORDER_STATS.approved}
-                  </span>
-                </div>
+        {/* Account card */}
+        <div className="rounded-2xl border border-amber-100 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-center gap-2">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-amber-100">
+              <User2 className="size-4 text-amber-600" />
+            </div>
+            <h2 className="font-bold text-stone-800">Tài khoản đăng nhập</h2>
+          </div>
+
+          {/* Avatar + name */}
+          <div className="mb-5 flex items-center gap-4 rounded-xl border border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-5 py-4">
+            <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-xl font-extrabold text-white shadow-md ring-2 ring-white">
+              {avatarInitial}
+            </div>
+            <div>
+              <p className="text-base font-extrabold text-stone-900">{userFullName}</p>
+              <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-100 px-2.5 py-0.5">
+                <ShieldCheck className="size-3 text-amber-700" />
+                <span className="text-[11px] font-semibold text-amber-800">Nhân viên cửa hàng</span>
               </div>
-            </CardContent>
-          </Card>
-        </CardContent>
-      </Card>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <InfoRow icon={User2} label="Tên đăng nhập" value={`@${userUsername}`} />
+            <InfoRow icon={Mail} label="Email" value={userEmail !== '—' ? userEmail : undefined} muted={userEmail === '—'} />
+            <InfoRow icon={IdCard} label="ID tài khoản" value={userId ? `#${userId}` : '—'} muted={!userId} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Helper component ── */
+function InfoRow({
+  icon: Icon,
+  label,
+  value,
+  muted = false,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value?: string;
+  muted?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-stone-100 bg-stone-50/60 px-4 py-3">
+      <Icon className="size-4 shrink-0 text-amber-500" />
+      <div className="flex flex-1 items-center justify-between gap-2 min-w-0">
+        <span className="shrink-0 text-xs font-semibold text-stone-500 uppercase tracking-wide">{label}</span>
+        <span className={cn('text-sm font-medium truncate', muted ? 'italic text-stone-400' : 'text-stone-800')}>
+          {value ?? '—'}
+        </span>
+      </div>
     </div>
   );
 }
