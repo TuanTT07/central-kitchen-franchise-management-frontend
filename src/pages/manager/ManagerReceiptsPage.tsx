@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { CalendarClock, FileText, Search, Hash } from 'lucide-react';
+import { CalendarClock, ChevronLeft, ChevronRight, FileText, Search, Hash } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { kitchenServices, type InventoryReceiptApi } from '@/services/kitchenServices';
 import { supplyServices, type ExportNotesResponse } from '@/services/supplyServices';
@@ -47,6 +47,10 @@ const ManagerReceiptsPage = () => {
   const [selectedExport, setSelectedExport] = useState<ExportNotesResponse | null>(null);
   const [isExportDetailOpen, setIsExportDetailOpen] = useState(false);
   const [isLoadingExportDetail, setIsLoadingExportDetail] = useState(false);
+  const [importPage, setImportPage] = useState(1);
+  const [exportPage, setExportPage] = useState(1);
+  const PAGE_SIZE = 10;
+
   const [selectedReceipt, setSelectedReceipt] = useState<InventoryReceiptApi | null>(null);
   const [isReceiptDetailOpen, setIsReceiptDetailOpen] = useState(false);
   const [isLoadingReceiptDetail, setIsLoadingReceiptDetail] = useState(false);
@@ -149,6 +153,17 @@ const ManagerReceiptsPage = () => {
     return data;
   }, [receipts, search, statusFilter]);
 
+  const importTotalPages = Math.ceil(filteredReceipts.length / PAGE_SIZE);
+  const paginatedReceipts = filteredReceipts.slice(
+    (importPage - 1) * PAGE_SIZE,
+    importPage * PAGE_SIZE
+  );
+  const exportTotalPages = Math.ceil(exportNotes.length / PAGE_SIZE);
+  const paginatedExportNotes = exportNotes.slice(
+    (exportPage - 1) * PAGE_SIZE,
+    exportPage * PAGE_SIZE
+  );
+
   return (
     <div className="h-full w-full">
       <Card className="border-amber-200/60 bg-white shadow-md">
@@ -227,7 +242,7 @@ const ManagerReceiptsPage = () => {
               <Input
                 placeholder="Tìm theo mã biên lai, ngày..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setImportPage(1); }}
                 className="border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
               />
             </div>
@@ -237,7 +252,7 @@ const ManagerReceiptsPage = () => {
                   <button
                     key={opt}
                     type="button"
-                    onClick={() => setStatusFilter(opt)}
+                    onClick={() => { setStatusFilter(opt); setImportPage(1); }}
                     className={cn(
                       'px-3 py-1.5 transition',
                       opt !== 'ALL' && 'border-l border-amber-200',
@@ -277,7 +292,7 @@ const ManagerReceiptsPage = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50">
-                      {filteredReceipts.map((r) => (
+                      {paginatedReceipts.map((r) => (
                         <tr key={r.receiptId} className="hover:bg-amber-50/40">
                           <td className="px-4 py-2">
                             <p className="text-sm font-semibold text-stone-900">{r.receiptCode}</p>
@@ -310,7 +325,7 @@ const ManagerReceiptsPage = () => {
                           </td>
                         </tr>
                       ))}
-                      {!isLoadingImport && filteredReceipts.length === 0 && (
+                      {!isLoadingImport && paginatedReceipts.length === 0 && filteredReceipts.length === 0 && (
                         <tr>
                           <td colSpan={4} className="px-4 py-6 text-center text-xs text-stone-500">
                             Không có biên lai nào khớp với bộ lọc.
@@ -326,6 +341,26 @@ const ManagerReceiptsPage = () => {
                       )}
                     </tbody>
                   </table>
+                  {importTotalPages > 1 && (
+                    <div className="flex items-center justify-between border-t border-amber-100 px-4 py-3">
+                      <p className="text-xs text-stone-500">
+                        {(importPage - 1) * PAGE_SIZE + 1}–{Math.min(importPage * PAGE_SIZE, filteredReceipts.length)} / {filteredReceipts.length} biên lai
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <button type="button" onClick={() => setImportPage((p) => Math.max(1, p - 1))} disabled={importPage === 1} className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40">
+                          <ChevronLeft className="size-4" />
+                        </button>
+                        {Array.from({ length: importTotalPages }, (_, i) => i + 1).map((p) => (
+                          <button key={p} type="button" onClick={() => setImportPage(p)} className={cn('flex size-7 items-center justify-center rounded-lg border text-xs font-semibold', p === importPage ? 'border-amber-500 bg-amber-500 text-white' : 'border-amber-200 bg-white text-amber-700 hover:bg-amber-50')}>
+                            {p}
+                          </button>
+                        ))}
+                        <button type="button" onClick={() => setImportPage((p) => Math.min(importTotalPages, p + 1))} disabled={importPage === importTotalPages} className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40">
+                          <ChevronRight className="size-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -397,7 +432,7 @@ const ManagerReceiptsPage = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50">
-                      {exportNotes.map((note) => (
+                      {paginatedExportNotes.map((note) => (
                         <tr key={note.exportId} className="hover:bg-amber-50/40">
                           <td className="px-4 py-2">
                             <p className="text-sm font-semibold text-stone-900">{note.exportCode}</p>
@@ -457,6 +492,26 @@ const ManagerReceiptsPage = () => {
                         )}
                       </tbody>
                     </table>
+                    {exportTotalPages > 1 && (
+                      <div className="flex items-center justify-between border-t border-amber-100 px-4 py-3">
+                        <p className="text-xs text-stone-500">
+                          {(exportPage - 1) * PAGE_SIZE + 1}–{Math.min(exportPage * PAGE_SIZE, exportNotes.length)} / {exportNotes.length} phiếu
+                        </p>
+                        <div className="flex items-center gap-1">
+                          <button type="button" onClick={() => setExportPage((p) => Math.max(1, p - 1))} disabled={exportPage === 1} className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40">
+                            <ChevronLeft className="size-4" />
+                          </button>
+                          {Array.from({ length: exportTotalPages }, (_, i) => i + 1).map((p) => (
+                            <button key={p} type="button" onClick={() => setExportPage(p)} className={cn('flex size-7 items-center justify-center rounded-lg border text-xs font-semibold', p === exportPage ? 'border-amber-500 bg-amber-500 text-white' : 'border-amber-200 bg-white text-amber-700 hover:bg-amber-50')}>
+                              {p}
+                            </button>
+                          ))}
+                          <button type="button" onClick={() => setExportPage((p) => Math.min(exportTotalPages, p + 1))} disabled={exportPage === exportTotalPages} className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40">
+                            <ChevronRight className="size-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

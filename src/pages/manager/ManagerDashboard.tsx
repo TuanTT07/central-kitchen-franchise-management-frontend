@@ -1,15 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Boxes, UtensilsCrossed, Package, Loader2, AlertTriangle } from 'lucide-react';
+import {
+  Boxes,
+  UtensilsCrossed,
+  Package,
+  Loader2,
+  AlertTriangle,
+  CalendarCheck,
+  TrendingUp,
+  Clock,
+  ShoppingBag,
+} from 'lucide-react';
 import { MANAGER_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 import { managerServices } from '@/services/managerServices';
 import { kitchenServices } from '@/services/kitchenServices';
-import type { CategoryResponse, ManagerOrderItem, NearExpiryItem, ProductsResponse } from '@/services/managerServices';
+import type {
+  CategoryResponse,
+  ManagerOrderItem,
+  NearExpiryItem,
+  ProductsResponse,
+} from '@/services/managerServices';
 import type { ProductBatchesResponse } from '@/services/kitchenServices';
+import { cn } from '@/lib/utils';
 
-
-const CATEGORY_COLORS = ['#d97706', '#ea580c', '#b45309', '#c2410c'];
+const CATEGORY_COLORS = ['#f59e0b', '#f97316', '#b45309', '#c2410c', '#d97706', '#ea580c'];
 
 const formatDate = (d: string | null | undefined) => {
   if (!d) return '—';
@@ -23,6 +37,24 @@ function parsePaginatedItems<T>(data: unknown): T[] {
   return Array.isArray(arr) ? arr : [];
 }
 
+const STATUS_ORDER_COLOR: Record<string, string> = {
+  PENDING: 'bg-amber-100 text-amber-700 border-amber-200',
+  APPROVED: 'bg-green-100 text-green-700 border-green-200',
+  CANCELLED: 'bg-red-100 text-red-700 border-red-200',
+  COOKING: 'bg-blue-100 text-blue-700 border-blue-200',
+  DONE: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  SHIPPED: 'bg-sky-100 text-sky-700 border-sky-200',
+};
+
+const STATUS_ORDER_LABEL: Record<string, string> = {
+  PENDING: 'Chờ duyệt',
+  APPROVED: 'Đã duyệt',
+  CANCELLED: 'Đã hủy',
+  COOKING: 'Đang nấu',
+  DONE: 'Hoàn thành',
+  SHIPPED: 'Đang giao',
+};
+
 const ManagerDashboard = () => {
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [products, setProducts] = useState<ProductsResponse[]>([]);
@@ -31,6 +63,7 @@ const ManagerDashboard = () => {
   const [batches, setBatches] = useState<ProductBatchesResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -53,12 +86,10 @@ const ManagerDashboard = () => {
           setProducts(Array.isArray(raw) ? raw : []);
         }
         if (ordersRes.status === 'fulfilled' && ordersRes.value?.data) {
-          const data = (ordersRes.value as { data?: unknown }).data;
-          setOrders(parsePaginatedItems<ManagerOrderItem>(data));
+          setOrders(parsePaginatedItems<ManagerOrderItem>((ordersRes.value as { data?: unknown }).data));
         }
         if (nearRes.status === 'fulfilled' && nearRes.value?.data) {
-          const data = (nearRes.value as { data?: unknown }).data;
-          setNearExpiry(parsePaginatedItems<NearExpiryItem>(data));
+          setNearExpiry(parsePaginatedItems<NearExpiryItem>((nearRes.value as { data?: unknown }).data));
         }
         if (batchesRes.status === 'fulfilled' && batchesRes.value?.data) {
           const raw = batchesRes.value.data as ProductBatchesResponse[] | unknown;
@@ -74,6 +105,7 @@ const ManagerDashboard = () => {
   }, []);
 
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
   const totalStockUnits = useMemo(
     () => batches.reduce((sum, b) => sum + (b.currentQuantity ?? 0), 0),
     [batches]
@@ -82,24 +114,39 @@ const ManagerDashboard = () => {
     () => orders.filter((o) => o.orderDate?.slice(0, 10) === todayStr).length,
     [orders, todayStr]
   );
+  const recentOrders = useMemo(
+    () =>
+      [...orders]
+        .sort((a, b) => new Date(b.orderDate ?? 0).getTime() - new Date(a.orderDate ?? 0).getTime())
+        .slice(0, 6),
+    [orders]
+  );
   const categoryStats = useMemo(() => {
     const total = products.length;
     return categories
       .map((cat, idx) => {
-        const count = products.filter((p) => (p.categoryId ?? (p as { category_id?: number }).category_id) === cat.categoryId).length;
+        const count = products.filter(
+          (p) => (p.categoryId ?? (p as { category_id?: number }).category_id) === cat.categoryId
+        ).length;
         const percent = total > 0 ? Math.round((count / total) * 100) : 0;
         return { ...cat, count, percent, color: CATEGORY_COLORS[idx % CATEGORY_COLORS.length] };
       })
-      .filter((c) => c.count > 0);
+      .filter((c) => c.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
   }, [categories, products]);
 
-  // Giữ placeholder cho phân trang đơn yêu cầu (đã ẩn UI)
+  const maxCategoryCount = useMemo(
+    () => Math.max(...categoryStats.map((c) => c.count), 1),
+    [categoryStats]
+  );
 
   if (loading) {
     return (
       <DashboardLayout navItems={MANAGER_SIDEBAR_ITEMS} roleLabel="MANAGER">
-        <div className="flex min-h-[50vh] items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-amber-600" />
+        <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3">
+          <Loader2 className="h-10 w-10 animate-spin text-amber-500" />
+          <p className="text-sm font-medium text-amber-700">Đang tải dữ liệu...</p>
         </div>
       </DashboardLayout>
     );
@@ -107,189 +154,251 @@ const ManagerDashboard = () => {
 
   return (
     <DashboardLayout navItems={MANAGER_SIDEBAR_ITEMS} roleLabel="MANAGER">
-      <div className="min-h-screen bg-slate-50/50">
-        <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-slate-50/60">
+        <div className="mx-auto max-w-6xl space-y-6 px-4 py-7 sm:px-6 lg:px-8">
+
           {error && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               {error}
             </div>
           )}
 
-          <header className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-              Bếp trung tâm
-            </h1>
-            <p className="text-sm text-slate-500 sm:text-base">
-              Tổng quan tồn kho, đơn yêu cầu và sản phẩm.
-            </p>
-          </header>
+          {/* ── TITLE ── */}
+          <div>
+            <h1 className="text-2xl font-bold text-stone-900 sm:text-3xl">Tổng quan quản lý</h1>
+            <p className="mt-0.5 text-sm text-amber-600">Tổng quan tồn kho, đơn hàng và sản phẩm</p>
+          </div>
 
-          {/* KPIs – toàn bộ từ API */}
-          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                      Tổng tồn kho
-                    </p>
-                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
-                      {totalStockUnits.toLocaleString()}
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-500">Đơn vị từ lô hàng</p>
-                  </div>
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-                    <Boxes className="h-5 w-5" />
-                  </div>
+          {/* ── KPI CARDS ── */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiCard
+              icon={Boxes}
+              label="Tổng tồn kho"
+              value={totalStockUnits.toLocaleString('vi-VN')}
+              sub="Đơn vị từ lô hàng"
+              color="amber"
+            />
+            <KpiCard
+              icon={Package}
+              label="Đơn hôm nay"
+              value={String(ordersToday)}
+              sub="Đơn từ cửa hàng"
+              color="orange"
+            />
+            <KpiCard
+              icon={UtensilsCrossed}
+              label="Sản phẩm"
+              value={String(products.length)}
+              sub={`${categories.length} danh mục`}
+              color="amber"
+            />
+            <KpiCard
+              icon={AlertTriangle}
+              label="Lô sắp hết hạn"
+              value={String(nearExpiry.length)}
+              sub="Cần ưu tiên FEFO"
+              color="rose"
+            />
+          </div>
+
+          {/* ── MAIN GRID ── */}
+          <div className="grid gap-5 lg:grid-cols-5">
+
+            {/* Lô sắp hết hạn – 3 cols */}
+            <div className="overflow-hidden rounded-2xl border border-amber-100 bg-white shadow-sm lg:col-span-3">
+              <div className="flex items-center gap-3 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-5 py-4">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-100">
+                  <AlertTriangle className="size-4 text-amber-600" />
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                      Đơn hôm nay
-                    </p>
-                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
-                      {ordersToday}
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-500">Đơn từ cửa hàng</p>
-                  </div>
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
-                    <Package className="h-5 w-5" />
-                  </div>
+                <div>
+                  <p className="text-sm font-bold text-stone-900">Lô sắp hết hạn</p>
+                  <p className="text-[11px] text-stone-500">Cần ưu tiên xuất theo FEFO</p>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                      Sản phẩm
-                    </p>
-                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
-                      {products.length}
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-500">{categories.length} danh mục</p>
-                  </div>
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-                    <UtensilsCrossed className="h-5 w-5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 bg-white shadow-sm transition-shadow hover:shadow-md">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                      Lô sắp hết hạn
-                    </p>
-                    <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">
-                      {nearExpiry.length}
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-500">Cần ưu tiên FEFO</p>
-                  </div>
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-                    <AlertTriangle className="h-5 w-5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-
-          <section className="grid gap-6 lg:grid-cols-3">
-            <Card className="border-0 bg-white shadow-sm lg:col-span-2">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold text-slate-900">
-                  Lô sắp hết hạn
-                </CardTitle>
-                <CardDescription className="text-sm text-slate-500">
-                  Cần ưu tiên xuất FEFO (dữ liệu API)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
+                {nearExpiry.length > 0 && (
+                  <span className="ml-auto rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-bold text-orange-700">
+                    {nearExpiry.length}
+                  </span>
+                )}
+              </div>
+              <div className="divide-y divide-stone-100">
                 {nearExpiry.length === 0 ? (
-                  <p className="py-6 text-center text-sm text-slate-500">Không có lô sắp hết hạn.</p>
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <CalendarCheck className="mb-2 size-8 text-green-400" />
+                    <p className="text-sm font-medium text-stone-500">Không có lô sắp hết hạn</p>
+                    <p className="text-xs text-stone-400">Tồn kho đang ổn định</p>
+                  </div>
                 ) : (
-                  nearExpiry.slice(0, 8).map((b, idx) => (
+                  nearExpiry.slice(0, 7).map((b, idx) => (
                     <div
                       key={b.batchCode + idx}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-amber-100 bg-amber-50/50 px-3 py-2.5"
+                      className="flex items-center gap-3 px-5 py-3 transition hover:bg-amber-50/50"
                     >
+                      <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-[11px] font-bold text-amber-800">
+                        {idx + 1}
+                      </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-slate-900">{b.product || b.batchCode}</p>
-                        <p className="text-xs text-slate-600">
-                          {b.batchCode} · HSD {formatDate(b.expiryDate)}
+                        <p className="truncate text-sm font-semibold text-stone-800">
+                          {b.product || b.batchCode}
+                        </p>
+                        <p className="text-[11px] text-stone-500">
+                          {b.batchCode} · HSD: {formatDate(b.expiryDate)}
                         </p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="text-sm font-semibold text-slate-900">{b.stock}</p>
-                        <p className="text-xs text-amber-700">Gần hết hạn</p>
+                        <p className="text-sm font-bold text-stone-900">{Number(b.stock).toLocaleString('vi-VN')}</p>
+                        <span className="inline-block rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-semibold text-orange-600">
+                          Gần hết hạn
+                        </span>
                       </div>
                     </div>
                   ))
                 )}
-              </CardContent>
-            </Card>
-            <Card className="border-0 bg-white shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold text-slate-900">
-                  Top danh mục sản phẩm
-                </CardTitle>
-                <CardDescription className="text-sm text-slate-500">
-                  Biểu đồ cột ngang theo số lượng (dữ liệu API)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-3">
-                {categoryStats.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-slate-500">Chưa có dữ liệu danh mục.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {categoryStats
-                      .slice()
-                      .sort((a, b) => b.count - a.count)
-                      .slice(0, 6)
-                      .map((cat) => (
-                        <div key={cat.categoryId} className="space-y-1.5">
-                          <div className="flex items-center justify-between gap-3 text-sm">
-                            <span className="min-w-0 truncate font-medium text-slate-800">
-                              {cat.categoryName}
-                            </span>
-                            <span className="shrink-0 text-xs text-slate-500">
-                              {cat.count} SP · {cat.percent}%
-                            </span>
-                          </div>
-                          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                            <div
-                              className="h-full rounded-full"
-                              style={{
-                                width: `${Math.min(100, Math.max(0, cat.percent))}%`,
-                                backgroundColor: cat.color,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      ))}
+              </div>
+            </div>
 
-                    <div className="pt-1 text-xs text-slate-500">
-                      Tổng: <span className="font-medium text-slate-800">{products.length}</span> sản phẩm ·{' '}
-                      <span className="font-medium text-slate-800">{categories.length}</span> danh mục
-                    </div>
+            {/* Danh mục sản phẩm – 2 cols */}
+            <div className="overflow-hidden rounded-2xl border border-amber-100 bg-white shadow-sm lg:col-span-2">
+              <div className="flex items-center gap-3 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-5 py-4">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-100">
+                  <TrendingUp className="size-4 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-stone-900">Top danh mục</p>
+                  <p className="text-[11px] text-stone-500">
+                    {products.length} sản phẩm · {categories.length} danh mục
+                  </p>
+                </div>
+              </div>
+              <div className="px-5 py-4">
+                {categoryStats.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center">
+                    <UtensilsCrossed className="mb-2 size-8 text-stone-300" />
+                    <p className="text-sm text-stone-400">Chưa có dữ liệu</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3.5">
+                    {categoryStats.map((cat) => (
+                      <div key={cat.categoryId}>
+                        <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
+                          <span className="truncate font-semibold text-stone-800">{cat.categoryName}</span>
+                          <span className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 tabular-nums font-bold text-stone-600">
+                            {cat.count} SP
+                          </span>
+                        </div>
+                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-stone-200">
+                          <div
+                            className="h-full rounded-full transition-all duration-700"
+                            style={{
+                              width: `${Math.round((cat.count / maxCategoryCount) * 100)}%`,
+                              backgroundColor: cat.color,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </section>
+              </div>
+            </div>
+          </div>
+
+          {/* ── RECENT ORDERS ── */}
+          <div className="overflow-hidden rounded-2xl border border-amber-100 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-5 py-4">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-100">
+                <ShoppingBag className="size-4 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-stone-900">Đơn hàng gần đây</p>
+                <p className="text-[11px] text-stone-500">6 đơn mới nhất từ cửa hàng</p>
+              </div>
+              <span className="ml-auto text-[11px] font-medium text-stone-400">
+                Tổng: {orders.length} đơn
+              </span>
+            </div>
+            {recentOrders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Clock className="mb-2 size-8 text-stone-300" />
+                <p className="text-sm text-stone-400">Chưa có đơn hàng nào.</p>
+              </div>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-stone-100 bg-stone-50/80 text-left text-[11px] font-semibold uppercase tracking-wide text-stone-500">
+                    <th className="px-5 py-3">Mã đơn</th>
+                    <th className="px-5 py-3">Cửa hàng</th>
+                    <th className="px-5 py-3">Ngày đặt</th>
+                    <th className="px-5 py-3">Ngày giao</th>
+                    <th className="px-5 py-3">Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100">
+                  {recentOrders.map((o) => (
+                    <tr key={o.orderId} className="transition hover:bg-amber-50/40">
+                      <td className="px-5 py-3 font-mono text-[11px] text-stone-500">
+                        #{String(o.orderId).padStart(4, '0')}
+                      </td>
+                      <td className="px-5 py-3 font-medium text-stone-800">
+                        {(o as { storeName?: string }).storeName ?? `Cửa hàng #${o.storeId}`}
+                      </td>
+                      <td className="px-5 py-3 text-stone-500">{formatDate(o.orderDate)}</td>
+                      <td className="px-5 py-3 text-stone-500">
+                        {formatDate((o as { expectedDeliveryDate?: string }).expectedDeliveryDate)}
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className={cn(
+                          'inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-semibold',
+                          STATUS_ORDER_COLOR[o.status] ?? 'bg-stone-100 text-stone-600 border-stone-200'
+                        )}>
+                          {STATUS_ORDER_LABEL[o.status] ?? o.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
         </div>
       </div>
     </DashboardLayout>
   );
 };
+
+/* ── KPI Card ── */
+function KpiCard({
+  icon: Icon, label, value, sub, color,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  sub: string;
+  color: 'amber' | 'orange' | 'rose';
+}) {
+  const palette = {
+    amber: { bg: 'bg-amber-50', icon: 'bg-amber-100 text-amber-600', num: 'text-amber-700', border: 'border-amber-100' },
+    orange: { bg: 'bg-orange-50', icon: 'bg-orange-100 text-orange-600', num: 'text-orange-700', border: 'border-orange-100' },
+    rose:   { bg: 'bg-rose-50',   icon: 'bg-rose-100   text-rose-600',   num: 'text-rose-700',   border: 'border-rose-100'   },
+  }[color];
+
+  return (
+    <div className={cn('relative overflow-hidden rounded-2xl border bg-white p-5 shadow-sm transition hover:shadow-md', palette.border)}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">{label}</p>
+          <p className={cn('mt-2 text-3xl font-extrabold', palette.num)}>{value}</p>
+          <p className="mt-0.5 text-[11px] text-stone-400">{sub}</p>
+        </div>
+        <div className={cn('flex size-11 shrink-0 items-center justify-center rounded-xl shadow-inner', palette.icon)}>
+          <Icon className="size-5" />
+        </div>
+      </div>
+      <div className={cn('pointer-events-none absolute -bottom-3 -right-3 size-16 rounded-full opacity-[0.08]',
+        color === 'amber' ? 'bg-amber-500' : color === 'orange' ? 'bg-orange-500' : 'bg-rose-500'
+      )} />
+    </div>
+  );
+}
 
 export default ManagerDashboard;
