@@ -5,7 +5,6 @@ import {
   BranchManagementPage,
   UserManagementPage,
 } from './pages/admin/index.ts';
-import SystemConfigPage from './pages/admin/SystemConfigPage.tsx';
 import {
   InventoryOverviewPage,
   ManagerDashboard,
@@ -75,7 +74,6 @@ function App() {
                 <Route element={<RoleShell sidebarItems={ADMIN_SIDEBAR_ITEMS} roleLabel="ADMIN" />}>
                   <Route path="/admin/stores" element={<BranchManagementPage />}></Route>
                   <Route path="/admin/users" element={<UserManagementPage />}></Route>
-                  <Route path="/admin/configs" element={<SystemConfigPage />}></Route>
                 </Route>
               </Route>
 

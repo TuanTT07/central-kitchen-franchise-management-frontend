@@ -1,6 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Boxes, AlertTriangle, Store as StoreIcon, UtensilsCrossed, CalendarClock, Loader2 } from 'lucide-react';
+import {
+  Boxes,
+  AlertTriangle,
+  Store as StoreIcon,
+  UtensilsCrossed,
+  CalendarClock,
+  Loader2,
+  TrendingDown,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  SlidersHorizontal,
+  Trophy,
+} from 'lucide-react';
 import {
   managerServices,
   type NearExpiryItem,
@@ -8,16 +19,16 @@ import {
   type InventoryReportResponse,
 } from '@/services/managerServices';
 import { kitchenServices, type InventoryTransactionResponse } from '@/services/kitchenServices';
+import { cn } from '@/lib/utils';
 
 const NEAR_EXPIRY_DAYS = 3;
 
-/** Lấy mảng items từ response API (hỗ trợ cả data.items và data.data.items) */
 function getItems<T>(res: { data?: { items?: T[]; data?: { items?: T[] } } }): T[] {
   const d = res?.data;
   if (!d) return [];
   if (Array.isArray((d as { items?: T[] }).items)) return (d as { items: T[] }).items;
   const inner = (d as { data?: { items?: T[] } }).data;
-  return (inner?.items && Array.isArray(inner.items)) ? inner.items : [];
+  return inner?.items && Array.isArray(inner.items) ? inner.items : [];
 }
 
 function ReportsPage() {
@@ -26,14 +37,12 @@ function ReportsPage() {
 
   const [totalStockUnits, setTotalStockUnits] = useState(0);
   const [nearExpiryBatches, setNearExpiryBatches] = useState<NearExpiryItem[]>([]);
-  /** Tổng số lô sắp hết hạn từ API (totalElements), để KPI và bảng cùng nguồn */
   const [nearExpiryTotal, setNearExpiryTotal] = useState(0);
   const [topStores, setTopStores] = useState<TopStoreReportItem[]>([]);
   const [inventoryTransactions, setInventoryTransactions] = useState<InventoryTransactionResponse[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-
     async function load() {
       setLoading(true);
       setError(null);
@@ -44,24 +53,27 @@ function ReportsPage() {
           managerServices.getTopImportingStores(10),
           kitchenServices.getInventoryTransaction(),
         ]);
-
         if (cancelled) return;
 
         const stockPayload = (stockRes as { data?: unknown }).data;
-        const stockItems = getItems<InventoryReportResponse>({ data: stockPayload as never }) ??
+        const stockItems =
+          getItems<InventoryReportResponse>({ data: stockPayload as never }) ??
           (stockPayload as { data?: { items?: InventoryReportResponse[] } })?.data?.items ?? [];
-        const totalStock = Array.isArray(stockItems)
-          ? stockItems.reduce((sum, i) => sum + (Number(i?.totalStock) || 0), 0)
-          : 0;
-        setTotalStockUnits(totalStock);
+        setTotalStockUnits(
+          Array.isArray(stockItems)
+            ? stockItems.reduce((sum, i) => sum + (Number(i?.totalStock) || 0), 0)
+            : 0
+        );
 
-        const nearPayload = (nearExpiryRes as unknown as { data?: { items?: NearExpiryItem[]; totalElements?: number } })?.data;
+        const nearPayload = (
+          nearExpiryRes as unknown as { data?: { items?: NearExpiryItem[]; totalElements?: number } }
+        )?.data;
         const nearItems = nearPayload?.items ?? [];
         setNearExpiryBatches(Array.isArray(nearItems) ? nearItems : []);
-        const total = nearPayload?.totalElements ?? (Array.isArray(nearItems) ? nearItems.length : 0);
-        setNearExpiryTotal(total);
+        setNearExpiryTotal(nearPayload?.totalElements ?? (Array.isArray(nearItems) ? nearItems.length : 0));
 
-        const storesList = (topStoresRes as unknown as { data?: { items?: TopStoreReportItem[] } })?.data?.items ?? [];
+        const storesList =
+          (topStoresRes as unknown as { data?: { items?: TopStoreReportItem[] } })?.data?.items ?? [];
         setTopStores(Array.isArray(storesList) ? storesList : []);
 
         const txPayload = inventoryTxRes as unknown as {
@@ -74,14 +86,11 @@ function ReportsPage() {
           setInventoryTransactions((txPayload as { data: InventoryTransactionResponse[] }).data);
         }
       } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Không tải được báo cáo');
-        }
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Không tải được báo cáo');
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
-
     load();
     return () => { cancelled = true; };
   }, []);
@@ -90,250 +99,283 @@ function ReportsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-64 w-full items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-amber-600" />
+      <div className="flex h-64 w-full flex-col items-center justify-center gap-3">
+        <Loader2 className="size-9 animate-spin text-amber-500" />
+        <p className="text-sm font-medium text-amber-700">Đang tải báo cáo...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-rose-800">
-        <p className="font-medium">Lỗi tải báo cáo</p>
-        <p className="text-sm">{error}</p>
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-800">
+        <p className="font-semibold">Lỗi tải báo cáo</p>
+        <p className="mt-1 text-sm">{error}</p>
       </div>
     );
   }
 
+  const sortedTx = [...inventoryTransactions]
+    .sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime())
+    .slice(0, 10);
+
   return (
-    <div className="h-full w-full space-y-6">
-      {/* KPI Row */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="border-border bg-white">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-stone-900">
-              <Boxes className="size-5 text-amber-600" />
-              Tồn kho trung tâm
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Tổng đơn vị còn trong tất cả lô hàng
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-end justify-between px-6 pb-5 pt-0">
-            <div>
-              <p className="text-2xl font-bold text-stone-900">
-                {totalStockUnits.toLocaleString('vi-VN')}
-              </p>
-              <p className="text-xs text-stone-500">Đơn vị (phần, tô, ly, kg...)</p>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="min-h-full space-y-6 p-1">
 
-        <Card className="border-border bg-white">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-stone-900">
-              <AlertTriangle className="size-5 text-amber-600" />
-              Lô sắp hết hạn (≤ {NEAR_EXPIRY_DAYS} ngày)
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Cùng API near-expiry (≤ {NEAR_EXPIRY_DAYS} ngày) với bảng bên dưới
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-end justify-between px-6 pb-5 pt-0">
-            <div>
-              <p className="text-2xl font-bold text-amber-700">
-                {nearExpiryTotal}
-              </p>
-              <p className="text-xs text-stone-500">Lô cần ưu tiên xuất (FEFO)</p>
-            </div>
-            <div className="flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-[11px] font-medium text-amber-700">
-              <CalendarClock className="size-3" />
-              Hôm nay: {today.toLocaleDateString('vi-VN')}
-            </div>
-          </CardContent>
-        </Card>
-
+      {/* ── KPI CARDS ── */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <KpiCard
+          icon={Boxes}
+          label="Tổng tồn kho"
+          value={totalStockUnits.toLocaleString('vi-VN')}
+          sub="Đơn vị trong tất cả lô hàng"
+          accent="amber"
+        />
+        <KpiCard
+          icon={TrendingDown}
+          label={`Lô sắp hết hạn (≤ ${NEAR_EXPIRY_DAYS} ngày)`}
+          value={String(nearExpiryTotal)}
+          sub="Cần ưu tiên xuất kho (FEFO)"
+          accent="rose"
+          badge={today.toLocaleDateString('vi-VN')}
+        />
       </div>
 
-      {/* Lô sắp hết hạn + Top cửa hàng nhập */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-border bg-white">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-stone-900">
-              <AlertTriangle className="size-5 text-amber-600" />
-              Lô hàng sắp hết hạn
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Cùng API near-expiry (≤ {NEAR_EXPIRY_DAYS} ngày). Hiển thị {nearExpiryBatches.length}
-              {nearExpiryTotal > nearExpiryBatches.length ? ` / ${nearExpiryTotal} lô` : ' lô'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-0 pb-4 pt-0">
-            <div className="max-h-[260px] overflow-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-amber-100 bg-amber-50/60 text-left text-[11px] font-semibold uppercase tracking-wide text-amber-900">
-                    <th className="px-4 py-3">Sản phẩm</th>
-                    <th className="px-4 py-3">Mã lô</th>
-                    <th className="px-4 py-3 text-right">Tồn</th>
-                    <th className="px-4 py-3">HSD</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-amber-50">
-                  {nearExpiryBatches.map((batch, idx) => (
-                    <tr key={`${batch.batchCode}-${idx}`} className="hover:bg-amber-50/60">
-                      <td className="px-4 py-2.5 text-[11px] font-medium text-stone-800">
-                        {batch.product ?? '—'}
-                      </td>
-                      <td className="px-4 py-2.5 font-mono text-[11px] text-amber-800">
-                        {batch.batchCode}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-[11px] text-stone-800">
-                        {Number(batch.stock).toLocaleString('vi-VN')}
-                      </td>
-                      <td className="px-4 py-2.5 text-[11px] text-stone-700">
-                        {batch.expiryDate
-                          ? new Date(batch.expiryDate).toLocaleDateString('vi-VN')
-                          : '—'}
-                      </td>
-                    </tr>
-                  ))}
-                  {nearExpiryBatches.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-10 text-center text-xs text-amber-700/70">
-                        Hiện chưa có lô nào sắp hết hạn (≤ {NEAR_EXPIRY_DAYS} ngày).
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border bg-white">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-stone-900">
-              <StoreIcon className="size-5 text-amber-600" />
-              Cửa hàng nhập nhiều nhất
-            </CardTitle>
-            <CardDescription className="text-xs">
-              API top-importing-stores
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-0 pb-4 pt-0">
-            <div className="max-h-[260px] overflow-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-amber-100 bg-amber-50/60 text-left text-[11px] font-semibold uppercase tracking-wide text-amber-900">
-                    <th className="px-4 py-3">Cửa hàng</th>
-                    <th className="px-4 py-3 text-right">Tổng SL nhập</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-amber-50">
-                  {topStores.map((row, idx) => (
-                    <tr key={`${row.storeName}-${idx}`} className="hover:bg-amber-50/60">
-                      <td className="px-4 py-2.5 text-[11px] font-medium text-stone-800">
-                        {row.storeName}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-[11px] font-semibold text-amber-700">
-                        {Number(row.totalImported).toLocaleString('vi-VN')}
-                      </td>
-                    </tr>
-                  ))}
-                  {topStores.length === 0 && (
-                    <tr>
-                      <td colSpan={2} className="px-4 py-10 text-center text-xs text-amber-700/70">
-                        Chưa có dữ liệu.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Giao dịch tồn kho mới nhất – dùng API inventory-transactions */}
-      <Card className="border-border bg-white">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold text-stone-900">
-            <UtensilsCrossed className="size-5 text-amber-600" />
-            Giao dịch tồn kho mới nhất
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Dữ liệu thật từ API inventory-transactions (nhật ký nhập/xuất gần nhất)
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0 pb-4 pt-0">
-          <div className="max-h-[260px] overflow-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-amber-100 bg-amber-50/60 text-left text-[11px] font-semibold uppercase tracking-wide text-amber-900">
-                  <th className="px-4 py-3">Mã giao dịch</th>
-                  <th className="px-4 py-3">Loại</th>
-                  <th className="px-4 py-3">Sản phẩm</th>
-                  <th className="px-4 py-3 text-right">Số lượng</th>
-                  <th className="px-4 py-3">Thời gian</th>
+      {/* ── 2 TABLES ── */}
+      <div className="grid gap-5 lg:grid-cols-2">
+        {/* Lô sắp hết hạn */}
+        <SectionCard
+          icon={AlertTriangle}
+          title="Lô hàng sắp hết hạn"
+          desc={`Hiển thị ${nearExpiryBatches.length}${nearExpiryTotal > nearExpiryBatches.length ? ` / ${nearExpiryTotal}` : ''} lô ≤ ${NEAR_EXPIRY_DAYS} ngày`}
+        >
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-amber-100 bg-amber-50/70 text-left text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+                <th className="px-4 py-2.5">#</th>
+                <th className="px-4 py-2.5">Sản phẩm</th>
+                <th className="px-4 py-2.5">Mã lô</th>
+                <th className="px-4 py-2.5 text-right">Tồn</th>
+                <th className="px-4 py-2.5">HSD</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-100">
+              {nearExpiryBatches.map((b, i) => (
+                <tr key={`${b.batchCode}-${i}`} className="transition hover:bg-amber-50/60">
+                  <td className="px-4 py-2.5 text-[11px] text-stone-400">{i + 1}</td>
+                  <td className="px-4 py-2.5 font-medium text-stone-800">{b.product ?? '—'}</td>
+                  <td className="px-4 py-2.5 font-mono text-amber-700">{b.batchCode}</td>
+                  <td className="px-4 py-2.5 text-right font-semibold text-stone-900">
+                    {Number(b.stock).toLocaleString('vi-VN')}
+                  </td>
+                  <td className="px-4 py-2.5 text-stone-600">
+                    {b.expiryDate ? new Date(b.expiryDate).toLocaleDateString('vi-VN') : '—'}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-amber-50">
-                {inventoryTransactions
-                  .slice()
-                  .sort(
-                    (a, b) =>
-                      new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
-                  )
-                  .slice(0, 5)
-                  .map((row) => (
-                    <tr key={row.transactionId} className="hover:bg-amber-50/60">
-                      <td className="px-4 py-2.5 text-[11px] font-mono font-medium text-stone-800">
-                        {row.referenceCode}
-                      </td>
-                      <td className="px-4 py-2.5 text-[11px]">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
-                            row.transactionType === 'IMPORT'
-                              ? 'bg-emerald-50 text-emerald-700'
-                              : row.transactionType === 'EXPORT'
-                                ? 'bg-sky-50 text-sky-700'
-                                : 'bg-amber-50 text-amber-700'
-                          }`}
-                        >
-                          {row.transactionType === 'IMPORT'
-                            ? 'Nhập kho'
-                            : row.transactionType === 'EXPORT'
-                              ? 'Xuất kho'
-                              : 'Điều chỉnh'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-[11px] font-medium text-stone-800">
-                        {row.productName}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-[11px] font-semibold text-stone-900">
-                        {row.quantity.toLocaleString('vi-VN')} {row.unit}
-                      </td>
-                      <td className="px-4 py-2.5 text-[11px] text-stone-600">
-                        {row.transactionDate
-                          ? new Date(row.transactionDate).toLocaleString('vi-VN', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              hour12: false,
-                            })
-                          : '—'}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+              {nearExpiryBatches.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-10 text-center text-xs italic text-stone-400">
+                    Không có lô nào sắp hết hạn.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </SectionCard>
+
+        {/* Top cửa hàng nhập */}
+        <SectionCard
+          icon={Trophy}
+          title="Top cửa hàng nhập nhiều nhất"
+          desc="Xếp hạng theo tổng số lượng nhập"
+        >
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-amber-100 bg-amber-50/70 text-left text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+                <th className="px-4 py-2.5">Hạng</th>
+                <th className="px-4 py-2.5">Cửa hàng</th>
+                <th className="px-4 py-2.5 text-right">Tổng SL nhập</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-100">
+              {topStores.map((row, i) => (
+                <tr key={`${row.storeName}-${i}`} className="transition hover:bg-amber-50/60">
+                  <td className="px-4 py-2.5">
+                    <span className={cn(
+                      'inline-flex size-6 items-center justify-center rounded-full text-[11px] font-bold',
+                      i === 0 ? 'bg-amber-400 text-white' :
+                      i === 1 ? 'bg-stone-300 text-stone-700' :
+                      i === 2 ? 'bg-amber-200 text-amber-800' :
+                      'bg-stone-100 text-stone-500'
+                    )}>
+                      {i + 1}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 font-medium text-stone-800">
+                    <div className="flex items-center gap-2">
+                      <StoreIcon className="size-3.5 shrink-0 text-amber-500" />
+                      {row.storeName}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-bold text-amber-700">
+                    {Number(row.totalImported).toLocaleString('vi-VN')}
+                  </td>
+                </tr>
+              ))}
+              {topStores.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-4 py-10 text-center text-xs italic text-stone-400">
+                    Chưa có dữ liệu.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </SectionCard>
+      </div>
+
+      {/* ── TRANSACTION TABLE ── */}
+      <SectionCard
+        icon={UtensilsCrossed}
+        title="Giao dịch tồn kho mới nhất"
+        desc="10 giao dịch nhập / xuất / điều chỉnh gần nhất"
+      >
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-amber-100 bg-amber-50/70 text-left text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+              <th className="px-4 py-2.5">Mã GD</th>
+              <th className="px-4 py-2.5">Loại</th>
+              <th className="px-4 py-2.5">Sản phẩm</th>
+              <th className="px-4 py-2.5 text-right">Số lượng</th>
+              <th className="px-4 py-2.5">Thời gian</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-stone-100">
+            {sortedTx.map((row) => (
+              <tr key={row.transactionId} className="transition hover:bg-amber-50/40">
+                <td className="px-4 py-2.5 font-mono text-[11px] text-stone-500">{row.referenceCode}</td>
+                <td className="px-4 py-2.5">
+                  <TxBadge type={row.transactionType} />
+                </td>
+                <td className="px-4 py-2.5 font-medium text-stone-800">{row.productName}</td>
+                <td className="px-4 py-2.5 text-right font-semibold text-stone-900">
+                  {row.quantity.toLocaleString('vi-VN')} {row.unit}
+                </td>
+                <td className="px-4 py-2.5 text-stone-500">
+                  {row.transactionDate
+                    ? new Date(row.transactionDate).toLocaleString('vi-VN', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit', hour12: false,
+                      })
+                    : '—'}
+                </td>
+              </tr>
+            ))}
+            {sortedTx.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-4 py-10 text-center text-xs italic text-stone-400">
+                  Chưa có giao dịch nào.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </SectionCard>
     </div>
+  );
+}
+
+/* ── KPI Card ── */
+function KpiCard({
+  icon: Icon, label, value, sub, accent, badge,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  sub: string;
+  accent: 'amber' | 'rose';
+  badge?: string;
+}) {
+  const isRose = accent === 'rose';
+  return (
+    <div className={cn(
+      'relative overflow-hidden rounded-2xl border p-5 shadow-sm',
+      isRose ? 'border-rose-100 bg-white' : 'border-amber-100 bg-white'
+    )}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">{label}</p>
+          <p className={cn('mt-2 text-4xl font-extrabold', isRose ? 'text-rose-600' : 'text-amber-700')}>
+            {value}
+          </p>
+          <p className="mt-1 text-[11px] text-stone-400">{sub}</p>
+        </div>
+        <div className={cn(
+          'flex size-12 shrink-0 items-center justify-center rounded-2xl shadow-inner',
+          isRose ? 'bg-rose-50' : 'bg-amber-50'
+        )}>
+          <Icon className={cn('size-6', isRose ? 'text-rose-500' : 'text-amber-500')} />
+        </div>
+      </div>
+      {badge && (
+        <div className={cn(
+          'mt-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium',
+          isRose ? 'border-rose-100 bg-rose-50 text-rose-700' : 'border-amber-100 bg-amber-50 text-amber-700'
+        )}>
+          <CalendarClock className="size-3" />
+          {badge}
+        </div>
+      )}
+      <div className={cn(
+        'pointer-events-none absolute -bottom-4 -right-4 size-20 rounded-full opacity-[0.07]',
+        isRose ? 'bg-rose-500' : 'bg-amber-500'
+      )} />
+    </div>
+  );
+}
+
+/* ── Section Card wrapper ── */
+function SectionCard({
+  icon: Icon, title, desc, children,
+}: {
+  icon: React.ElementType;
+  title: string;
+  desc?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-amber-100 bg-white shadow-sm">
+      <div className="flex items-start gap-3 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-5 py-4">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-100">
+          <Icon className="size-4 text-amber-600" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-stone-900">{title}</p>
+          {desc && <p className="mt-0.5 text-[11px] text-stone-500">{desc}</p>}
+        </div>
+      </div>
+      <div className="max-h-72 overflow-auto">{children}</div>
+    </div>
+  );
+}
+
+/* ── Transaction type badge ── */
+function TxBadge({ type }: { type: string }) {
+  if (type === 'IMPORT') return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-[10px] font-semibold text-green-700 border border-green-100">
+      <ArrowDownToLine className="size-3" /> Nhập kho
+    </span>
+  );
+  if (type === 'EXPORT') return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-100">
+      <ArrowUpFromLine className="size-3" /> Xuất kho
+    </span>
+  );
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-100">
+      <SlidersHorizontal className="size-3" /> Điều chỉnh
+    </span>
   );
 }
 

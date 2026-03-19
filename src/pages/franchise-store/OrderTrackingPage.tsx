@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { CalendarClock, Eye, Receipt, Search, Truck, AlertTriangle, Loader2, XCircle } from 'lucide-react';
+import { CalendarClock, ChevronLeft, ChevronRight, Eye, Receipt, Search, Truck, AlertTriangle, Loader2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { translateStatus } from '@/utils/labelMapping';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -63,6 +63,10 @@ const OrderTrackingPage = () => {
   // Lí do huỷ đơn hàng
   const [cancelReason, setCancelReason] = useState('');
 
+  // Phân trang
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+
   // Modal chi tiết đơn hàng
   const [openDetailDialog, setOpenDetailDialog] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -105,10 +109,12 @@ const OrderTrackingPage = () => {
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
+    setPage(1);
   };
 
   const handleFilterChange = (status: FilterStatus) => {
     setStatusFilter(status);
+    setPage(1);
   };
 
   const handleCancelOrder = (orderId: number) => {
@@ -188,6 +194,9 @@ const OrderTrackingPage = () => {
 
     return data;
   }, [orders, search, statusFilter]);
+
+  const totalPages = Math.ceil(filteredOrders.length / PAGE_SIZE);
+  const paginatedOrders = filteredOrders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
   const approvedCount = orders.filter((o) => o.status === 'APPROVED').length;
@@ -293,7 +302,7 @@ const OrderTrackingPage = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50/50">
-                      {filteredOrders.map((o) => (
+                      {paginatedOrders.map((o) => (
                         <tr
                           key={o.orderId}
                           className="group cursor-pointer hover:bg-amber-50/50 transition-colors"
@@ -354,6 +363,46 @@ const OrderTrackingPage = () => {
                       <Search className="size-6 text-amber-200" />
                     </div>
                     <p className="text-sm font-medium text-stone-400">Không tìm thấy đơn đặt hàng nào.</p>
+                  </div>
+                )}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between border-t border-amber-100 px-4 py-3">
+                    <p className="text-xs text-stone-500">
+                      {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredOrders.length)} / {filteredOrders.length} đơn
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                        className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40"
+                      >
+                        <ChevronLeft className="size-4" />
+                      </button>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setPage(p)}
+                          className={cn(
+                            'flex size-7 items-center justify-center rounded-lg border text-xs font-semibold',
+                            p === page
+                              ? 'border-amber-500 bg-amber-500 text-white'
+                              : 'border-amber-200 bg-white text-amber-700 hover:bg-amber-50'
+                          )}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={page === totalPages}
+                        className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40"
+                      >
+                        <ChevronRight className="size-4" />
+                      </button>
+                    </div>
                   </div>
                 )}
               </CardContent>

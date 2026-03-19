@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import {
+  ChevronLeft,
+  ChevronRight,
   Plus,
   Search,
   Package,
@@ -36,6 +38,8 @@ const ProductManagementPage = () => {
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
 
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -126,6 +130,9 @@ const ProductManagementPage = () => {
       return productName.includes(keyword) || categoryName.includes(keyword) || unitName.includes(keyword);
     });
   }, [products, categories, units, search]);
+
+  const totalPages = Math.ceil(displayProducts.length / PAGE_SIZE);
+  const paginatedProducts = displayProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const openAdd = () => {
     setEditingProduct(null);
@@ -336,7 +343,7 @@ const ProductManagementPage = () => {
               <Input
                 placeholder="Tìm theo tên sản phẩm, danh mục..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 className="border-amber-200 bg-amber-50/50 pl-9 focus:border-amber-400 focus:ring-amber-200"
               />
             </div>
@@ -364,7 +371,7 @@ const ProductManagementPage = () => {
               <Input
                 placeholder="Tìm theo tên sản phẩm, danh mục..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 className="border-amber-200 bg-amber-50/50 pl-9 focus:border-amber-400 focus:ring-amber-200"
               />
             </div>
@@ -383,13 +390,13 @@ const ProductManagementPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-100/60">
-                {displayProducts.map((product, index) => (
+                {paginatedProducts.map((product, index) => (
                   <tr 
                     key={product.productId} 
                     className="group cursor-pointer transition hover:bg-amber-50/40"
                     onClick={() => openDetail(product)}
                   >
-                    <td className="px-6 py-4 text-xs font-mono text-amber-600/70">{index + 1}</td>
+                    <td className="px-6 py-4 text-xs font-mono text-amber-600/70">{(page - 1) * PAGE_SIZE + index + 1}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="flex size-12 items-center justify-center overflow-hidden rounded-lg border border-amber-100 bg-amber-50/60">
@@ -479,6 +486,46 @@ const ProductManagementPage = () => {
                 <Search className="mb-1 size-10 opacity-30" />
                 <p className="text-sm font-medium">Không tìm thấy sản phẩm nào phù hợp</p>
                 <p className="text-xs text-amber-700/70">Hãy thử lại với từ khóa khác hoặc thêm sản phẩm mới.</p>
+              </div>
+            )}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t border-amber-100 px-4 py-3">
+                <p className="text-xs text-stone-500">
+                  {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, displayProducts.length)} / {displayProducts.length} sản phẩm
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40"
+                  >
+                    <ChevronLeft className="size-4" />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPage(p)}
+                      className={cn(
+                        'flex size-7 items-center justify-center rounded-lg border text-xs font-semibold',
+                        p === page
+                          ? 'border-amber-500 bg-amber-500 text-white'
+                          : 'border-amber-200 bg-white text-amber-700 hover:bg-amber-50'
+                      )}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40"
+                  >
+                    <ChevronRight className="size-4" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
