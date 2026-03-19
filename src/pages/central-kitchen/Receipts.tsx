@@ -210,7 +210,17 @@ function Receipts() {
             </CardDescription>
           </div>
 
-          <div className="hidden items-center gap-6 md:flex">
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              size="sm"
+              className="h-9 rounded-full bg-amber-600 px-4 text-[11px] font-semibold text-white hover:bg-amber-700"
+              onClick={handleOpenStockIn}
+            >
+              Tạo phiếu nhập kho
+            </Button>
+
+            <div className="hidden items-center gap-6 md:flex">
             <div className="flex flex-col text-right">
               <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
                 Tổng biên lai
@@ -231,6 +241,7 @@ function Receipts() {
               </span>
               <span className="text-lg font-semibold text-amber-900">{completedCount}</span>
             </div>
+          </div>
           </div>
         </CardHeader>
 

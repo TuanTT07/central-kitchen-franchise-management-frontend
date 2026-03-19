@@ -189,7 +189,7 @@ function ManufacturingOrders() {
                 placeholder="Tìm theo mã lệnh, tên món..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
+                className="border-none bg-white pl-9 text-xs shadow-sm focus-visible:ring-amber-300"
               />
             </div>
             <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">

@@ -161,7 +161,7 @@ function ProductBatches() {
                 placeholder="Tìm theo mã lô, tên sản phẩm..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
+                className="border-none bg-white pl-9 text-xs shadow-sm focus-visible:ring-amber-300"
               />
             </div>
             <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">
@@ -367,6 +367,85 @@ function ProductBatches() {
       </Card>
 
       {/* ================= MODAL CẬP NHẬT LÔ SẢN PHẨM ================= */}
+      <Dialog open={isCookUpdateOpen} onOpenChange={setIsCookUpdateOpen}>
+        <DialogContent className="max-w-md rounded-2xl border border-amber-200 bg-white px-6 py-5">
+          <DialogHeader className="pb-3">
+            <DialogTitle className="text-base font-semibold text-amber-900">
+              Cập nhật lô sản phẩm
+            </DialogTitle>
+            <p className="text-[11px] text-stone-600">
+              Nhập <span className="font-semibold">số lượng nấu thực tế</span> cho lô đang chọn để phục vụ báo cáo sản xuất.
+            </p>
+          </DialogHeader>
+
+          {selectedBatchForCook && (
+            <div className="space-y-3 text-[11px]">
+              <div className="rounded-lg bg-amber-50/70 p-3">
+                <p className="text-xs font-semibold text-stone-900">
+                  {selectedBatchForCook.batchCode} · {selectedBatchForCook.productName}
+                </p>
+                <p className="mt-1 text-[11px] text-stone-600">
+                  SL hiện tại:{' '}
+                  <span className="font-semibold text-stone-900">
+                    {selectedBatchForCook.currentQuantity.toLocaleString('vi-VN')}
+                  </span>
+                </p>
+                <p className="text-[11px] text-stone-600">
+                  HSD: <span className="font-semibold">{formatDate(selectedBatchForCook.expiryDate)}</span>
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-stone-700">
+                  Số lượng nấu thực tế
+                  <span className="ml-0.5 text-rose-500">*</span>
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={actualCookQuantity}
+                  onChange={(e) => setActualCookQuantity(e.target.value)}
+                  placeholder="Nhập số lượng đã nấu..."
+                  className="h-9 border-amber-200 text-xs focus-visible:ring-amber-300"
+                />
+                <p className="text-[10px] text-stone-500">
+                  Giá trị này hiện chỉ dùng cho báo cáo nội bộ, chưa gửi lên API.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="mt-4 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 border-amber-200 text-[11px]"
+              onClick={() => setIsCookUpdateOpen(false)}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 bg-amber-600 text-[11px] text-white hover:bg-amber-700"
+              onClick={() => {
+                // UI-only: lưu tạm thời, có thể log ra console cho dev
+                // eslint-disable-next-line no-console
+                console.log('Số lượng nấu thực tế', {
+                  batchId: selectedBatchForCook?.batchId,
+                  actualCookQuantity,
+                });
+                setIsCookUpdateOpen(false);
+              }}
+            >
+              Lưu
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ================= RENDER MODAL CẬP NHẬT LÔ SẢN PHẨM ================= */}
       <Dialog open={isCookUpdateOpen} onOpenChange={setIsCookUpdateOpen}>
         <DialogContent className="max-w-md rounded-2xl border border-amber-200 bg-white px-6 py-5">
           <DialogHeader className="pb-3">
