@@ -189,17 +189,17 @@ function ManufacturingOrders() {
                 placeholder="Tìm theo mã lệnh, tên món..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="border-none bg-white pl-9 text-xs shadow-sm focus-visible:ring-amber-300"
+                className="h-full border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
               />
             </div>
-            <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">
+            <div className="inline-flex h-full min-h-[2.5rem] items-stretch overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">
               {FILTER_OPTIONS.map((opt) => (
                 <button
                   key={opt}
                   type="button"
                   onClick={() => setStatusFilter(opt)}
                   className={cn(
-                    'px-3 py-1.5 transition',
+                    'cursor-pointer px-3 py-1.5 font-medium transition',
                     opt !== 'ALL' && 'border-l border-amber-200',
                     statusFilter === opt ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'
                   )}

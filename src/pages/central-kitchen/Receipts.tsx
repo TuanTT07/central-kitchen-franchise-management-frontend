@@ -210,17 +210,7 @@ function Receipts() {
             </CardDescription>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              size="sm"
-              className="h-9 rounded-full bg-amber-600 px-4 text-[11px] font-semibold text-white hover:bg-amber-700"
-              onClick={handleOpenStockIn}
-            >
-              Tạo phiếu nhập kho
-            </Button>
-
-            <div className="hidden items-center gap-6 md:flex">
+          <div className="hidden items-center gap-6 md:flex">
             <div className="flex flex-col text-right">
               <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
                 Tổng biên lai
@@ -242,29 +232,29 @@ function Receipts() {
               <span className="text-lg font-semibold text-amber-900">{completedCount}</span>
             </div>
           </div>
-          </div>
         </CardHeader>
 
-        <CardContent className="space-y-5 p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 -mt-2 text-amber-600" />
-              <Input
-                placeholder="Tìm theo mã biên lai, ngày..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">
+        <CardContent className="px-6 pb-6 pt-4 space-y-5">
+          <div className="flex h-10 items-center justify-between gap-3">
+            {/* Nhóm trái: Search + Filter */}
+            <div className="flex h-full flex-1 items-center gap-3">
+              <div className="relative h-full max-w-xs flex-1">
+                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-500" />
+                <Input
+                  placeholder="Tìm theo mã biên lai, ngày..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-full border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
+                />
+              </div>
+              <div className="inline-flex h-full items-stretch overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">
                 {FILTER_OPTIONS.map((opt) => (
                   <button
                     key={opt}
                     type="button"
                     onClick={() => setStatusFilter(opt)}
                     className={cn(
-                      'px-3 py-1.5 transition',
+                      'cursor-pointer px-4 font-medium transition',
                       opt !== 'ALL' && 'border-l border-amber-200',
                       statusFilter === opt
                         ? 'bg-amber-500 text-white'
@@ -284,6 +274,16 @@ function Receipts() {
                 + Tạo phiếu nhập kho
               </Button>
             </div>
+
+            {/* Nút phải */}
+            <Button
+              type="button"
+              size="sm"
+              className="h-full shrink-0 rounded-full bg-amber-600 px-5 text-[11px] font-semibold text-white hover:bg-amber-700"
+              onClick={handleOpenStockIn}
+            >
+              + Tạo phiếu nhập kho
+            </Button>
           </div>
 
           <div className="grid gap-5 lg:grid-cols-1">

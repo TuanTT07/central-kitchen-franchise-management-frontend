@@ -14,7 +14,6 @@ export default function CartDrawer({ open, onOpenChange, title, children }: Prop
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          // Chiều cao rõ ràng (không fit-content) để con dùng h-full + flex-grow cho vùng list
           'flex h-[min(92dvh,calc(100dvh-2rem))] max-h-[92dvh] w-[min(96vw,560px)] max-w-none flex-col overflow-hidden rounded-2xl border border-amber-200/80 bg-white p-0',
           'shadow-2xl shadow-amber-200/40'
         )}

@@ -128,7 +128,6 @@ export default function FranchiseCartOverlay({ children }: { children: React.Rea
       >
         {step === 'REVIEW' && (
           <div className="flex h-full min-h-0 flex-col bg-gradient-to-b from-amber-50/30 to-white">
-            {/* Vùng danh sách: chiếm khoảng giữa, chỉ chỗ này cuộn; không dùng max-height */}
             <div
               className={cn(
                 'min-h-0 grow overflow-y-auto overflow-x-hidden overscroll-y-contain',
@@ -152,11 +151,7 @@ export default function FranchiseCartOverlay({ children }: { children: React.Rea
                       >
                         <div className="size-16 shrink-0 overflow-hidden rounded-lg bg-amber-50 ring-1 ring-amber-100">
                           {i.imageUrl ? (
-                            <img
-                              src={i.imageUrl}
-                              alt=""
-                              className="size-full object-cover"
-                            />
+                            <img src={i.imageUrl} alt="" className="size-full object-cover" />
                           ) : (
                             <div className="flex size-full items-center justify-center text-[10px] font-medium text-amber-600/50">
                               IMG
@@ -167,9 +162,7 @@ export default function FranchiseCartOverlay({ children }: { children: React.Rea
                           <p className="truncate text-sm font-bold leading-tight text-stone-900">{i.name}</p>
                           <p className="mt-0.5 text-xs text-amber-900/55">
                             {formatCurrencyVND(safeUnit)}
-                            {i.unitName ? (
-                              <span className="text-amber-700/50"> · {i.unitName}</span>
-                            ) : null}
+                            {i.unitName ? <span className="text-amber-700/50"> · {i.unitName}</span> : null}
                           </p>
                         </div>
                         <div className="flex shrink-0 items-center gap-1.5">
@@ -269,41 +262,43 @@ export default function FranchiseCartOverlay({ children }: { children: React.Rea
               )}
             >
               <div className="space-y-4">
-              <div>
-                <p className="text-sm font-bold text-amber-950">Ngày giao dự kiến</p>
-                <p className="mt-1 text-xs text-amber-900/60">
-                  Bếp trung tâm sẽ xử lý theo ngày giao bạn chọn.
-                </p>
-                <div className="relative mt-3">
-                  <input
-                    ref={deliveryDateRef}
-                    type="date"
-                    value={deliveryDate}
-                    onChange={(e) => setDeliveryDate(e.target.value)}
-                    onFocus={openDatePicker}
-                    className={cn(
-                      'h-11 w-full cursor-pointer rounded-lg border border-amber-200 bg-white px-3 pr-11 text-sm text-amber-950',
-                      'placeholder:text-amber-900/40 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-400/25'
-                    )}
-                  />
-                  <button
-                    type="button"
-                    onClick={openDatePicker}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-amber-600 transition hover:bg-amber-100 hover:text-orange-600"
-                    aria-label="Mở lịch chọn ngày"
-                  >
-                    <CalendarDays className="size-5" />
-                  </button>
+                <div>
+                  <p className="text-sm font-bold text-amber-950">Ngày giao dự kiến</p>
+                  <p className="mt-1 text-xs text-amber-900/60">
+                    Bếp trung tâm sẽ xử lý theo ngày giao bạn chọn.
+                  </p>
+                  <div className="relative mt-3">
+                    <input
+                      ref={deliveryDateRef}
+                      type="date"
+                      value={deliveryDate}
+                      onChange={(e) => setDeliveryDate(e.target.value)}
+                      onFocus={openDatePicker}
+                      className={cn(
+                        'h-11 w-full cursor-pointer rounded-lg border border-amber-200 bg-white px-3 pr-11 text-sm text-amber-950',
+                        'placeholder:text-amber-900/40 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-400/25'
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={openDatePicker}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-amber-600 transition hover:bg-amber-100 hover:text-orange-600"
+                      aria-label="Mở lịch chọn ngày"
+                    >
+                      <CalendarDays className="size-5" />
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="rounded-xl border border-amber-100 bg-gradient-to-r from-amber-50/80 to-orange-50/50 px-3 py-3 text-xs text-amber-900/70">
-                <div className="flex justify-between">
-                  <span className="font-medium">Tổng cộng</span>
-                  <span className="font-bold text-orange-600">{formatCurrencyVND(totalAmount)}</span>
+                <div className="rounded-xl border border-amber-100 bg-gradient-to-r from-amber-50/80 to-orange-50/50 px-3 py-3 text-xs text-amber-900/70">
+                  <div className="flex justify-between">
+                    <span className="font-medium">Tổng cộng</span>
+                    <span className="font-bold text-orange-600">{formatCurrencyVND(totalAmount)}</span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-amber-800/55">
+                    {items.length} món · {totalQuantity} đơn vị
+                  </p>
                 </div>
-                <p className="mt-1 text-[11px] text-amber-800/55">{items.length} món · {totalQuantity} đơn vị</p>
-              </div>
               </div>
             </div>
 
@@ -338,4 +333,3 @@ export default function FranchiseCartOverlay({ children }: { children: React.Rea
     </>
   );
 }
-
