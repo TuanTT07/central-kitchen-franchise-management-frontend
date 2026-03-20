@@ -277,7 +277,7 @@ function ProductCard({
                 e.stopPropagation();
                 onAdd();
               }}
-              className="flex size-10 items-center justify-center rounded-full bg-[#111827] text-white shadow-lg transition-all hover:bg-black hover:scale-105 active:scale-95"
+              className="flex size-10 items-center justify-center rounded-full bg-amber-500 text-white shadow-lg shadow-amber-200 transition-all hover:bg-amber-600 hover:scale-105 active:scale-95"
               aria-label="Thêm vào giỏ"
             >
               <Plus className="size-5 stroke-[3]" />

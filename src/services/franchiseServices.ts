@@ -114,6 +114,14 @@ export const franchiseServices = {
   cancelOrder: async (id: number, body: {cancelReason: string}) => {
     return (await http.post<Response<OrderResponse<OrderDetailResponse[]>[]>>(`/orders/${id}/cancel`, body)).data;
   },
+  
+  /**
+   * Xác nhận đã nhận đủ hàng cho đơn
+   * POST /orders/{id}/receive
+   */
+  receiveOrder: async (id: number) => {
+    return (await http.post<Response<unknown>>(`/orders/${id}/receive`)).data;
+  },
 
   /**
    * Lấy chi tiết một đơn hàng theo ID

@@ -19,7 +19,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, CalendarClock, ChefHat, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  AlertTriangle, CalendarClock, ChefHat, Search,
+  ChevronLeft, ChevronRight, RefreshCw, Package,
+  FlameKindling, CheckCircle2, ListChecks,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { translateStatus } from '@/utils/labelMapping';
 import { kitchenServices, type ManufacturingOrderResponse, type ManuOrderStatus } from '@/services/kitchenServices';
@@ -34,9 +38,6 @@ const FILTER_OPTIONS: (ManuOrderStatus | 'ALL')[] = ['ALL', 'PLANNED', 'COOKING'
 // ================= UTIL =================
 /**
  * Định dạng chuỗi ngày tháng sang dạng vi-VN (HH:mm dd/mm)
- *
- * @param value Chuỗi ngày tháng từ API hoặc null
- * @returns Chuỗi đã định dạng hoặc '—' nếu null
  */
 const formatDateTime = (value: string | null) => {
   if (!value) return '—';
@@ -56,30 +57,30 @@ function ManufacturingOrders() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ManuOrderStatus | 'ALL'>('ALL');
   const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
   const PAGE_SIZE = 10;
-  // Lệnh đang chọn để cập nhật trạng thái
   const [selectedOrder, setSelectedOrder] = useState<ManufacturingOrderResponse | null>(null);
-  // Trạng thái đóng/mở popup xác nhận
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // ================= API =================
-  /**
-   * Gọi API lấy danh sách tất cả các lệnh sản xuất
-   * Cập nhật state manufacturingOrder khi thành công
-   */
   const getAllManufacturing = async () => {
     try {
+      setIsLoading(true);
       const response = await kitchenServices.getAllOrders();
       if (response.success) {
         setManufacturingOrder(response.data);
       }
     } catch (error) {
       toast.error(`${error}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const updateStatusManufacturingOrder = async (id: number) => {
     try {
+      setIsUpdating(true);
       const response = await kitchenServices.updateStatusOrder(id);
       if (response.success) {
         getAllManufacturing();
@@ -87,20 +88,16 @@ function ManufacturingOrders() {
       }
     } catch (error) {
       toast.error(`${error}`);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
-  /**
-   * Mở popup xác nhận cập nhật trạng thái
-   */
   const handleOpenConfirm = (order: ManufacturingOrderResponse) => {
     setSelectedOrder(order);
     setIsDialogOpen(true);
   };
 
-  /**
-   * Xử lý xác nhận cập nhật trạng thái từ popup
-   */
   const handleConfirmUpdate = async () => {
     if (!selectedOrder) return;
     await updateStatusManufacturingOrder(selectedOrder.manuOrderId);
@@ -112,16 +109,13 @@ function ManufacturingOrders() {
 
   const filteredOrders = useMemo(() => {
     let data = [...manufacturingOrder];
-
     if (statusFilter !== 'ALL') {
       data = data.filter((o) => o.status === statusFilter);
     }
-
     if (search.trim()) {
       const q = search.toLowerCase();
       data = data.filter((o) => o.orderCode.toLowerCase().includes(q) || o.productName.toLowerCase().includes(q));
     }
-
     return data;
   }, [manufacturingOrder, search, statusFilter]);
 
@@ -135,73 +129,91 @@ function ManufacturingOrders() {
     return filteredOrders.slice(start, start + PAGE_SIZE);
   }, [filteredOrders, page]);
 
-  const stats = useMemo(() => {
-    return {
-      total: manufacturingOrder.length,
-      cooking: manufacturingOrder.filter((o) => o.status === 'COOKING').length,
-      planned: manufacturingOrder.filter((o) => o.status === 'PLANNED').length,
-    };
-  }, [manufacturingOrder]);
+  const stats = useMemo(() => ({
+    total:     manufacturingOrder.length,
+    planned:   manufacturingOrder.filter((o) => o.status === 'PLANNED').length,
+    cooking:   manufacturingOrder.filter((o) => o.status === 'COOKING').length,
+    completed: manufacturingOrder.filter((o) => o.status === 'COMPLETED').length,
+  }), [manufacturingOrder]);
 
   // ================= EFFECT =================
   useEffect(() => {
     getAllManufacturing();
   }, []);
 
+  // ─── next status label helper ───
+  const nextStatus = (current?: string | null) =>
+    current === 'PLANNED' ? 'COOKING' : 'COMPLETED';
+
   // ================= RENDER =================
   return (
     <div className="h-full w-full">
-      <Card className="border-amber-200/60 bg-white shadow-md">
+      <Card className="border-amber-200/60 bg-white shadow-md overflow-hidden">
+
+        {/* ─── Header ─── */}
         <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
           <div className="flex flex-col gap-1">
             <CardTitle className="flex items-center gap-2 text-xl font-bold text-amber-900">
-              <ChefHat className="size-6 text-amber-500" />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-amber-500 shadow-sm text-white">
+                <ChefHat className="size-4" />
+              </div>
               Lệnh sản xuất
             </CardTitle>
-            <CardDescription className="text-xs font-medium text-amber-700/80">
-              Theo dõi trạng thái bảng `manufacturing_orders` theo từng sản phẩm.
+            <CardDescription className="text-xs font-medium text-amber-700/80 ml-10">
+              Theo dõi và cập nhật trạng thái từng lệnh sản xuất của bếp trung tâm.
             </CardDescription>
           </div>
 
-          <div className="hidden items-center gap-6 md:flex">
-            <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Tổng lệnh</span>
-              <span className="text-lg font-semibold text-amber-900">{stats.total}</span>
-            </div>
-            <div className="h-10 w-px bg-amber-200/70" />
-            <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Đang nấu</span>
-              <span className="text-lg font-semibold text-amber-900">{stats.cooking}</span>
-            </div>
-            <div className="h-10 w-px bg-amber-200/70" />
-            <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Chờ sản xuất</span>
-              <span className="text-lg font-semibold text-amber-900">{stats.planned}</span>
-            </div>
+          {/* Stats + Refresh */}
+          <div className="hidden items-center gap-5 md:flex">
+            {[
+              { label: 'Tổng lệnh',   value: stats.total,     color: 'text-amber-900' },
+              { label: 'Chờ sản xuất', value: stats.planned,  color: 'text-amber-700' },
+              { label: 'Đang nấu',    value: stats.cooking,   color: 'text-orange-700' },
+              { label: 'Hoàn thành',  value: stats.completed, color: 'text-emerald-700' },
+            ].map((s, i, arr) => (
+              <div key={s.label} className="flex items-center gap-5">
+                <div className="flex flex-col items-end">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600/70">{s.label}</span>
+                  <span className={cn('text-xl font-black', s.color)}>{s.value}</span>
+                </div>
+                {i < arr.length - 1 && <div className="h-10 w-px bg-amber-200/70" />}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={getAllManufacturing}
+              disabled={isLoading}
+              title="Làm mới"
+              className="ml-2 flex size-8 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-600 shadow-sm hover:bg-amber-50 transition disabled:opacity-50"
+            >
+              <RefreshCw className={cn('size-4', isLoading && 'animate-spin')} />
+            </button>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-5 p-6">
+          {/* ─── Search + Filter ─── */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative max-w-sm flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-500" />
+              <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-amber-500" />
               <Input
                 placeholder="Tìm theo mã lệnh, tên món..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-full border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
+                className="border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
               />
             </div>
-            <div className="inline-flex h-full min-h-[2.5rem] items-stretch overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">
+            <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs shadow-sm">
               {FILTER_OPTIONS.map((opt) => (
                 <button
                   key={opt}
                   type="button"
                   onClick={() => setStatusFilter(opt)}
                   className={cn(
-                    'cursor-pointer px-3 py-1.5 font-medium transition',
+                    'cursor-pointer px-3 py-1.5 font-medium transition-all duration-150',
                     opt !== 'ALL' && 'border-l border-amber-200',
-                    statusFilter === opt ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'
+                    statusFilter === opt ? 'bg-amber-500 text-white font-bold' : 'text-amber-800 hover:bg-amber-100'
                   )}
                 >
                   {opt === 'ALL' ? 'Tất cả' : translateStatus(opt)}
@@ -210,111 +222,165 @@ function ManufacturingOrders() {
             </div>
           </div>
 
-          <div>
-            <Card className="border-amber-100 bg-white shadow-sm">
-              <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-                <CardTitle className="flex items-center gap-2 text-sm font-bold text-amber-900">
+          {/* ─── Table Card ─── */}
+          <Card className="border-amber-100 bg-white shadow-sm overflow-hidden">
+            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 py-3 px-5">
+              <CardTitle className="flex items-center justify-between text-sm font-bold text-amber-900">
+                <span className="flex items-center gap-2">
                   <CalendarClock className="size-4 text-amber-500" />
                   Danh sách lệnh sản xuất
-                </CardTitle>
-                <CardDescription className="text-[11px] text-amber-700/80">
-                  manufacturing_orders · filter theo trạng thái, tìm kiếm theo mã và sản phẩm.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
-                        <th className="px-2 py-2 font-semibold">Mã lệnh</th>
-                        <th className="px-2 py-2 font-semibold">Sản phẩm</th>
-                        <th className="px-2 py-2 font-semibold text-center">Số lượng kế hoạch</th>
-                        <th className="px-2 py-2 font-semibold text-center">Thời gian</th>
-                        <th className="px-2 py-2 font-semibold text-right">Trạng thái</th>
-                        <th className="px-2 py-2 font-semibold text-right">Thao tác</th>
+                </span>
+                <span className="text-[11px] font-normal text-amber-700/70">
+                  {filteredOrders.length} lệnh
+                </span>
+              </CardTitle>
+            </CardHeader>
+
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-800 uppercase tracking-wide">
+                      <th className="px-5 py-3.5 font-bold">Mã lệnh</th>
+                      <th className="px-5 py-3.5 font-bold">Sản phẩm</th>
+                      <th className="px-5 py-3.5 font-bold text-center">SL kế hoạch</th>
+                      <th className="px-5 py-3.5 font-bold">Thời gian</th>
+                      <th className="px-5 py-3.5 font-bold text-center">Trạng thái</th>
+                      <th className="px-5 py-3.5 font-bold text-right">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-amber-50/60">
+                    {isLoading ? (
+                      <tr>
+                        <td colSpan={6} className="py-16 text-center">
+                          <div className="flex flex-col items-center gap-3">
+                            <RefreshCw className="size-7 animate-spin text-amber-300" />
+                            <p className="text-sm font-medium text-stone-400">Đang tải dữ liệu...</p>
+                          </div>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-amber-50">
-                      {paginatedOrders.map((o) => (
-                        <tr key={o.manuOrderId} className="hover:bg-amber-50/40">
-                          <td className="px-2 py-2">
-                            <p className="text-sm font-semibold text-stone-900">{o.orderCode}</p>
-                            <p className="text-[11px] text-stone-500">ID: {o.manuOrderId}</p>
+                    ) : paginatedOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-16 text-center">
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="flex size-12 items-center justify-center rounded-full bg-amber-50">
+                              <Package className="size-6 text-amber-200" />
+                            </div>
+                            <p className="text-sm font-medium text-stone-400">Không có lệnh sản xuất nào khớp với bộ lọc.</p>
+                            <p className="text-xs text-stone-300">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedOrders.map((o) => (
+                        <tr
+                          key={o.manuOrderId}
+                          className={cn(
+                            'group hover:bg-amber-50/40 transition-colors',
+                            o.status === 'COOKING' && 'bg-orange-50/20 hover:bg-orange-50/40',
+                          )}
+                        >
+                          {/* Mã lệnh */}
+                          <td className="px-5 py-4">
+                            <p className="font-bold text-stone-900">{o.orderCode}</p>
+                            <p className="text-[10px] text-stone-400 mt-0.5">ID #{o.manuOrderId}</p>
                           </td>
-                          <td className="px-2 py-2">
-                            <p className="text-sm font-medium text-stone-900">{o.productName}</p>
-                            <p className="text-[11px] text-stone-500">product_id: {o.productId}</p>
+
+                          {/* Sản phẩm */}
+                          <td className="px-5 py-4">
+                            <p className="font-semibold text-stone-900">{o.productName}</p>
+                            <p className="text-[10px] text-stone-400 mt-0.5">
+                              Tạo bởi: {o.createdBy ?? '—'}
+                            </p>
                           </td>
-                          <td className="px-2 py-2 text-center text-sm font-semibold text-stone-900">
-                            {o.quantityPlanned}
+
+                          {/* SL */}
+                          <td className="px-5 py-4 text-center">
+                            <span className="inline-flex items-center justify-center rounded-full bg-amber-100 px-3 py-0.5 text-sm font-black text-amber-800 min-w-[2.5rem]">
+                              {o.quantityPlanned}
+                            </span>
                           </td>
-                          <td className="px-2 py-2 text-[11px] text-stone-800">
+
+                          {/* Thời gian */}
+                          <td className="px-5 py-4">
                             {o.startDate ? (
-                              <div className="flex flex-col gap-0.5">
-                                <span>Bắt đầu: {formatDateTime(o.startDate)}</span>
-                                <span>Kết thúc: {formatDateTime(o.endDate)}</span>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 text-[11px] text-stone-600">
+                                  <span className="w-[52px] font-semibold text-stone-400">Bắt đầu</span>
+                                  <span className="font-medium">{formatDateTime(o.startDate)}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-[11px] text-stone-600">
+                                  <span className="w-[52px] font-semibold text-stone-400">Kết thúc</span>
+                                  <span className="font-medium">{formatDateTime(o.endDate)}</span>
+                                </div>
                               </div>
                             ) : (
-                              <span className="text-stone-500">Chưa lên lịch</span>
+                              <span className="text-[11px] text-stone-400 italic">Chưa lên lịch</span>
                             )}
                           </td>
 
-                          <td className="px-2 py-2 text-right">
+                          {/* Trạng thái */}
+                          <td className="px-5 py-4 text-center">
                             <StatusBadge status={o.status} />
                           </td>
-                          <td className="px-2 py-2 text-right">
+
+                          {/* Thao tác */}
+                          <td className="px-5 py-4 text-right">
                             <Button
                               variant="outline"
                               size="sm"
-                              className="border-amber-200 bg-white text-[11px] text-amber-900 hover:bg-amber-50"
+                              className={cn(
+                                'h-8 text-[11px] font-bold shadow-sm transition',
+                                o.status === 'COMPLETED'
+                                  ? 'border-stone-100 bg-stone-50 text-stone-300 cursor-not-allowed'
+                                  : 'border-amber-300 bg-white text-amber-900 hover:bg-amber-50 hover:border-amber-400'
+                              )}
                               onClick={() => handleOpenConfirm(o)}
                               disabled={o.status === 'COMPLETED'}
                             >
-                              Cập nhật
+                              {o.status === 'COMPLETED' ? 'Hoàn tất' : 'Cập nhật'}
                             </Button>
                           </td>
                         </tr>
-                      ))}
-                      {filteredOrders.length === 0 && (
-                        <tr>
-                          <td colSpan={6} className="px-4 py-6 text-center text-xs text-stone-500">
-                            Không có lệnh sản xuất nào khớp với bộ lọc.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-              <div className="flex flex-col gap-3 border-t border-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between border-t border-amber-50 bg-amber-50/20 px-5 py-3">
                 <p className="text-[11px] text-stone-500">
-                  Hiển thị{' '}
-                  <span className="font-semibold text-stone-800">
-                    {filteredOrders.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}
-                    –
-                    {Math.min(page * PAGE_SIZE, filteredOrders.length)}
-                  </span>{' '}
-                  / <span className="font-semibold text-stone-800">{filteredOrders.length}</span> lệnh
+                  {filteredOrders.length === 0 ? (
+                    'Không có lệnh nào'
+                  ) : (
+                    <>
+                      <span className="font-semibold text-stone-700">
+                        {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredOrders.length)}
+                      </span>{' '}
+                      / {filteredOrders.length} lệnh
+                    </>
+                  )}
                 </p>
                 <div className="flex items-center gap-1">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-8 border-amber-200 bg-white px-2 text-[11px] text-amber-900 hover:bg-amber-50"
+                    className="size-7 border-amber-200 bg-white p-0 text-amber-700 hover:bg-amber-50"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
                   >
                     <ChevronLeft className="size-4" />
                   </Button>
-                  <span className="min-w-[110px] text-center text-[11px] font-medium text-stone-700">
-                    Trang {page} / {totalPages}
+                  <span className="min-w-[80px] text-center text-[11px] font-semibold text-stone-600">
+                    {page} / {totalPages}
                   </span>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-8 border-amber-200 bg-white px-2 text-[11px] text-amber-900 hover:bg-amber-50"
+                    className="size-7 border-amber-200 bg-white p-0 text-amber-700 hover:bg-amber-50"
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages}
                   >
@@ -322,50 +388,92 @@ function ManufacturingOrders() {
                   </Button>
                 </div>
               </div>
-            </Card>
+            </CardContent>
+          </Card>
+
+          {/* ─── Stat pills (mobile) ─── */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:hidden">
+            {[
+              { label: 'Tổng lệnh',  value: stats.total,     icon: ListChecks,     bg: 'bg-amber-500' },
+              { label: 'Chờ sx',     value: stats.planned,   icon: AlertTriangle,  bg: 'bg-amber-400' },
+              { label: 'Đang nấu',   value: stats.cooking,   icon: FlameKindling,  bg: 'bg-orange-500' },
+              { label: 'Xong',       value: stats.completed, icon: CheckCircle2,   bg: 'bg-emerald-500' },
+            ].map((s) => (
+              <div key={s.label} className="flex items-center gap-3 rounded-xl border border-amber-100 bg-white p-3 shadow-sm">
+                <div className={cn('flex size-9 shrink-0 items-center justify-center rounded-lg text-white', s.bg)}>
+                  <s.icon className="size-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-stone-400 uppercase">{s.label}</p>
+                  <p className="text-xl font-black text-stone-900">{s.value}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
-      {/* Popup xác nhận cập nhật trạng thái */}
+
+      {/* ─── Dialog xác nhận cập nhật ─── */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-900">
-              <AlertTriangle className="size-5 text-amber-500" />
-              Xác nhận cập nhật
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-stone-600">
-              Bạn có chắc chắn muốn cập nhật trạng thái cho lệnh sản xuất{' '}
-              <span className="font-bold text-stone-900">{selectedOrder?.orderCode}</span> không?
-            </p>
-            <div className="mt-4 flex items-center justify-center gap-4 rounded-lg bg-amber-50 p-4 border border-amber-100">
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] uppercase text-stone-500">Hiện tại</span>
-                <div className="mt-1">
-                  <StatusBadge status={selectedOrder?.status} />
-                </div>
+        <DialogContent className="w-[min(95vw,440px)] max-w-none overflow-hidden rounded-2xl border-0 p-0 shadow-2xl">
+          {/* Gradient header */}
+          <div className="bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-5 text-white text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex size-12 items-center justify-center rounded-full bg-white/20 ring-4 ring-white/30">
+                <ChefHat className="size-6" />
               </div>
-              <div className="h-px w-8 bg-amber-300" />
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] uppercase text-stone-500">Tiếp theo</span>
-                <div className="mt-1">
-                  <StatusBadge status={selectedOrder?.status === 'PLANNED' ? 'COOKING' : 'COMPLETED'} />
-                </div>
-              </div>
+              <DialogHeader>
+                <DialogTitle className="text-base font-bold text-white">
+                  Xác nhận cập nhật trạng thái
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-amber-100 font-medium">
+                Lệnh: <span className="font-black text-white">{selectedOrder?.orderCode}</span>
+              </p>
             </div>
           </div>
-          <DialogFooter>
+
+          {/* Body */}
+          <div className="p-6 space-y-5">
+            {/* Status transition */}
+            <div className="flex items-center justify-center gap-6">
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Hiện tại</span>
+                <StatusBadge status={selectedOrder?.status} />
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="h-px w-8 bg-amber-300 mt-4" />
+                <span className="text-[10px] text-stone-300">→</span>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Tiếp theo</span>
+                <StatusBadge status={nextStatus(selectedOrder?.status)} />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4">
+              <p className="text-xs font-medium text-stone-600 leading-relaxed text-center">
+                Bạn có chắc chắn muốn chuyển trạng thái của lệnh sản xuất này không? Hành động sẽ được ghi lại vào lịch sử.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2 border-t border-stone-100 bg-stone-50 px-6 py-4">
             <Button
               variant="outline"
               onClick={() => setIsDialogOpen(false)}
-              className="border-stone-200 text-stone-600"
+              className="flex-1 border-stone-200 text-stone-600 font-bold text-xs h-11"
             >
-              Hủy
+              Hủy bỏ
             </Button>
-            <Button onClick={handleConfirmUpdate} className="bg-amber-500 text-white hover:bg-amber-600">
-              Xác nhận
+            <Button
+              onClick={handleConfirmUpdate}
+              disabled={isUpdating}
+              className="flex-[2] h-11 rounded-xl bg-amber-500 font-black text-sm text-white hover:bg-amber-600 shadow-lg shadow-amber-200 active:scale-95 transition-all"
+            >
+              {isUpdating ? (
+                <><RefreshCw className="mr-2 size-4 animate-spin" /> Đang xử lý...</>
+              ) : 'Xác nhận cập nhật'}
             </Button>
           </DialogFooter>
         </DialogContent>
