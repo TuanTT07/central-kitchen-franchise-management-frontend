@@ -265,6 +265,14 @@ function Receipts() {
                   </button>
                 ))}
               </div>
+              <Button
+                type="button"
+                size="sm"
+                className="ml-auto h-9 rounded-full bg-amber-600 px-4 text-[11px] font-semibold text-white hover:bg-amber-700"
+                onClick={handleOpenStockIn}
+              >
+                + Tạo phiếu nhập kho
+              </Button>
             </div>
 
             {/* Nút phải */}

@@ -181,9 +181,9 @@ function ManufacturingOrders() {
           </div>
         </CardHeader>
 
-        <CardContent className="px-6 pb-6 pt-4 space-y-5">
-          <div className="flex h-10 items-center gap-3">
-            <div className="relative h-full max-w-xs flex-1">
+        <CardContent className="space-y-5 p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative max-w-sm flex-1">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-500" />
               <Input
                 placeholder="Tìm theo mã lệnh, tên món..."
@@ -192,14 +192,14 @@ function ManufacturingOrders() {
                 className="h-full border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
               />
             </div>
-            <div className="inline-flex h-full items-stretch overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">
+            <div className="inline-flex h-full min-h-[2.5rem] items-stretch overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">
               {FILTER_OPTIONS.map((opt) => (
                 <button
                   key={opt}
                   type="button"
                   onClick={() => setStatusFilter(opt)}
                   className={cn(
-                    'cursor-pointer px-4 font-medium transition',
+                    'cursor-pointer px-3 py-1.5 font-medium transition',
                     opt !== 'ALL' && 'border-l border-amber-200',
                     statusFilter === opt ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'
                   )}
