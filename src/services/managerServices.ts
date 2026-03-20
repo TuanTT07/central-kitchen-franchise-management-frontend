@@ -150,16 +150,12 @@ export const managerServices = {
    * @param {Object} body
    * @returns {Promise<Response<ProductsResponse>>}
    */
-  createProduct: async (body: {
-    productName: string;
-    unitId: number;
-    imageUrl: string;
-    description: string;
-    categoryId: number;
-    price: number;
-    shelfLifeDays: number;
-  }) => {
-    const response = await http.post<Response<ProductsResponse>>('/api/v1/products', body);
+  createProduct: async (formData: FormData) => {
+    const response = await http.post<Response<ProductsResponse>>('/api/v1/products', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   },
 
@@ -169,11 +165,12 @@ export const managerServices = {
    * @param {Object} body
    * @returns {Promise<any>}
    */
-  updateProduct: async (
-    id: number,
-    body: { productName: string; unitId: number; imageUrl: string; description: string; categoryId: number; price: number; shelfLifeDays: number; }
-  ) => {
-    const response = await http.patch(`/api/v1/products/${id}`, body);
+  updateProduct: async (id: number, formData: FormData) => {
+    const response = await http.patch(`/api/v1/products/${id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   },
 
