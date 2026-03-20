@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { CalendarDays, Minus, Plus, Trash2 } from 'lucide-react';
+import { CalendarDays, Minus, Plus, ShoppingCart, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useCart } from '@/contexts/CartContext';
@@ -108,124 +108,173 @@ export default function FranchiseCartOverlay({ children }: { children: React.Rea
         open={open}
         onOpenChange={(next) => (next ? setOpen(true) : closeAndReset())}
         title={
-          <div className="flex items-center justify-between">
-            <span>Giỏ hàng</span>
-            <span className="text-sm font-semibold text-amber-700">
-              {items.length} món · {totalQuantity} đơn vị
-            </span>
+          <div className="flex items-start justify-between gap-3 pr-1">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-bold tracking-tight text-amber-950">Chi tiết đơn hàng</h2>
+              <p className="mt-0.5 text-xs font-medium text-amber-800/70">
+                {items.length} món · {totalQuantity} đơn vị
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={closeAndReset}
+              className="flex size-8 shrink-0 items-center justify-center rounded-full text-amber-700/60 transition hover:bg-amber-100/80 hover:text-amber-900"
+              aria-label="Đóng"
+            >
+              <X className="size-5" />
+            </button>
           </div>
         }
       >
         {step === 'REVIEW' && (
-          <div className="space-y-5 px-6 py-5">
-            {items.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50/40 px-4 py-10 text-center text-sm text-amber-800">
-                Giỏ hàng đang trống. Hãy thêm món từ menu.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {items.map((i) => {
-                  const itemUnitPrice = Number(i.unitPrice ?? 0);
-                  const itemAmount = (Number.isFinite(itemUnitPrice) ? itemUnitPrice : 0) * i.quantity;
-                  return (
-                    <div
-                      key={i.productId}
-                      className="flex items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-white px-4 py-3 shadow-sm"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-base font-bold text-stone-900">{i.name}</p>
-                        <p className="text-sm text-stone-600">
-                          Đơn vị: <span className="font-medium text-stone-800">{i.unitName ?? '—'}</span>
-                        </p>
-                        <p className="text-sm text-stone-600">
-                          Đơn giá: <span className="font-medium text-stone-800">{formatCurrencyVND(itemUnitPrice)}</span>
-                        </p>
-                        <p className="text-sm font-bold text-amber-700">
-                          Thành tiền: <span className="text-amber-800">{formatCurrencyVND(itemAmount)}</span>
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
+          <div className="flex h-full min-h-0 flex-col bg-gradient-to-b from-amber-50/30 to-white">
+            {/* Vùng danh sách: chiếm khoảng giữa, chỉ chỗ này cuộn; không dùng max-height */}
+            <div
+              className={cn(
+                'min-h-0 grow overflow-y-auto overflow-x-hidden overscroll-y-contain',
+                'px-6 pb-3 pt-5 [scrollbar-gutter:stable]',
+                'rounded-b-lg'
+              )}
+            >
+              {items.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50/40 px-4 py-12 text-center text-sm text-amber-900/70">
+                  Giỏ hàng đang trống. Hãy thêm món từ menu.
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {items.map((i) => {
+                    const itemUnitPrice = Number(i.unitPrice ?? 0);
+                    const safeUnit = Number.isFinite(itemUnitPrice) ? itemUnitPrice : 0;
+                    return (
+                      <li
+                        key={i.productId}
+                        className="flex items-center gap-4 rounded-xl border border-amber-100/90 bg-white p-4 shadow-sm shadow-amber-100/20"
+                      >
+                        <div className="size-16 shrink-0 overflow-hidden rounded-lg bg-amber-50 ring-1 ring-amber-100">
+                          {i.imageUrl ? (
+                            <img
+                              src={i.imageUrl}
+                              alt=""
+                              className="size-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex size-full items-center justify-center text-[10px] font-medium text-amber-600/50">
+                              IMG
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-bold leading-tight text-stone-900">{i.name}</p>
+                          <p className="mt-0.5 text-xs text-amber-900/55">
+                            {formatCurrencyVND(safeUnit)}
+                            {i.unitName ? (
+                              <span className="text-amber-700/50"> · {i.unitName}</span>
+                            ) : null}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => updateQuantity({ productId: i.productId, quantity: i.quantity - 1 })}
-                            className="flex size-10 items-center justify-center rounded-full border border-amber-200 bg-white text-amber-700 hover:bg-amber-50"
+                            className="flex size-8 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 transition hover:bg-amber-50"
                             aria-label="Giảm số lượng"
                           >
-                            <Minus className="size-4" />
+                            <Minus className="size-3.5" strokeWidth={2.5} />
                           </button>
-                          <span className="min-w-[2.75rem] text-center text-base font-bold text-stone-900">
+                          <span className="min-w-[1.75rem] text-center text-sm font-bold text-orange-600 tabular-nums">
                             {i.quantity}
                           </span>
                           <button
                             type="button"
                             onClick={() => updateQuantity({ productId: i.productId, quantity: i.quantity + 1 })}
-                            className="flex size-10 items-center justify-center rounded-full border border-amber-400 bg-amber-500 text-white shadow-sm hover:bg-amber-600"
+                            className="flex size-8 items-center justify-center rounded-lg border border-orange-300 bg-orange-500 text-white shadow-sm transition hover:bg-orange-600"
                             aria-label="Tăng số lượng"
                           >
-                            <Plus className="size-4" />
+                            <Plus className="size-3.5" strokeWidth={2.5} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeItem({ productId: i.productId })}
+                            className="ml-0.5 flex size-8 items-center justify-center rounded-lg text-red-500 transition hover:bg-red-50"
+                            aria-label="Xóa"
+                            title="Xóa"
+                          >
+                            <Trash2 className="size-4" />
                           </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeItem({ productId: i.productId })}
-                          className="flex size-10 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
-                          aria-label="Xóa"
-                          title="Xóa"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <div className="mr-auto rounded-xl border border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-2.5 text-sm text-amber-900">
-                <span className="font-semibold">Tổng tiền:</span>{' '}
-                <span className="text-base font-bold text-amber-800">{formatCurrencyVND(totalAmount)}</span>
+            <div className="mt-auto flex shrink-0 flex-col border-t border-amber-100 bg-gradient-to-t from-orange-50/40 to-white px-6 pb-6 pt-5 shadow-[0_-6px_16px_-8px_rgba(251,146,60,0.12)]">
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between text-amber-900/65">
+                  <span>Tạm tính</span>
+                  <span className="tabular-nums text-amber-950">{formatCurrencyVND(totalAmount)}</span>
+                </div>
+                <div className="flex items-center justify-between text-amber-900/65">
+                  <span>Thuế</span>
+                  <span className="tabular-nums text-amber-950">{formatCurrencyVND(0)}</span>
+                </div>
+                <div className="flex items-center justify-between border-t border-amber-100/80 pt-2 text-base font-bold">
+                  <span className="text-amber-950">Tổng cộng</span>
+                  <span className="tabular-nums text-xl text-orange-600">{formatCurrencyVND(totalAmount)}</span>
+                </div>
               </div>
+
+              <div className="mt-4 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  disabled={items.length === 0}
+                  onClick={() => {
+                    clear();
+                    toast.success('Đã xóa giỏ hàng');
+                  }}
+                  className={cn(
+                    'text-xs font-semibold text-amber-800/60 underline-offset-2 hover:text-orange-700 hover:underline',
+                    'disabled:pointer-events-none disabled:opacity-40'
+                  )}
+                >
+                  Xóa giỏ
+                </button>
+              </div>
+
               <Button
                 type="button"
-                variant="outline"
-                size="sm"
-                className="h-10 border-amber-200 px-4 text-sm text-amber-900 hover:bg-amber-50"
-                disabled={items.length === 0}
-                onClick={() => {
-                  clear();
-                  toast.success('Đã xóa giỏ hàng');
-                }}
-              >
-                Xóa giỏ
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                className={cn(
-                  'h-10 bg-gradient-to-r from-amber-500 to-orange-500 px-6 text-sm font-semibold text-white',
-                  'hover:from-amber-600 hover:to-orange-600'
-                )}
                 disabled={!canProceed}
                 onClick={() => setStep('DATE')}
+                className={cn(
+                  'mt-3 h-12 w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-sm font-semibold text-white shadow-md shadow-orange-200/50',
+                  'transition hover:from-amber-600 hover:to-orange-600 disabled:opacity-50'
+                )}
               >
-                Tiếp tục
+                <span className="flex items-center justify-center gap-2">
+                  <ShoppingCart className="size-5" />
+                  Tiếp tục đặt hàng
+                </span>
               </Button>
             </div>
           </div>
         )}
 
         {step === 'DATE' && (
-          <div className="space-y-4 px-5 py-4">
-            <div className="rounded-xl border border-amber-100 bg-amber-50/40 px-4 py-3">
-              <p className="text-sm font-semibold text-amber-900">Chọn ngày giao dự kiến</p>
-              <p className="mt-1 text-[11px] text-stone-600">
-                Bếp trung tâm sẽ xử lý theo ngày giao bạn chọn.
-              </p>
-              <div className="mt-3">
-                <label className="text-[11px] font-medium text-stone-700">Ngày giao</label>
-                <div className="relative mt-1">
+          <div className="flex h-full min-h-0 flex-col bg-gradient-to-b from-amber-50/30 to-white">
+            <div
+              className={cn(
+                'min-h-0 grow overflow-y-auto overflow-x-hidden overscroll-y-contain',
+                'px-6 pb-3 pt-5 [scrollbar-gutter:stable] rounded-b-lg'
+              )}
+            >
+              <div className="space-y-4">
+              <div>
+                <p className="text-sm font-bold text-amber-950">Ngày giao dự kiến</p>
+                <p className="mt-1 text-xs text-amber-900/60">
+                  Bếp trung tâm sẽ xử lý theo ngày giao bạn chọn.
+                </p>
+                <div className="relative mt-3">
                   <input
                     ref={deliveryDateRef}
                     type="date"
@@ -233,28 +282,36 @@ export default function FranchiseCartOverlay({ children }: { children: React.Rea
                     onChange={(e) => setDeliveryDate(e.target.value)}
                     onFocus={openDatePicker}
                     className={cn(
-                      'h-9 w-full rounded-md border border-amber-200 bg-white pl-3 pr-10 text-xs text-stone-900',
-                      'focus-visible:border-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300'
+                      'h-11 w-full cursor-pointer rounded-lg border border-amber-200 bg-white px-3 pr-11 text-sm text-amber-950',
+                      'placeholder:text-amber-900/40 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-400/25'
                     )}
                   />
                   <button
                     type="button"
                     onClick={openDatePicker}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-amber-700 hover:bg-amber-100"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-amber-600 transition hover:bg-amber-100 hover:text-orange-600"
                     aria-label="Mở lịch chọn ngày"
                   >
-                    <CalendarDays className="size-4" />
+                    <CalendarDays className="size-5" />
                   </button>
                 </div>
               </div>
+
+              <div className="rounded-xl border border-amber-100 bg-gradient-to-r from-amber-50/80 to-orange-50/50 px-3 py-3 text-xs text-amber-900/70">
+                <div className="flex justify-between">
+                  <span className="font-medium">Tổng cộng</span>
+                  <span className="font-bold text-orange-600">{formatCurrencyVND(totalAmount)}</span>
+                </div>
+                <p className="mt-1 text-[11px] text-amber-800/55">{items.length} món · {totalQuantity} đơn vị</p>
+              </div>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between gap-2">
+            <div className="mt-auto flex shrink-0 flex-col space-y-3 border-t border-amber-100 bg-gradient-to-t from-orange-50/30 to-white px-6 pb-6 pt-4 shadow-[0_-6px_16px_-8px_rgba(251,146,60,0.12)]">
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
-                className="h-9 border-amber-200 text-xs text-amber-900 hover:bg-amber-50"
+                className="h-10 w-full rounded-xl border-amber-200 bg-white text-sm font-semibold text-amber-900 hover:bg-amber-50"
                 onClick={() => setStep('REVIEW')}
                 disabled={submitting}
               >
@@ -262,15 +319,17 @@ export default function FranchiseCartOverlay({ children }: { children: React.Rea
               </Button>
               <Button
                 type="button"
-                size="sm"
-                className={cn(
-                  'h-9 bg-gradient-to-r from-amber-500 to-orange-500 px-5 text-xs font-semibold text-white',
-                  'hover:from-amber-600 hover:to-orange-600'
-                )}
                 onClick={submitOrder}
                 disabled={submitting || items.length === 0}
+                className={cn(
+                  'h-12 w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-sm font-semibold text-white shadow-md shadow-orange-200/50',
+                  'hover:from-amber-600 hover:to-orange-600 disabled:opacity-50'
+                )}
               >
-                {submitting ? 'Đang gửi...' : 'Gửi yêu cầu lên bếp trung tâm'}
+                <span className="flex items-center justify-center gap-2">
+                  {submitting ? null : <ShoppingCart className="size-5" />}
+                  {submitting ? 'Đang gửi...' : 'Gửi yêu cầu'}
+                </span>
               </Button>
             </div>
           </div>
