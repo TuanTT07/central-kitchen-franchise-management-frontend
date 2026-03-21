@@ -1,19 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  Store,
-  MapPin,
-  Phone,
-  CheckCircle2,
-  ClipboardList,
-  Clock,
-  BadgeCheck,
-  User2,
-  IdCard,
-  Mail,
-  ShieldCheck,
-  Loader2,
-  XCircle,
-} from 'lucide-react';
+import { Store, MapPin, Phone, CheckCircle2, User2, IdCard, Mail, ShieldCheck, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { franchiseServices, type OrderResponse, type OrderDetailResponse } from '@/services/franchiseServices';
 import { cn } from '@/lib/utils';
@@ -27,7 +13,7 @@ function StoreProfile() {
   const { user, userName } = useAuth();
 
   const [storeInfo, setStoreInfo] = useState<StoreBasicInfo | null>(null);
-  const [orders, setOrders] = useState<OrderResponse<OrderDetailResponse[]>[]>([]);
+  const [, setOrders] = useState<OrderResponse<OrderDetailResponse[]>[]>([]);
   const [loading, setLoading] = useState(true);
 
   const resolveUserAndStore = () => {
@@ -36,13 +22,16 @@ function StoreProfile() {
       try {
         const raw = localStorage.getItem('user');
         if (raw) u = JSON.parse(raw);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
     return u;
   };
 
   useEffect(() => {
-    franchiseServices.getOrders(0, 200)
+    franchiseServices
+      .getOrders(0, 200)
       .then((res) => {
         if (res.success && res.data) {
           const items = res.data.items ?? [];
@@ -61,11 +50,6 @@ function StoreProfile() {
   const userEmail = currentUser?.email ?? '—';
   const userFullName = currentUser?.userFullName ?? currentUser?.fullName ?? userName ?? '—';
 
-  const totalOrders = orders.length;
-  const pendingOrders = orders.filter((o) => o.status === 'PENDING').length;
-  const approvedOrders = orders.filter((o) => o.status === 'APPROVED').length;
-  const cancelledOrders = orders.filter((o) => o.status === 'CANCELLED').length;
-
   if (loading) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-3 py-24">
@@ -79,75 +63,8 @@ function StoreProfile() {
 
   return (
     <div className="min-h-full space-y-6 p-1">
-
-      {/* ── STAT CARDS ── */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          {
-            label: 'Tổng đơn hàng',
-            value: totalOrders,
-            icon: ClipboardList,
-            bg: 'bg-amber-50',
-            border: 'border-amber-200',
-            iconColor: 'text-amber-500',
-            textColor: 'text-amber-900',
-            badgeBg: 'bg-amber-500',
-          },
-          {
-            label: 'Chờ duyệt',
-            value: pendingOrders,
-            icon: Clock,
-            bg: 'bg-orange-50',
-            border: 'border-orange-200',
-            iconColor: 'text-orange-500',
-            textColor: 'text-orange-900',
-            badgeBg: 'bg-orange-500',
-          },
-          {
-            label: 'Đã duyệt',
-            value: approvedOrders,
-            icon: BadgeCheck,
-            bg: 'bg-emerald-50',
-            border: 'border-emerald-200',
-            iconColor: 'text-emerald-500',
-            textColor: 'text-emerald-900',
-            badgeBg: 'bg-emerald-500',
-          },
-          {
-            label: 'Đã huỷ',
-            value: cancelledOrders,
-            icon: XCircle,
-            bg: 'bg-rose-50',
-            border: 'border-rose-200',
-            iconColor: 'text-rose-400',
-            textColor: 'text-rose-900',
-            badgeBg: 'bg-rose-400',
-          },
-        ].map(({ label, value, icon: Icon, bg, border, iconColor, textColor, badgeBg }) => (
-          <div
-            key={label}
-            className={cn(
-              'relative overflow-hidden rounded-2xl border p-5 shadow-sm transition hover:shadow-md',
-              bg, border
-            )}
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">{label}</p>
-                <p className={cn('mt-2 text-4xl font-extrabold', textColor)}>{value}</p>
-              </div>
-              <div className={cn('flex size-11 shrink-0 items-center justify-center rounded-xl shadow-inner', badgeBg + '/15')}>
-                <Icon className={cn('size-6', iconColor)} />
-              </div>
-            </div>
-            <div className={cn('absolute -bottom-3 -right-3 size-16 rounded-full opacity-10', badgeBg)} />
-          </div>
-        ))}
-      </div>
-
       {/* ── BOTTOM GRID: Store Info + Account Info ── */}
       <div className="grid gap-4 lg:grid-cols-2">
-
         {/* Store detail card */}
         <div className="rounded-2xl border border-amber-100 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center gap-2">
@@ -206,7 +123,12 @@ function StoreProfile() {
 
           <div className="space-y-3">
             <InfoRow icon={User2} label="Tên đăng nhập" value={`@${userUsername}`} />
-            <InfoRow icon={Mail} label="Email" value={userEmail !== '—' ? userEmail : undefined} muted={userEmail === '—'} />
+            <InfoRow
+              icon={Mail}
+              label="Email"
+              value={userEmail !== '—' ? userEmail : undefined}
+              muted={userEmail === '—'}
+            />
             <InfoRow icon={IdCard} label="ID tài khoản" value={userId ? `#${userId}` : '—'} muted={!userId} />
           </div>
         </div>
