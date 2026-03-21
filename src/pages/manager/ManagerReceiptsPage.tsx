@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { CalendarClock, ChevronLeft, ChevronRight, FileText, Search, Hash } from 'lucide-react';
+import {  ChevronLeft, ChevronRight, FileText, Search, Hash } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { kitchenServices, type InventoryReceiptApi } from '@/services/kitchenServices';
 import { supplyServices, type ExportNotesResponse } from '@/services/supplyServices';
