@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Package, Store, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Package, Store, Search, Filter, ChevronLeft, ChevronRight, RefreshCw, SlidersHorizontal, Zap, ListChecks } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import type { OrderDetailResponse, OrderResponse } from '@/services/franchiseServices';
 import type { ConsolidationProduct, ConsolidationResponse } from '@/services/supplyServices';
@@ -305,8 +305,9 @@ function SummaryOrdersPage() {
 
   // ================= RENDER =================
   return (
-    <div className="h-full w-full">
-      <Card className="border-amber-200/60 bg-white shadow-md">
+    <div className="h-full w-full space-y-5">
+      {/* ── Header Card ── */}
+      <Card className="border-amber-200/60 bg-white shadow-md overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
           <div className="flex flex-col gap-1">
             <CardTitle className="flex items-center gap-2 text-xl font-bold text-amber-900">
@@ -317,80 +318,105 @@ function SummaryOrdersPage() {
               Danh sách các đơn hàng từ chi nhánh gửi về bếp trung tâm.
             </CardDescription>
           </div>
-          <div className="hidden items-center gap-6 md:flex">
-            <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Tổng đơn</span>
-              <span className="text-lg font-semibold text-amber-900">{stats.total}</span>
+          <div className="hidden items-center gap-4 md:flex">
+            <div className="flex flex-col items-center rounded-xl border border-amber-100 bg-white/70 px-5 py-2.5 shadow-sm">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">Tổng đơn</span>
+              <span className="mt-0.5 text-2xl font-bold text-amber-900">{stats.total}</span>
             </div>
-            <div className="h-10 w-px bg-amber-200/70" />
-            <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Chờ xử lý</span>
-              <span className="text-lg font-semibold text-amber-900">{stats.pending}</span>
+            <div className="flex flex-col items-center rounded-xl border border-yellow-100 bg-white/70 px-5 py-2.5 shadow-sm">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-yellow-600">Chờ xử lý</span>
+              <span className="mt-0.5 text-2xl font-bold text-yellow-700">{stats.pending}</span>
             </div>
-            <div className="h-10 w-px bg-amber-200/70" />
-            <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Tổng SP</span>
-              <span className="text-lg font-semibold text-amber-900">{stats.totalProducts}</span>
+            <div className="flex flex-col items-center rounded-xl border border-orange-100 bg-white/70 px-5 py-2.5 shadow-sm">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-orange-600">Tổng SP</span>
+              <span className="mt-0.5 text-2xl font-bold text-orange-700">{stats.totalProducts}</span>
             </div>
           </div>
         </CardHeader>
+      </Card>
 
+      {/* ── Toolbar ── */}
+      <div className="flex items-center gap-3 rounded-xl border border-amber-100 bg-white px-4 py-3 shadow-sm">
+        {/* Search */}
+        <div className="relative w-72 flex-none">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Tìm theo mã đơn, sản phẩm hoặc chi nhánh..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9 w-full rounded-md border border-amber-200 bg-amber-50/40 pl-9 pr-3 text-xs text-stone-800 placeholder:text-stone-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60"
+          />
+        </div>
+
+        {/* Advanced Filter – Status Select */}
+        <div className="relative flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50/50 px-3">
+          <SlidersHorizontal className="size-3.5 shrink-0 text-amber-500" />
+          <span className="whitespace-nowrap text-[11px] font-medium text-amber-700">Bộ lọc:</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="cursor-pointer appearance-none bg-transparent pr-4 text-xs font-semibold text-amber-900 outline-none"
+          >
+            <option value="ALL">Tất cả</option>
+            <option value="PENDING">{translateStatus('PENDING')}</option>
+            <option value="APPROVED">{translateStatus('APPROVED')}</option>
+            <option value="AWAITING_DELIVERY">Đợi giao hàng</option>
+            <option value="CONSOLIDATED">{translateStatus('CONSOLIDATED')}</option>
+            <option value="CANCELLED">{translateStatus('CANCELLED')}</option>
+          </select>
+          <Filter className="pointer-events-none absolute right-2 top-1/2 size-3 -translate-y-1/2 text-amber-400" />
+        </div>
+
+        {/* Refresh */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={getAllOrders}
+          className="h-9 shrink-0 gap-1.5 border-amber-200 text-xs text-amber-700 hover:bg-amber-50"
+        >
+          <RefreshCw className="size-3.5" />
+          Làm mới
+        </Button>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Divider */}
+        <div className="h-6 w-px shrink-0 bg-amber-200" />
+
+        {/* Action buttons */}
+        <Button
+          size="sm"
+          className="h-9 shrink-0 gap-1.5 rounded-lg bg-amber-500 px-4 text-xs text-white shadow-sm transition-all hover:bg-amber-600 active:scale-95"
+          onClick={() => autoConsolidate()}
+        >
+          <Zap className="size-3.5" />
+          Tổng hợp tự động
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-9 shrink-0 gap-1.5 rounded-lg border-amber-300 px-4 text-xs text-amber-800 transition-all hover:bg-amber-50 active:scale-95"
+          onClick={manuConsolidate}
+        >
+          <ListChecks className="size-3.5" />
+          Tổng hợp thủ công
+        </Button>
+      </div>
+
+      {/* ── Content ── */}
+      <Card className="border-amber-200/60 bg-white shadow-md">
         <CardContent className="space-y-5 p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-1 items-center gap-2">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-600" />
-                <Input
-                  placeholder="Tìm theo mã đơn, sản phẩm hoặc chi nhánh..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="hidden h-9 items-center gap-1 rounded-full border-amber-200 text-xs text-amber-800 hover:bg-amber-50 sm:inline-flex"
-              >
-                <Filter className="size-3.5" />
-                Bộ lọc nâng cao
-              </Button>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">
-                {[
-                  { key: 'ALL', label: 'Tất cả' },
-                  { key: 'PENDING', label: translateStatus('PENDING') },
-                  { key: 'APPROVED', label: translateStatus('APPROVED') },
-                  { key: 'AWAITING_DELIVERY', label: 'Đợi giao hàng' },
-                  { key: 'CONSOLIDATED', label: translateStatus('CONSOLIDATED') },
-                  { key: 'CANCELLED', label: translateStatus('CANCELLED') },
-                ].map((t, idx) => (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => setStatusFilter(t.key)}
-                    className={`px-3 py-1.5 transition ${
-                      idx !== 0 ? 'border-l border-amber-200' : ''
-                    } ${statusFilter === t.key ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'}`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-              <Button
-                className="h-9 rounded-full bg-amber-500 px-4 text-xs text-white hover:bg-amber-600"
-                onClick={() => autoConsolidate()}
-              >
-                Tổng hợp đơn giao tự động
-              </Button>
-              <Button
-                className="h-9 rounded-full bg-amber-500 px-4 text-xs text-white hover:bg-amber-600"
-                onClick={manuConsolidate}
-              >
-                Tổng hợp đơn giao thủ công
-              </Button>
-            </div>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-stone-500">
+              Hiển thị <span className="font-semibold text-stone-700">{filteredOrders.length}</span> đơn hàng
+              {statusFilter !== 'ALL' && (
+                <span className="ml-1">
+                  — lọc theo <span className="font-semibold text-amber-700">{statusFilter === 'AWAITING_DELIVERY' ? 'Đợi giao hàng' : translateStatus(statusFilter)}</span>
+                </span>
+              )}
+            </p>
           </div>
 
           <div className="grid gap-5 lg:grid-cols-3">
@@ -407,86 +433,111 @@ function SummaryOrdersPage() {
                     <thead>
                       <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
                         <th className="px-4 py-2 font-semibold">Mã đơn</th>
-                        <th className="px-4 py-2 font-semibold">Trạng thái</th>
                         <th className="px-4 py-2 font-semibold">Chi nhánh</th>
                         <th className="px-4 py-2 font-semibold">Sản phẩm chính</th>
                         <th className="px-2 py-2 font-semibold text-center">SL</th>
+                        <th className="px-4 py-2 font-semibold">Trạng thái</th>
                         <th className="px-2 py-2 font-semibold text-center">Hành động</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-amber-50">
-                      {paginatedOrders.map((o) => (
-                        <tr
-                          key={o.orderId}
-                          className="cursor-pointer hover:bg-amber-50/40"
-                          onClick={() => openDetail(o)}
-                          title="Xem chi tiết đơn hàng"
-                        >
-                          <td className="px-4 py-2 font-semibold text-stone-900">{o.orderCode}</td>
-                          <td className="px-4 py-2 text-stone-700">
-                            <OrderStatusBadge status={o.status} />
+                    <tbody className="divide-y divide-amber-50/70">
+                      {paginatedOrders.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-14 text-center">
+                            <div className="flex flex-col items-center gap-2 text-stone-400">
+                              <Package className="size-10 opacity-30" />
+                              <p className="text-sm font-medium">Không có đơn hàng nào</p>
+                              <p className="text-xs">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
+                            </div>
                           </td>
-                          <td className="px-4 py-2 text-stone-800">{o.storeName}</td>
-                          <td className="px-4 py-2 text-stone-800">
-                            {o.details?.[0]?.productName || 'N/A'}
-                            {o.details?.length > 1 ? ` (+${o.details.length - 1})` : ''}
-                          </td>
-                          <td className="px-2 py-2 text-center text-stone-800">
-                            {o.details?.reduce((acc, curr) => acc + curr.quantity, 0) || 0}
-                          </td>
-                          {o.status === 'PENDING' && (
-                            <td className="px-2 py-2 text-center text-stone-800">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleApprove(o.orderId);
-                                }}
-                                className="border-green-200 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800"
-                              >
-                                Phê duyệt
-                              </Button>
-                            </td>
-                          )}
                         </tr>
-                      ))}
+                      ) : (
+                        paginatedOrders.map((o) => (
+                          <tr
+                            key={o.orderId}
+                            className="cursor-pointer transition-colors hover:bg-amber-50/60 group"
+                            onClick={() => openDetail(o)}
+                            title="Xem chi tiết đơn hàng"
+                          >
+                            <td className="px-4 py-3 font-mono text-[11px] font-semibold text-stone-700">{o.orderCode}</td>
+                            <td className="px-4 py-3 text-stone-700">{o.storeName}</td>
+                            <td className="px-4 py-3 text-stone-700">
+                              {o.details?.[0]?.productName || 'N/A'}
+                              {o.details?.length > 1 && (
+                                <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                                  +{o.details.length - 1}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-2 py-3 text-center font-semibold text-stone-700">
+                              {o.details?.reduce((acc, curr) => acc + curr.quantity, 0) || 0}
+                            </td>
+                            <td className="px-4 py-3">
+                              <OrderStatusBadge status={o.status} />
+                            </td>
+                            <td className="px-2 py-3 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                {o.status === 'PENDING' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleApprove(o.orderId);
+                                    }}
+                                    className="h-7 border-green-200 bg-green-50 px-3 text-[11px] text-green-700 hover:bg-green-100 hover:text-green-800"
+                                  >
+                                    Phê duyệt
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openDetail(o);
+                                  }}
+                                  className="h-7 border-amber-200 bg-amber-50 px-3 text-[11px] text-amber-700 hover:bg-amber-100"
+                                >
+                                  Chi tiết
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
 
                 {/* Pagination */}
-                <div className="flex items-center justify-between border-t border-amber-50 px-4 py-3 text-xs">
-                  <span className="text-stone-600">
-                    Trang <span className="font-bold">{page + 1}</span> /{' '}
-                    <span className="font-bold">{totalPages}</span>
+                <div className="flex items-center justify-between border-t border-amber-50 bg-amber-50/30 px-4 py-2.5 text-xs">
+                  <span className="text-stone-500">
+                    Trang <span className="font-bold text-stone-700">{page + 1}</span> /{' '}
+                    <span className="font-bold text-stone-700">{totalPages}</span>
+                    <span className="ml-2 text-stone-400">({filteredOrders.length} kết quả)</span>
                   </span>
-                  <div className="flex gap-1">
+                  <div className="flex items-center gap-1">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 border-amber-200 text-amber-900 hover:bg-amber-50"
+                      className="h-7 w-7 border-amber-200 p-0 text-amber-800 hover:bg-amber-50 disabled:opacity-40"
                       onClick={() => setPage((p) => Math.max(0, p - 1))}
                       disabled={page === 0}
                     >
-                      <ChevronLeft className="size-4" />
+                      <ChevronLeft className="size-3.5" />
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 border-amber-200 text-amber-900 hover:bg-amber-50"
+                      className="h-7 w-7 border-amber-200 p-0 text-amber-800 hover:bg-amber-50 disabled:opacity-40"
                       onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                       disabled={page >= totalPages - 1}
                     >
-                      <ChevronRight className="size-4" />
+                      <ChevronRight className="size-3.5" />
                     </Button>
                   </div>
                 </div>
-                {/* {filteredOrders.length === 0 && (
-                  <div className="py-10 text-center text-xs text-stone-500">
-                    Không có đơn nào phù hợp với bộ lọc hiện tại.
-                  </div>
-                )} */}
               </CardContent>
             </Card>
 
@@ -497,47 +548,70 @@ function SummaryOrdersPage() {
                   Phân bổ đơn hàng theo chi nhánh
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 pt-4 text-xs">
-                <div className="space-y-2">
+              <CardContent className="space-y-4 p-4 text-xs">
+                {/* Phân bổ % theo chi nhánh */}
+                <div className="space-y-2.5">
                   {Array.from(new Set(orders.map((o) => o.storeName)))
                     .slice(0, 5)
                     .map((storeName) => {
                       const count = orders.filter((o) => o.storeName === storeName).length;
                       const percent = Math.round((count / orders.length) * 100) || 0;
                       return (
-                        <div key={storeName} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-stone-700">
-                            <span className="inline-flex size-6 items-center justify-center rounded-full bg-amber-100 text-[10px] font-semibold text-amber-700">
-                              {percent}%
-                            </span>
-                            <span>{storeName}</span>
+                        <div key={storeName} className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-stone-700 truncate max-w-[130px]">{storeName}</span>
+                            <span className="text-[11px] font-semibold text-amber-700">{count} đơn · {percent}%</span>
                           </div>
-                          <span className="text-[11px] text-stone-500">{count} đơn</span>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-amber-100">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-400 transition-all"
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
                         </div>
                       );
                     })}
                 </div>
+
                 <div className="h-px bg-amber-100" />
+
+                {/* Chi nhánh tích cực nhất */}
                 <div className="space-y-2">
-                  <p className="text-[11px] font-semibold text-amber-900">Chi nhánh tích cực nhất</p>
-                  {Array.from(new Map(orders.map((o) => [o.storeName, o])).values())
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">Chi nhánh tích cực nhất</p>
+                  {Array.from(
+                    new Map(
+                      orders
+                        .slice()
+                        .sort((a, b) => {
+                          const ca = orders.filter((x) => x.storeName === a.storeName).length;
+                          const cb = orders.filter((x) => x.storeName === b.storeName).length;
+                          return cb - ca;
+                        })
+                        .map((o) => [o.storeName, o])
+                    ).values()
+                  )
                     .slice(0, 3)
-                    .map((o) => (
+                    .map((o, idx) => (
                       <div
                         key={o.storeName}
                         className="flex items-center justify-between rounded-lg border border-amber-100 bg-amber-50/40 px-3 py-2"
                       >
                         <div className="flex items-center gap-2">
-                          <div className="flex size-7 items-center justify-center rounded-md bg-gradient-to-br from-amber-400 to-orange-500 text-white">
-                            <Store className="size-3.5" />
+                          <div className={`flex size-7 items-center justify-center rounded-md text-white text-[11px] font-bold ${
+                            idx === 0 ? 'bg-gradient-to-br from-amber-400 to-orange-500' :
+                            idx === 1 ? 'bg-gradient-to-br from-amber-300 to-amber-400' :
+                            'bg-gradient-to-br from-stone-300 to-stone-400'
+                          }`}>
+                            {idx + 1}
                           </div>
                           <div>
                             <p className="text-xs font-semibold text-stone-900">{o.storeName}</p>
-                            <p className="text-[10px] text-stone-500">{o.details?.[0]?.productName || 'N/A'}</p>
+                            <p className="text-[10px] text-stone-400">{o.details?.[0]?.productName || 'N/A'}</p>
                           </div>
                         </div>
-                        <div className="text-right text-[11px] text-stone-600">
-                          <span>{orders.filter((x) => x.storeName === o.storeName).length} đơn</span>
+                        <div className="flex items-center gap-1 text-right text-[11px]">
+                          <Store className="size-3 text-amber-400" />
+                          <span className="font-semibold text-stone-700">{orders.filter((x) => x.storeName === o.storeName).length}</span>
                         </div>
                       </div>
                     ))}
@@ -548,6 +622,7 @@ function SummaryOrdersPage() {
         </CardContent>
       </Card>
 
+      {/* ── Dialogs ── */}
       {/* Dialog kết quả gom đơn & Chỉnh sửa số lượng */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent onClose={() => setIsModalOpen(false)}>
@@ -788,5 +863,6 @@ function SummaryOrdersPage() {
     </div>
   );
 }
+
 
 export default SummaryOrdersPage;

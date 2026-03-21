@@ -31,7 +31,8 @@ export const SUPPLY_COORDINATOR_SIDEBAR_ITEMS = [
   { label: 'Lịch giao hàng', href: '/supply-coordinator/delivery-schedule', icon: ShoppingCart },
   { label: 'Kế hoạch phân phối', href: '/supply-coordinator/distribution-plan', icon: Boxes },
   { label: 'Xử lý sự cố', href: '/supply-coordinator/issues', icon: UtensilsCrossed },
-  { label: 'Tổng hợp đơn', href: '/supply-coordinator/summary-orders', icon: BookOpen },
+  { label: 'Đơn hàng', href: '/supply-coordinator/summary-orders', icon: BookOpen },
+  { label: 'Tồn kho', href: '/supply-coordinator/inventory', icon: Boxes },
 ] as const;
 
 export const CENTRAL_KITCHEN_SIDEBAR_ITEMS = [
