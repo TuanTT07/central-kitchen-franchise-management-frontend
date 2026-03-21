@@ -79,6 +79,23 @@ const CreateOrderPage = () => {
     }
   };
 
+  // ================= HANDLER =================
+
+  /**
+   * Xử lý thêm sản phẩm vào giỏ hàng
+   */
+  const handleAddToCart = (p: ProductsResponse) => {
+    addItem({
+      productId: p.productId,
+      name: p.productName,
+      unitName: p.unitName,
+      unitPrice: p.price,
+      imageUrl: p.imageUrl,
+      orderMultiplier: p.orderMultiplier,
+    });
+    toast.success(`Đã thêm "${p.productName}" vào giỏ hàng`);
+  };
+
   // ================= UTILS =================
 
   // Danh sách các ID/Tên danh mục duy nhất để hiển thị bộ lọc
@@ -119,20 +136,6 @@ const CreateOrderPage = () => {
     });
     return Object.values(groups);
   }, [filteredProducts]);
-
-  // ================= HANDLER =================
-
-  const handleAddToCart = (p: ProductsResponse) => {
-    addItem({
-      productId: p.productId,
-      name: p.productName,
-      unitName: p.unitName,
-      unitPrice: p.price,
-      imageUrl: p.imageUrl,
-      quantity: 1,
-    });
-    toast.success(`Đã thêm "${p.productName}" vào giỏ hàng`);
-  };
 
   // ================= RENDER =================
 
@@ -290,4 +293,3 @@ function ProductCard({
 }
 
 export default CreateOrderPage;
-
