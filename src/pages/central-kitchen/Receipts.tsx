@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { CalendarClock, FileText, Hash, Search, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  CalendarClock, FileText, Search, User,
+  ChevronLeft, ChevronRight, RefreshCw, Eye, Inbox, Loader2,
+  CheckCircle2, Clock,
+} from 'lucide-react';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { cn } from '@/lib/utils';
 import { translateStatus } from '@/utils/labelMapping';
@@ -198,67 +202,71 @@ function Receipts() {
 
   return (
     <div className="h-full w-full">
-      <Card className="border-amber-200/60 bg-white shadow-md">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
+      <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
+
+        {/* ── Header ── */}
+        <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-amber-50 px-6 py-5">
           <div className="flex flex-col gap-1">
             <CardTitle className="flex items-center gap-2 text-xl font-bold text-amber-900">
               <FileText className="size-6 text-amber-500" />
               Phiếu nhập kho
             </CardTitle>
             <CardDescription className="text-xs font-medium text-amber-700/80">
-              Theo dõi và tạo phiếu nhập kho từ bảng `inventory_receipts`.
+              Theo dõi và tạo phiếu nhập kho từ các lô hàng đang chờ xử lý.
             </CardDescription>
           </div>
 
-          <div className="hidden items-center gap-6 md:flex">
-            <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                Tổng biên lai
-              </span>
-              <span className="text-lg font-semibold text-amber-900">{receipts.length}</span>
-            </div>
-            <div className="h-10 w-px bg-amber-200/70" />
-            <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                Nháp
-              </span>
-              <span className="text-lg font-semibold text-amber-900">{draftCount}</span>
-            </div>
-            <div className="h-10 w-px bg-amber-200/70" />
-            <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                Hoàn thành
-              </span>
-              <span className="text-lg font-semibold text-amber-900">{completedCount}</span>
-            </div>
+          {/* Stats + Refresh */}
+          <div className="hidden items-center gap-5 md:flex">
+            {[
+              { label: 'Tổng biên lai', value: receipts.length, color: 'text-amber-900', icon: FileText },
+              { label: 'Nháp',          value: draftCount,       color: 'text-blue-700',  icon: Clock },
+              { label: 'Hoàn thành',    value: completedCount,   color: 'text-emerald-700', icon: CheckCircle2 },
+            ].map((s, i, arr) => (
+              <div key={s.label} className="flex items-center gap-5">
+                <div className="flex flex-col items-end">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600/70">{s.label}</span>
+                  <span className={cn('text-xl font-black', s.color)}>{s.value}</span>
+                </div>
+                {i < arr.length - 1 && <div className="h-10 w-px bg-amber-200/70" />}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={fetchReceipts}
+              disabled={isLoadingList}
+              title="Làm mới"
+              className="ml-2 flex size-8 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-600 shadow-sm transition hover:bg-amber-50 disabled:opacity-50"
+            >
+              <RefreshCw className={cn('size-4', isLoadingList && 'animate-spin')} />
+            </button>
           </div>
         </CardHeader>
 
-        <CardContent className="px-6 pb-6 pt-4 space-y-5">
-          <div className="flex h-10 items-center justify-between gap-3">
-            {/* Nhóm trái: Search + Filter */}
-            <div className="flex h-full flex-1 items-center gap-3">
-              <div className="relative h-full max-w-xs flex-1">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-500" />
-                <Input
-                  placeholder="Tìm theo mã biên lai, ngày..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="h-full border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
-                />
-              </div>
-              <div className="inline-flex h-full items-stretch overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">
+        <CardContent className="space-y-5 p-6">
+
+          {/* ── Toolbar ── */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative max-w-sm flex-1">
+              <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-amber-500" />
+              <Input
+                placeholder="Tìm theo mã biên lai, ngày..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="border-amber-200 bg-amber-50/40 pl-9 text-xs placeholder:text-xs placeholder:text-gray-400 focus:border-amber-400 focus:ring-amber-200"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs shadow-sm">
                 {FILTER_OPTIONS.map((opt) => (
                   <button
                     key={opt}
                     type="button"
                     onClick={() => setStatusFilter(opt)}
                     className={cn(
-                      'cursor-pointer px-4 font-medium transition',
+                      'cursor-pointer px-3 py-1.5 font-medium transition-all',
                       opt !== 'ALL' && 'border-l border-amber-200',
-                      statusFilter === opt
-                        ? 'bg-amber-500 text-white'
-                        : 'text-amber-800 hover:bg-amber-100'
+                      statusFilter === opt ? 'bg-amber-500 text-white font-bold' : 'text-amber-800 hover:bg-amber-100'
                     )}
                   >
                     {opt === 'ALL' ? 'Tất cả' : translateStatus(opt)}
@@ -268,132 +276,135 @@ function Receipts() {
               <Button
                 type="button"
                 size="sm"
-                className="ml-auto h-9 rounded-full bg-amber-600 px-4 text-[11px] font-semibold text-white hover:bg-amber-700"
+                className="rounded-full bg-amber-600 px-4 text-[11px] font-semibold text-white hover:bg-amber-700"
                 onClick={handleOpenStockIn}
               >
                 + Tạo phiếu nhập kho
               </Button>
             </div>
-
-            {/* Nút phải */}
-            <Button
-              type="button"
-              size="sm"
-              className="h-full shrink-0 rounded-full bg-amber-600 px-5 text-[11px] font-semibold text-white hover:bg-amber-700"
-              onClick={handleOpenStockIn}
-            >
-              + Tạo phiếu nhập kho
-            </Button>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-1">
-            <Card className="border-amber-100 bg-white shadow-sm">
-              <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-                <CardTitle className="flex items-center gap-2 text-sm font-bold text-amber-900">
-                  <FileText className="size-4 text-amber-500" />
-                  Danh sách biên lai
-                </CardTitle>
-                <CardDescription className="text-[11px] text-amber-700/80">
-                  inventory_receipts · lọc theo trạng thái, tìm theo mã và ngày.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
-                        <th className="px-4 py-2 font-semibold">Mã biên lai</th>
-                        <th className="px-4 py-2 font-semibold">Ngày lập</th>
-                        <th className="px-4 py-2 font-semibold text-right">Trạng thái</th>
-                        <th className="px-4 py-2 font-semibold text-right">Thao tác</th>
+          {/* ── Table Card ── */}
+          <Card className="overflow-hidden border-amber-100 bg-white shadow-sm">
+            <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 px-5 py-3">
+              <CardTitle className="flex items-center justify-between text-sm font-bold text-amber-900">
+                <span className="flex items-center gap-2">
+                  <CalendarClock className="size-4 text-amber-500" />
+                  Danh sách biên lai nhập kho
+                </span>
+                <span className="text-[11px] font-normal text-amber-700/70">
+                  {filteredReceipts.length} phiếu
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-amber-100 bg-amber-50/60 text-left text-[11px] font-bold uppercase tracking-wide text-amber-800">
+                      <th className="px-5 py-3">Mã biên lai</th>
+                      <th className="px-5 py-3">Ngày lập</th>
+                      <th className="px-5 py-3 text-center">Trạng thái</th>
+                      <th className="px-5 py-3 text-right">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-amber-50">
+                    {isLoadingList ? (
+                      <tr>
+                        <td colSpan={4} className="px-5 py-12 text-center">
+                          <div className="flex flex-col items-center gap-2">
+                            <Loader2 className="size-7 animate-spin text-amber-400" />
+                            <p className="text-xs text-stone-400">Đang tải dữ liệu biên lai...</p>
+                          </div>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-amber-50">
-                      {paginatedReceipts.map((r) => (
-                        <tr key={r.receiptId} className="hover:bg-amber-50/40">
-                          <td className="px-4 py-2">
-                            <p className="text-sm font-semibold text-stone-900">{r.receiptCode}</p>
-                            <p className="text-[11px] text-stone-500">ID: {r.receiptId}</p>
+                    ) : paginatedReceipts.length > 0 ? (
+                      paginatedReceipts.map((r, idx) => (
+                        <tr
+                          key={r.receiptId}
+                          className={cn('transition-colors hover:bg-amber-50/60', idx % 2 === 1 && 'bg-stone-50/30')}
+                        >
+                          <td className="px-5 py-3">
+                            <p className="font-semibold text-stone-900">{r.receiptCode}</p>
+                            <p className="mt-0.5 text-[10px] text-stone-400">ID #{r.receiptId}</p>
                           </td>
-                          <td className="px-4 py-2 text-[11px] text-stone-800">
-                            {formatDateTime(r.receiptDate)}
-                          </td>
-                          <td className="px-4 py-2 text-right">
+                          <td className="px-5 py-3 text-stone-600">{formatDateTime(r.receiptDate)}</td>
+                          <td className="px-5 py-3 text-center">
                             <StatusBadge status={r.status} />
                           </td>
-                          <td className="px-4 py-2 text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-amber-200 bg-white text-[11px] text-amber-900 hover:bg-amber-50"
+                          <td className="px-5 py-3 text-right">
+                            <button
+                              type="button"
                               onClick={() => handleOpenDetail(r)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-800 shadow-sm transition hover:border-amber-300 hover:bg-amber-50"
                             >
+                              <Eye className="size-3.5" />
                               Chi tiết
-                            </Button>
+                            </button>
                           </td>
                         </tr>
-                      ))}
-                      {!isLoadingList && filteredReceipts.length === 0 && (
-                        <tr>
-                          <td
-                            colSpan={4}
-                            className="px-4 py-6 text-center text-xs text-stone-500"
-                          >
-                            Không có biên lai nào khớp với bộ lọc.
-                          </td>
-                        </tr>
-                      )}
-                      {isLoadingList && (
-                        <tr>
-                          <td
-                            colSpan={4}
-                            className="px-4 py-6 text-center text-xs text-stone-500"
-                          >
-                            Đang tải dữ liệu biên lai...
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-              <div className="flex flex-col gap-3 border-t border-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-[11px] text-stone-500">
-                  Hiển thị{' '}
-                  <span className="font-semibold text-stone-800">
-                    {filteredReceipts.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredReceipts.length)}
-                  </span>{' '}
-                  / <span className="font-semibold text-stone-800">{filteredReceipts.length}</span> phiếu
-                </p>
-                <div className="flex items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 border-amber-200 bg-white px-2 text-[11px] text-amber-900 hover:bg-amber-50"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page <= 1}
-                  >
-                    <ChevronLeft className="size-4" />
-                  </Button>
-                  <span className="min-w-[110px] text-center text-[11px] font-medium text-stone-700">
-                    Trang {page} / {totalPages}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 border-amber-200 bg-white px-2 text-[11px] text-amber-900 hover:bg-amber-50"
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page >= totalPages}
-                  >
-                    <ChevronRight className="size-4" />
-                  </Button>
-                </div>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} className="px-5 py-14 text-center">
+                          <div className="flex flex-col items-center gap-2">
+                            <Inbox className="size-9 text-stone-300" />
+                            <p className="text-sm font-medium text-stone-400">Không có biên lai nào</p>
+                            <p className="text-xs text-stone-300">Thử thay đổi bộ lọc hoặc từ khoá tìm kiếm</p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            </Card>
 
-          </div>
+              {/* Pagination */}
+              {filteredReceipts.length > 0 && (
+                <div className="flex items-center justify-between border-t border-amber-100 bg-amber-50/30 px-5 py-3">
+                  <p className="text-xs text-stone-500">
+                    {filteredReceipts.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–
+                    {Math.min(page * PAGE_SIZE, filteredReceipts.length)} /{' '}
+                    <span className="font-semibold text-stone-700">{filteredReceipts.length}</span> phiếu
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 transition hover:bg-amber-50 disabled:opacity-40"
+                    >
+                      <ChevronLeft className="size-4" />
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPage(p)}
+                        className={cn(
+                          'flex size-7 items-center justify-center rounded-lg border text-xs font-semibold transition',
+                          p === page
+                            ? 'border-amber-500 bg-amber-500 text-white shadow-sm'
+                            : 'border-amber-200 bg-white text-amber-700 hover:bg-amber-50'
+                        )}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages}
+                      className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 transition hover:bg-amber-50 disabled:opacity-40"
+                    >
+                      <ChevronRight className="size-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
         </CardContent>
       </Card>
 
@@ -412,101 +423,92 @@ function Receipts() {
             <div className="px-8 py-14 text-center text-sm text-stone-500">Đang tải...</div>
           )}
 
+          {/* Header modal */}
+          <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4 pr-14">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md shadow-amber-200">
+                <FileText className="size-4" />
+              </div>
+              <div>
+                <p className="text-base font-bold text-gray-800">Chi tiết biên lai nhập kho</p>
+                {selectedReceipt && (
+                  <p className="text-xs text-gray-500">
+                    Mã:{' '}
+                    <span className="font-semibold text-amber-700">{selectedReceipt.receiptCode}</span>
+                    <span className="ml-2 text-stone-400">· ID #{selectedReceipt.receiptId}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+            {selectedReceipt && <StatusBadge status={selectedReceipt.status} />}
+          </div>
+
           {selectedReceipt && (
             <>
-              {/* Header: mã biên lai nổi bật + badge (thêm padding phải để tránh dính nút đóng) */}
-              <div className="border-b border-stone-100 bg-stone-50/80 px-8 pt-6 pb-6 pr-14">
-                <div className="flex flex-wrap items-center justify-between gap-6">
-                  <div className="flex items-baseline gap-4">
-                    <Hash className="size-5 shrink-0 text-amber-600" />
+              {/* Info grid */}
+              <div className="grid grid-cols-2 gap-3 px-6 py-5">
+                {[
+                  { label: 'Ngày lập', value: formatDateTime(selectedReceipt.receiptDate), icon: CalendarClock },
+                  { label: 'Người tạo', value: selectedReceipt.createdByName || '—', icon: User },
+                ].map((info) => (
+                  <div key={info.label} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-3">
+                    <info.icon className="size-4 shrink-0 text-amber-400" />
                     <div>
-                      <p className="text-[11px] font-medium uppercase tracking-wider text-stone-400">
-                        Mã biên lai
-                      </p>
-                      <p className="mt-1 text-xl font-bold tracking-tight text-stone-900">
-                        {selectedReceipt.receiptCode}
-                      </p>
-                      <p className="mt-0.5 text-xs text-stone-500">ID: {selectedReceipt.receiptId}</p>
+                      <p className="text-xs text-gray-500">{info.label}</p>
+                      <p className="mt-0.5 text-sm font-semibold text-gray-900">{info.value}</p>
                     </div>
                   </div>
-                  <StatusBadge status={selectedReceipt.status} className="px-4 py-2 text-xs" />
-                </div>
+                ))}
               </div>
 
-              {/* Thông tin phụ: ngày + người tạo (tăng khoảng cách giữa 2 khối) */}
-              <div className="flex flex-wrap gap-x-16 gap-y-4 border-b border-stone-100 bg-white px-8 py-5">
-                <div className="flex items-center gap-3 min-w-0">
-                  <CalendarClock className="size-4 shrink-0 text-stone-400" />
-                  <div>
-                    <p className="text-[10px] font-medium uppercase text-stone-400">Ngày lập</p>
-                    <p className="mt-0.5 text-sm font-semibold text-stone-800">
-                      {formatDateTime(selectedReceipt.receiptDate)}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <User className="size-4 shrink-0 text-stone-400" />
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-medium uppercase text-stone-400">Người tạo</p>
-                    <p className="mt-0.5 text-sm font-semibold text-stone-800">
-                      {selectedReceipt.createdByName || '—'}
-                      {typeof selectedReceipt.createdById !== 'undefined' && (
-                        <span className="ml-1.5 font-normal text-stone-500">(ID: {selectedReceipt.createdById})</span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Danh sách mặt hàng: padding rộng hơn, cột tách rõ */}
-              <div className="max-h-[55vh] overflow-y-auto">
-                <div className="sticky top-0 z-10 border-b border-stone-200 bg-stone-50 px-6 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-stone-600">
-                    Danh sách mặt hàng
-                  </p>
-                </div>
-                <div className="px-6 py-4 pb-6">
-                  {isLoadingDetail && !selectedReceipt.items?.length ? (
-                    <p className="py-10 text-center text-xs text-stone-500">
-                      Đang tải danh sách mặt hàng...
-                    </p>
-                  ) : selectedReceipt.items && selectedReceipt.items.length > 0 ? (
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="text-left text-[11px] font-semibold text-stone-500">
-                          <th className="pb-3 pr-4">Mã lô</th>
-                          <th className="w-24 pb-3 text-center">Số lượng</th>
-                          <th className="w-20 pb-3 pl-4 text-right">Batch ID</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-stone-100">
-                        {selectedReceipt.items.map((item, i) => (
-                          <tr
-                            key={item.receiptItemId}
-                            className={cn(
-                              'transition-colors',
-                              i % 2 === 0 ? 'bg-white' : 'bg-stone-50/50',
-                              'hover:bg-amber-50/50'
-                            )}
-                          >
-                            <td className="py-3 pr-4 font-medium text-stone-900">
-                              {item.batchCode}
-                            </td>
-                            <td className="py-3 text-center font-semibold text-stone-800">
-                              {item.quantity}
-                            </td>
-                            <td className="py-3 pl-4 text-right text-xs text-stone-500">
-                              {item.batchId}
-                            </td>
+              {/* Items table */}
+              <div className="px-6 pb-6">
+                <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  Danh sách mặt hàng
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">
+                    {selectedReceipt.items?.length ?? 0} mặt hàng
+                  </span>
+                </p>
+                <div className="overflow-hidden rounded-xl border border-gray-200">
+                  <div className="max-h-56 overflow-auto">
+                    {isLoadingDetail && !selectedReceipt.items?.length ? (
+                      <div className="flex flex-col items-center gap-2 py-10">
+                        <Loader2 className="size-6 animate-spin text-amber-400" />
+                        <p className="text-xs text-stone-400">Đang tải danh sách mặt hàng...</p>
+                      </div>
+                    ) : selectedReceipt.items && selectedReceipt.items.length > 0 ? (
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 z-10">
+                          <tr className="bg-gray-50 text-left text-xs font-bold uppercase tracking-wide text-gray-500">
+                            <th className="px-4 py-2.5">Mã lô</th>
+                            <th className="px-4 py-2.5 text-center">Số lượng</th>
+                            <th className="px-4 py-2.5 text-center">Batch ID</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <p className="py-10 text-center text-xs text-stone-500">
-                      Biên lai này chưa có mặt hàng nào.
-                    </p>
-                  )}
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 bg-white">
+                          {selectedReceipt.items.map((item, i) => (
+                            <tr
+                              key={item.receiptItemId}
+                              className={cn('transition-colors hover:bg-amber-50/40', i % 2 === 1 && 'bg-stone-50/30')}
+                            >
+                              <td className="px-4 py-2.5 font-medium text-gray-900">{item.batchCode}</td>
+                              <td className="px-4 py-2.5 text-center">
+                                <span className="inline-flex items-center justify-center rounded-full bg-amber-100 px-3 py-0.5 font-bold text-amber-800">
+                                  {item.quantity}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5 text-center text-xs text-gray-400">#{item.batchId}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 py-10">
+                        <Inbox className="size-8 text-stone-300" />
+                        <p className="text-xs text-stone-400">Biên lai này chưa có mặt hàng nào.</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </>

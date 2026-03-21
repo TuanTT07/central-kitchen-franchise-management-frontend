@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { translateStatus } from '@/utils/labelMapping';
+import { translateStatus, normalizeStatusKey } from '@/utils/labelMapping';
 
 /**
  * Bảng màu thống nhất cho từng nhóm trạng thái.
@@ -16,6 +16,7 @@ const STATUS_COLOR_MAP: Record<string, string> = {
   // ── Đang xử lý ─────────────────────────── xanh dương nhạt
   COOKING:    'bg-blue-100 text-blue-800 border-blue-200',
   IN_TRANSIT: 'bg-blue-100 text-blue-800 border-blue-200',
+  SHIPPING:   'bg-blue-100 text-blue-800 border-blue-200',
   READY:      'bg-blue-100 text-blue-800 border-blue-200',
   SHIPPED:    'bg-blue-100 text-blue-800 border-blue-200',
 
@@ -53,7 +54,8 @@ type Props = {
  *   <StatusBadge status="APPROVED" label="Xét duyệt xong" />
  */
 export default function StatusBadge({ status, label, className }: Props) {
-  const colorClass = status ? (STATUS_COLOR_MAP[status] ?? DEFAULT_COLOR) : DEFAULT_COLOR;
+  const normalized = normalizeStatusKey(status);
+  const colorClass = normalized ? (STATUS_COLOR_MAP[normalized] ?? DEFAULT_COLOR) : DEFAULT_COLOR;
   const displayText = label ?? translateStatus(status) ?? status ?? '—';
 
   return (
