@@ -60,6 +60,7 @@ export interface ProductsResponse {
   description: string;
   status: string;
   price: number;
+  orderMultiplier: number;
   shelfLifeDays: number;
   categoryId: number;
   categoryName: string;
@@ -132,11 +133,11 @@ export const managerServices = {
     const response = await http.get<Response<ProductsResponse[]>>('/api/v1/products');
     return response.data;
   },
-  
+
   /**
    * Lấy ra chi tiết sản phẩm
    * GET /api/v1/products/{id}
-   * 
+   *
    * @param id ID của sản phẩm
    * @returns {Promise<Response<ProductsResponse>>}
    */
@@ -244,10 +245,9 @@ export const managerServices = {
    * GET /inventory-reports/near-expiry
    */
   getNearExpiryBatches: async (daysThreshold: number = 14) => {
-    const res = await http.get<Response<PaginatedResponse<NearExpiryItem[]>>>(
-      '/inventory-reports/near-expiry',
-      { params: { daysThreshold } }
-    );
+    const res = await http.get<Response<PaginatedResponse<NearExpiryItem[]>>>('/inventory-reports/near-expiry', {
+      params: { daysThreshold },
+    });
     return res.data;
   },
 
@@ -255,17 +255,12 @@ export const managerServices = {
    * Lấy danh sách đơn yêu cầu (Manager xem tổng hợp)
    * GET /orders
    */
-  getOrders: async (
-    page: number = 0,
-    size: number = 50,
-    params?: { status?: string }
-  ) => {
+  getOrders: async (page: number = 0, size: number = 50, params?: { status?: string }) => {
     const res = await http.get<Response<PaginatedResponse<ManagerOrderItem[]>>>('/orders', {
       params: { page, size, ...params },
     });
     return res.data;
   },
-
 
   /**
    * Top cửa hàng nhập lớn nhất
@@ -284,10 +279,9 @@ export const managerServices = {
    * GET /inventory-reports/top-consumed?limit=
    */
   getTopConsumedProducts: async (limit: number = 10) => {
-    const res = await http.get<Response<PaginatedResponse<TopProductReportItem[]>>>(
-      '/inventory-reports/top-consumed',
-      { params: { limit } }
-    );
+    const res = await http.get<Response<PaginatedResponse<TopProductReportItem[]>>>('/inventory-reports/top-consumed', {
+      params: { limit },
+    });
     return res.data;
   },
 };
@@ -323,4 +317,3 @@ export interface TopProductReportItem {
   product: string;
   totalConsumed: number;
 }
-
