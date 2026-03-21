@@ -1,20 +1,29 @@
 /**
  * File: ManagerReceiptsPage.tsx
  * Description: Quản lý biên lai nhập và xuất kho của bếp trung tâm
- * Author: Tuan Tran
- * Created: 2026
  */
-
-// ================= IMPORTS =================
 
 import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import {  ChevronLeft, ChevronRight, FileText, Search, Hash } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Search,
+  ClipboardList,
+  PackageOpen,
+  X,
+  Loader2,
+  Eye,
+  Inbox,
+  RefreshCw,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { kitchenServices, type InventoryReceiptApi } from '@/services/kitchenServices';
 import { supplyServices, type ExportNotesResponse } from '@/services/supplyServices';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 type ReceiptStatus = 'DRAFT' | 'COMPLETED';
 
@@ -23,12 +32,9 @@ const RECEIPT_STATUS_LABEL: Record<ReceiptStatus, string> = {
   COMPLETED: 'Hoàn thành',
 };
 
-const RECEIPT_STATUS_CLASS: Record<ReceiptStatus, string> = {
-  DRAFT: 'bg-amber-100 text-amber-800 border-amber-200',
-  COMPLETED: 'bg-emerald-500 text-white border-emerald-600 shadow-sm',
-};
-
 const FILTER_OPTIONS: (ReceiptStatus | 'ALL')[] = ['ALL', 'DRAFT', 'COMPLETED'];
+
+const PAGE_SIZE = 10;
 
 const formatDateTime = (value: string | null) => {
   if (!value) return '—';
@@ -42,81 +48,112 @@ const formatDateTime = (value: string | null) => {
   });
 };
 
-/**
- * ManagerReceiptsPage Component
- * - Xem lịch sử phiếu nhập kho (Import - Central Kitchen)
- * - Xem lịch sử phiếu xuất kho (Export - Supply Service)
- * - Hỗ trợ phân trang và tìm kiếm
- */
+type PaginationBarProps = {
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  unit: string;
+  loading: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+  onPage: (p: number) => void;
+};
+
+const PaginationBar = ({ page, totalPages, totalItems, unit, loading, onPrev, onNext, onPage }: PaginationBarProps) => (
+  <div className="flex items-center justify-between border-t border-amber-100 bg-amber-50/30 px-5 py-3">
+    <p className="text-xs text-stone-500">
+      {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalItems)} / {totalItems} {unit}
+    </p>
+    <div className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={onPrev}
+        disabled={page === 1 || loading}
+        className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 transition hover:bg-amber-50 disabled:opacity-40"
+      >
+        <ChevronLeft className="size-4" />
+      </button>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+        <button
+          key={p}
+          type="button"
+          onClick={() => onPage(p)}
+          disabled={loading}
+          className={cn(
+            'flex size-7 items-center justify-center rounded-lg border text-xs font-semibold transition',
+            p === page
+              ? 'border-amber-500 bg-amber-500 text-white shadow-sm'
+              : 'border-amber-200 bg-white text-amber-700 hover:bg-amber-50'
+          )}
+        >
+          {p}
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={onNext}
+        disabled={page === totalPages || loading}
+        className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 transition hover:bg-amber-50 disabled:opacity-40"
+      >
+        <ChevronRight className="size-4" />
+      </button>
+    </div>
+  </div>
+);
 
 const ManagerReceiptsPage = () => {
-  // ================= STATE =================
-
+  // ── State ──────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<'IMPORT' | 'EXPORT'>('IMPORT');
 
-  // Trạng thái cho tab Nhập kho (Import)
+  // Import tab
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ReceiptStatus | 'ALL'>('ALL');
   const [receipts, setReceipts] = useState<InventoryReceiptApi[]>([]);
   const [isLoadingImport, setIsLoadingImport] = useState(false);
   const [importPage, setImportPage] = useState(1);
 
-  // Trạng thái cho tab Xuất kho (Export)
+  // Export tab
+  const [exportSearch, setExportSearch] = useState('');
   const [exportNotes, setExportNotes] = useState<ExportNotesResponse[]>([]);
   const [isLoadingExport, setIsLoadingExport] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportPage, setExportPage] = useState(1);
   const [exportTotalElements, setExportTotalElements] = useState(0);
 
-  // Trạng thái chi tiết (Modals)
+  // Modals
   const [selectedExport, setSelectedExport] = useState<ExportNotesResponse | null>(null);
   const [isExportDetailOpen, setIsExportDetailOpen] = useState(false);
   const [isLoadingExportDetail, setIsLoadingExportDetail] = useState(false);
-
   const [selectedReceipt, setSelectedReceipt] = useState<InventoryReceiptApi | null>(null);
   const [isReceiptDetailOpen, setIsReceiptDetailOpen] = useState(false);
   const [isLoadingReceiptDetail, setIsLoadingReceiptDetail] = useState(false);
 
-  // Cấu hình phân trang
-  const PAGE_SIZE = 10;
-
-  // ================= EFFECT =================
-
-  // Fetch dữ liệu nhập khi component mount
+  // ── Effects ────────────────────────────────────────────────────────────────
   useEffect(() => {
     fetchReceipts();
   }, []);
 
-  // Fetch dữ liệu xuất khi chuyển tab hoặc đổi trang
   useEffect(() => {
-    if (activeTab === 'EXPORT') {
-      fetchExportNotes(exportPage);
-    }
+    if (activeTab === 'EXPORT') fetchExportNotes(exportPage);
   }, [activeTab, exportPage]);
 
-  // ================= API =================
-
-  // Lấy danh sách phiếu nhập (Client-side pagination)
+  // ── API ────────────────────────────────────────────────────────────────────
   const fetchReceipts = async () => {
     setIsLoadingImport(true);
     try {
       const response = await kitchenServices.getInventoryReceipts();
-      if (response.data) {
-        setReceipts(response.data);
-      }
+      if (response.data) setReceipts(response.data);
     } catch {
-      // TODO: toast khi có lỗi
+      // noop
     } finally {
       setIsLoadingImport(false);
     }
   };
 
-  // Lấy danh sách phiếu xuất (Server-side pagination)
   const fetchExportNotes = async (page: number) => {
     setIsLoadingExport(true);
     setExportError(null);
     try {
-      // API sử dụng 0-based page
       const res = await supplyServices.getAllExportNote(page - 1, PAGE_SIZE);
       if (res.data.success) {
         setExportNotes(res.data.data.items);
@@ -125,7 +162,7 @@ const ManagerReceiptsPage = () => {
         setExportNotes([]);
         setExportTotalElements(0);
       }
-    } catch (e) {
+    } catch {
       setExportError('Không tải được danh sách phiếu xuất kho.');
       setExportNotes([]);
       setExportTotalElements(0);
@@ -134,7 +171,6 @@ const ManagerReceiptsPage = () => {
     }
   };
 
-  // Lấy chi tiết phiếu xuất
   const handleOpenExportDetail = async (note: ExportNotesResponse) => {
     setIsLoadingExportDetail(true);
     try {
@@ -145,45 +181,32 @@ const ManagerReceiptsPage = () => {
     }
   };
 
-  // Lấy chi tiết phiếu nhập
   const handleOpenReceiptDetail = async (receipt: InventoryReceiptApi) => {
     setSelectedReceipt(receipt);
     setIsReceiptDetailOpen(true);
     setIsLoadingReceiptDetail(true);
     try {
       const response = await kitchenServices.getInventoryReceiptById(receipt.receiptId);
-      if (response.data) {
-        setSelectedReceipt(response.data);
-      }
+      if (response.data) setSelectedReceipt(response.data);
     } catch {
-      // Nếu API lỗi, giữ lại dữ liệu từ danh sách
+      // giữ dữ liệu từ danh sách
     } finally {
       setIsLoadingReceiptDetail(false);
     }
   };
 
-  // ================= HANDLER =================
-
-  // Xử lý đổi tab
-  const handleTabChange = (tab: 'IMPORT' | 'EXPORT') => {
-    setActiveTab(tab);
-    // Có thể thêm logic reset search/filter ở đây nếu muốn
+  const handleRefresh = () => {
+    if (activeTab === 'IMPORT') fetchReceipts();
+    else fetchExportNotes(exportPage);
   };
 
-  // ================= UTILS =================
-
-  // Tính toán số lượng phiếu nhập theo trạng thái
+  // ── Computed ───────────────────────────────────────────────────────────────
   const draftCount = useMemo(() => receipts.filter((r) => r.status === 'DRAFT').length, [receipts]);
   const completedCount = useMemo(() => receipts.filter((r) => r.status === 'COMPLETED').length, [receipts]);
 
-  // Logic phân trang cho Nhập kho (Client-side)
   const filteredImportReceipts = useMemo(() => {
     let data = receipts;
-
-    if (statusFilter !== 'ALL') {
-      data = data.filter((r) => r.status === statusFilter);
-    }
-
+    if (statusFilter !== 'ALL') data = data.filter((r) => r.status === statusFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
       data = data.filter(
@@ -192,524 +215,591 @@ const ManagerReceiptsPage = () => {
           (r.receiptDate && new Date(r.receiptDate).toLocaleDateString('vi-VN').toLowerCase().includes(q))
       );
     }
-
     return data;
   }, [receipts, search, statusFilter]);
 
-  const importTotalPages = Math.ceil(filteredImportReceipts.length / PAGE_SIZE);
-  const paginatedReceipts = useMemo(() => {
-    return filteredImportReceipts.slice((importPage - 1) * PAGE_SIZE, importPage * PAGE_SIZE);
-  }, [filteredImportReceipts, importPage]);
+  const importTotalPages = Math.max(1, Math.ceil(filteredImportReceipts.length / PAGE_SIZE));
+  const paginatedReceipts = useMemo(
+    () => filteredImportReceipts.slice((importPage - 1) * PAGE_SIZE, importPage * PAGE_SIZE),
+    [filteredImportReceipts, importPage]
+  );
 
-  // Logic phân trang cho Xuất kho (Server-side)
-  const exportTotalPages = Math.ceil(exportTotalElements / PAGE_SIZE);
+  const filteredExportNotes = useMemo(() => {
+    if (!exportSearch.trim()) return exportNotes;
+    const q = exportSearch.toLowerCase();
+    return exportNotes.filter(
+      (n) => n.exportCode?.toLowerCase().includes(q) || n.storeName?.toLowerCase().includes(q)
+    );
+  }, [exportNotes, exportSearch]);
 
-  // ================= RENDER =================
+  const exportTotalPages = Math.max(1, Math.ceil(exportTotalElements / PAGE_SIZE));
 
+  const isRefreshing = isLoadingImport || isLoadingExport;
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="h-full w-full">
-      <Card className="border-amber-200/60 bg-white shadow-md">
-        <CardHeader className="flex flex-col gap-4 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
-          <div className="flex flex-col gap-1">
+    <div className="h-full w-full space-y-4">
+
+      {/* ── Page Header ─────────────────────────────────────────────────── */}
+      <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-amber-50 px-6 py-5">
+          {/* Title + Description + Tabs (LEFT) */}
+          <div className="flex flex-col gap-2">
             <CardTitle className="flex items-center gap-2 text-xl font-bold text-amber-900">
               <FileText className="size-6 text-amber-500" />
-              Biên lai kho trung tâm
+              Biên lai kho
             </CardTitle>
             <CardDescription className="text-xs font-medium text-amber-700/80">
-              Manager xem lịch sử phiếu nhập và phiếu xuất kho từ bếp trung tâm.
+              {activeTab === 'IMPORT'
+                ? 'Quản lý biên lai nhập vật tư vào bếp trung tâm.'
+                : 'Kiểm soát lịch sử xuất kho và phân bổ nguyên vật liệu đến các cửa hàng.'}
             </CardDescription>
-          </div>
-          <div className="flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 p-1 text-xs md:self-start">
-            <button
-              type="button"
-              onClick={() => handleTabChange('IMPORT')}
-              className={cn(
-                'rounded-full px-3 py-1.5 font-medium transition',
-                activeTab === 'IMPORT' ? 'bg-amber-500 text-white shadow-sm' : 'text-amber-800 hover:bg-amber-100'
-              )}
-            >
-              Nhập kho
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTabChange('EXPORT')}
-              className={cn(
-                'rounded-full px-3 py-1.5 font-medium transition',
-                activeTab === 'EXPORT' ? 'bg-amber-500 text-white shadow-sm' : 'text-amber-800 hover:bg-amber-100'
-              )}
-            >
-              Xuất kho
-            </button>
+            {/* Tab switcher — sát dưới description */}
+            <div className="mt-1 inline-flex overflow-hidden rounded-full border border-amber-200 bg-white text-xs shadow-sm self-start">
+              {(['IMPORT', 'EXPORT'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    'min-w-[88px] px-5 py-1.5 text-center font-medium transition',
+                    tab !== 'IMPORT' && 'border-l border-amber-200',
+                    activeTab === tab ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'
+                  )}
+                >
+                  {tab === 'IMPORT' ? 'Nhập kho' : 'Xuất kho'}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="hidden items-center gap-6 md:flex">
-            <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Tổng biên lai</span>
-              <span className="text-lg font-semibold text-amber-900">{receipts.length}</span>
-            </div>
-            <div className="h-10 w-px bg-amber-200/70" />
-            <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Nháp</span>
-              <span className="text-lg font-semibold text-amber-900">{draftCount}</span>
-            </div>
-            <div className="h-10 w-px bg-amber-200/70" />
-            <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Hoàn thành</span>
-              <span className="text-lg font-semibold text-amber-900">{completedCount}</span>
-            </div>
+          {/* Stats + Refresh (RIGHT) */}
+          <div className="flex items-center gap-3">
+            {activeTab === 'IMPORT' ? (
+              <div className="hidden items-center gap-5 md:flex">
+                {[
+                  { label: 'Tổng biên lai', value: receipts.length, color: 'text-amber-900' },
+                  { label: 'Nháp',          value: draftCount,       color: 'text-blue-700'  },
+                  { label: 'Hoàn thành',    value: completedCount,   color: 'text-emerald-700' },
+                ].map((s, i, arr) => (
+                  <div key={s.label} className="flex items-center gap-5">
+                    <div className="flex flex-col items-end">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600/70">{s.label}</span>
+                      <span className={cn('text-xl font-black', s.color)}>{s.value}</span>
+                    </div>
+                    {i < arr.length - 1 && <div className="h-8 w-px bg-amber-200/70" />}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="hidden flex-col items-end md:flex">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600/70">Tổng phiếu xuất</span>
+                <span className="text-xl font-black text-amber-900">{exportTotalElements}</span>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              title="Làm mới"
+              className="flex size-8 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-600 shadow-sm transition hover:bg-amber-50 disabled:opacity-50"
+            >
+              <RefreshCw className={cn('size-4', isRefreshing && 'animate-spin')} />
+            </button>
           </div>
         </CardHeader>
+      </Card>
 
-        <CardContent className="space-y-5 p-6">
-          {activeTab === 'IMPORT' && (
-            <>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="relative max-w-md flex-1">
-                  <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 -mt-2 text-amber-600" />
-                  <Input
-                    placeholder="Tìm theo mã biên lai, ngày..."
-                    value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value);
-                      setImportPage(1);
-                    }}
-                    className="border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
+      {/* ── IMPORT TAB ──────────────────────────────────────────────────── */}
+      {activeTab === 'IMPORT' && (
+        <div className="space-y-3">
+          {/* Toolbar */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative max-w-md flex-1">
+              <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-amber-500" />
+              <Input
+                placeholder="Tìm theo mã biên lai, ngày..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setImportPage(1);
+                }}
+                className="border-amber-200 bg-white pl-9 text-xs shadow-sm focus:border-amber-400 focus:ring-amber-200"
+              />
+            </div>
+            <div className="inline-flex overflow-hidden rounded-xl border border-amber-200 bg-white p-1 text-xs shadow-sm">
+              {FILTER_OPTIONS.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter(opt);
+                    setImportPage(1);
+                  }}
+                  className={cn(
+                    'rounded-lg px-3 py-1.5 font-medium transition',
+                    statusFilter === opt
+                      ? 'bg-amber-500 text-white shadow-sm'
+                      : 'text-amber-800 hover:bg-amber-50'
+                  )}
+                >
+                  {opt === 'ALL' ? 'Tất cả' : RECEIPT_STATUS_LABEL[opt]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Table card */}
+          <Card className="overflow-hidden rounded-2xl border-amber-100 bg-white shadow-sm">
+            <CardHeader className="border-b border-amber-100 bg-gradient-to-r from-amber-50/80 to-orange-50/50 px-5 py-3.5">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                <ClipboardList className="size-4 text-amber-500" />
+                Danh sách biên lai nhập kho
+                <span className="ml-auto rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">
+                  {filteredImportReceipts.length}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-amber-100 bg-amber-50/60 text-left text-[11px] font-bold uppercase tracking-wide text-amber-800">
+                      <th className="px-5 py-3">Mã biên lai</th>
+                      <th className="px-5 py-3">Ngày lập</th>
+                      <th className="px-5 py-3">Người lập</th>
+                      <th className="px-5 py-3 text-center">Trạng thái</th>
+                      <th className="px-5 py-3 text-right">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-amber-50">
+                    {isLoadingImport ? (
+                      <tr>
+                        <td colSpan={5} className="px-5 py-12 text-center">
+                          <div className="flex flex-col items-center gap-2">
+                            <Loader2 className="size-7 animate-spin text-amber-400" />
+                            <p className="text-xs text-stone-400">Đang tải danh sách biên lai...</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : paginatedReceipts.length > 0 ? (
+                      paginatedReceipts.map((r, idx) => (
+                        <tr
+                          key={r.receiptId}
+                          className={cn('transition-colors hover:bg-amber-50/60', idx % 2 === 1 && 'bg-stone-50/30')}
+                        >
+                          <td className="px-5 py-3">
+                            <p className="font-semibold text-stone-900">{r.receiptCode}</p>
+                            <p className="mt-0.5 text-[10px] text-stone-400">ID #{r.receiptId}</p>
+                          </td>
+                          <td className="px-5 py-3 text-stone-600">{formatDateTime(r.receiptDate)}</td>
+                          <td className="px-5 py-3 text-stone-600">{r.createdByName ?? '—'}</td>
+                          <td className="px-5 py-3 text-center">
+                            <StatusBadge status={r.status} />
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenReceiptDetail(r)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-800 shadow-sm transition hover:border-amber-300 hover:bg-amber-50"
+                            >
+                              <Eye className="size-3.5" />
+                              Chi tiết
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="px-5 py-14 text-center">
+                          <div className="flex flex-col items-center gap-2">
+                            <Inbox className="size-9 text-stone-300" />
+                            <p className="text-sm font-medium text-stone-400">Không có biên lai nào</p>
+                            <p className="text-xs text-stone-300">Thử thay đổi bộ lọc hoặc từ khoá tìm kiếm</p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+                {filteredImportReceipts.length > PAGE_SIZE && (
+                  <PaginationBar
+                    page={importPage}
+                    totalPages={importTotalPages}
+                    totalItems={filteredImportReceipts.length}
+                    unit="biên lai"
+                    loading={isLoadingImport}
+                    onPrev={() => setImportPage((p) => Math.max(1, p - 1))}
+                    onNext={() => setImportPage((p) => Math.min(importTotalPages, p + 1))}
+                    onPage={(p) => setImportPage(p)}
                   />
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs">
-                    {FILTER_OPTIONS.map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => {
-                          setStatusFilter(opt);
-                          setImportPage(1);
-                        }}
-                        className={cn(
-                          'px-3 py-1.5 transition',
-                          opt !== 'ALL' && 'border-l border-amber-200',
-                          statusFilter === opt ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'
-                        )}
-                      >
-                        {opt === 'ALL' ? 'Tất cả' : RECEIPT_STATUS_LABEL[opt]}
-                      </button>
-                    ))}
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ── EXPORT TAB ──────────────────────────────────────────────────── */}
+      {activeTab === 'EXPORT' && (
+        <div className="space-y-3">
+          {/* Toolbar */}
+          <div className="relative max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-amber-500" />
+            <Input
+              placeholder="Tìm theo mã phiếu xuất, cửa hàng..."
+              value={exportSearch}
+              onChange={(e) => setExportSearch(e.target.value)}
+              className="border-amber-200 bg-white pl-9 text-xs shadow-sm focus:border-amber-400 focus:ring-amber-200"
+            />
+          </div>
+
+          {/* Table card */}
+          <Card className="overflow-hidden rounded-2xl border-amber-100 bg-white shadow-sm">
+            <CardHeader className="border-b border-amber-100 bg-gradient-to-r from-amber-50/80 to-orange-50/50 px-5 py-3.5">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                <PackageOpen className="size-4 text-amber-500" />
+                Danh sách phiếu xuất kho
+                <span className="ml-auto rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">
+                  {exportTotalElements}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-amber-100 bg-amber-50/60 text-left text-[11px] font-bold uppercase tracking-wide text-amber-800">
+                      <th className="px-5 py-3">Mã phiếu xuất</th>
+                      <th className="px-5 py-3">Cửa hàng</th>
+                      <th className="px-5 py-3">Ngày xuất</th>
+                      <th className="px-5 py-3 text-center">Trạng thái</th>
+                      <th className="px-5 py-3 text-right">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-amber-50">
+                    {isLoadingExport ? (
+                      <tr>
+                        <td colSpan={5} className="px-5 py-12 text-center">
+                          <div className="flex flex-col items-center gap-2">
+                            <Loader2 className="size-7 animate-spin text-amber-400" />
+                            <p className="text-xs text-stone-400">Đang tải danh sách phiếu xuất kho...</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : exportError ? (
+                      <tr>
+                        <td colSpan={5} className="px-5 py-12 text-center">
+                          <div className="flex flex-col items-center gap-2">
+                            <Inbox className="size-9 text-rose-300" />
+                            <p className="text-sm font-medium text-rose-400">{exportError}</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : filteredExportNotes.length > 0 ? (
+                      filteredExportNotes.map((note, idx) => (
+                        <tr
+                          key={note.exportId}
+                          className={cn('transition-colors hover:bg-amber-50/60', idx % 2 === 1 && 'bg-stone-50/30')}
+                        >
+                          <td className="px-5 py-3">
+                            <p className="font-semibold text-stone-900">{note.exportCode}</p>
+                            <p className="mt-0.5 text-[10px] text-stone-400">ID #{note.exportId}</p>
+                          </td>
+                          <td className="px-5 py-3 text-stone-600">{note.storeName ?? '—'}</td>
+                          <td className="px-5 py-3 text-stone-600">
+                            {note.exportDate
+                              ? new Date(note.exportDate).toLocaleString('vi-VN', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                })
+                              : '—'}
+                          </td>
+                          <td className="px-5 py-3 text-center">
+                            <StatusBadge status={note.status ?? undefined} />
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenExportDetail(note)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-800 shadow-sm transition hover:border-amber-300 hover:bg-amber-50"
+                            >
+                              <Eye className="size-3.5" />
+                              Chi tiết
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="px-5 py-14 text-center">
+                          <div className="flex flex-col items-center gap-2">
+                            <Inbox className="size-9 text-stone-300" />
+                            <p className="text-sm font-medium text-stone-400">Chưa có phiếu xuất kho nào</p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+                {exportTotalElements > PAGE_SIZE && (
+                  <PaginationBar
+                    page={exportPage}
+                    totalPages={exportTotalPages}
+                    totalItems={exportTotalElements}
+                    unit="phiếu"
+                    loading={isLoadingExport}
+                    onPrev={() => setExportPage((p) => Math.max(1, p - 1))}
+                    onNext={() => setExportPage((p) => Math.min(exportTotalPages, p + 1))}
+                    onPage={(p) => setExportPage(p)}
+                  />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ── Modal chi tiết phiếu XUẤT kho ──────────────────────────────── */}
+      <Dialog open={isExportDetailOpen} onOpenChange={setIsExportDetailOpen}>
+        <DialogContent className="w-[min(95vw,640px)] max-w-none overflow-hidden rounded-2xl border border-amber-100 p-0 shadow-2xl">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md shadow-amber-200">
+                <PackageOpen className="size-4" />
+              </div>
+              <div>
+                <p className="text-base font-bold text-gray-800">Chi tiết phiếu xuất kho</p>
+                {selectedExport && (
+                  <p className="text-xs text-gray-500">
+                    Mã phiếu:{' '}
+                    <span className="font-semibold text-amber-700">{selectedExport.exportCode}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsExportDetailOpen(false)}
+              className="flex size-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-amber-100 hover:text-gray-600"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="space-y-5 px-6 py-5">
+            {isLoadingExportDetail || !selectedExport ? (
+              <div className="flex flex-col items-center gap-3 py-12">
+                <Loader2 className="size-8 animate-spin text-amber-400" />
+                <p className="text-sm text-gray-400">Đang tải chi tiết phiếu xuất...</p>
+              </div>
+            ) : (
+              <>
+                {/* Info grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: 'Mã phiếu xuất', value: selectedExport.exportCode },
+                    { label: 'Cửa hàng nhận', value: selectedExport.storeName || '—' },
+                    {
+                      label: 'Ngày xuất',
+                      value: selectedExport.exportDate
+                        ? new Date(selectedExport.exportDate).toLocaleString('vi-VN', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false,
+                          })
+                        : '—',
+                    },
+                  ].map((info) => (
+                    <div key={info.label} className="rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-3">
+                      <p className="mb-1 text-xs text-gray-500">{info.label}</p>
+                      <p className="text-sm font-semibold text-gray-900">{info.value}</p>
+                    </div>
+                  ))}
+                  <div className="rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-3">
+                    <p className="mb-1.5 text-xs text-gray-500">Trạng thái</p>
+                    <StatusBadge status={selectedExport.status ?? undefined} />
                   </div>
                 </div>
-              </div>
 
-              <div className="">
-                <Card className="border-amber-100 bg-white shadow-sm lg:col-span-2">
-                  <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-                    <CardTitle className="flex items-center gap-2 text-sm font-bold text-amber-900">
-                      <FileText className="size-4 text-amber-500" />
-                      Danh sách biên lai
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
-                            <th className="px-4 py-2 font-semibold">Mã biên lai</th>
-                            <th className="px-4 py-2 font-semibold">Ngày lập</th>
-                            <th className="px-4 py-2 font-semibold">Người lập</th>
-                            <th className="px-4 py-2 font-semibold text-right">Trạng thái</th>
-                            <th className="px-4 py-2 font-semibold text-right">Thao tác</th>
+                {/* Items */}
+                <div>
+                  <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    Danh sách mặt hàng xuất
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">
+                      {selectedExport.items.length} mặt hàng
+                    </span>
+                  </p>
+                  <div className="overflow-hidden rounded-xl border border-gray-200">
+                    <div className="max-h-56 overflow-auto">
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 z-10">
+                          <tr className="bg-gray-50 text-left text-xs font-bold uppercase tracking-wide text-gray-500">
+                            <th className="px-4 py-2.5">Sản phẩm</th>
+                            <th className="px-4 py-2.5 text-center">Số lượng</th>
+                            <th className="px-4 py-2.5 text-center">Đơn vị</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-amber-50">
-                          {isLoadingImport ? (
-                            <tr>
-                              <td colSpan={5} className="px-4 py-6 text-center text-xs text-stone-500">
-                                Đang tải danh sách biên lai...
-                              </td>
-                            </tr>
-                          ) : paginatedReceipts.length > 0 ? (
-                            paginatedReceipts.map((r) => (
-                              <tr key={r.receiptId} className="hover:bg-amber-50/40">
-                                <td className="px-4 py-2">
-                                  <p className="text-sm font-semibold text-stone-900">{r.receiptCode}</p>
-                                  <p className="text-[11px] text-stone-500">ID: {r.receiptId}</p>
-                                </td>
-                                <td className="px-4 py-2 text-[11px] text-stone-800">{formatDateTime(r.receiptDate)}</td>
-                                <td className="px-4 py-2 text-[11px] text-stone-800">{r.createdByName ?? '—'}</td>
-                                <td className="px-4 py-2 text-right">
-                                  <span
-                                    className={cn(
-                                      'inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-semibold',
-                                      RECEIPT_STATUS_CLASS[r.status]
-                                    )}
-                                  >
-                                    {RECEIPT_STATUS_LABEL[r.status]}
+                        <tbody className="divide-y divide-gray-100 bg-white">
+                          {selectedExport.items.length > 0 ? (
+                            selectedExport.items.map((item) => (
+                              <tr key={item.productId} className="transition-colors hover:bg-amber-50/40">
+                                <td className="px-4 py-2.5 font-medium text-gray-900">{item.productName}</td>
+                                <td className="px-4 py-2.5 text-center">
+                                  <span className="inline-flex items-center justify-center rounded-full bg-amber-100 px-3 py-0.5 font-bold text-amber-800">
+                                    {item.quantity.toLocaleString('vi-VN')}
                                   </span>
                                 </td>
-                                <td className="px-4 py-2 text-right">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenReceiptDetail(r)}
-                                    className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-white px-3 py-1 text-[11px] font-medium text-amber-800 hover:bg-amber-50"
-                                  >
-                                    Chi tiết
-                                  </button>
-                                </td>
+                                <td className="px-4 py-2.5 text-center text-gray-500">{item.unitName}</td>
                               </tr>
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={5} className="px-4 py-6 text-center text-xs text-stone-500">
-                                Không có biên lai nào khớp với bộ lọc.
+                              <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-400">
+                                Phiếu xuất này chưa có danh sách mặt hàng chi tiết.
                               </td>
                             </tr>
                           )}
                         </tbody>
                       </table>
-                      {filteredImportReceipts.length > 0 && (
-                        <div className="flex items-center justify-between border-t border-amber-100 px-4 py-3">
-                          <p className="text-xs text-stone-500">
-                            {(importPage - 1) * PAGE_SIZE + 1}–
-                            {Math.min(importPage * PAGE_SIZE, filteredImportReceipts.length)} / {filteredImportReceipts.length} biên
-                            lai
-                          </p>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setImportPage((p) => Math.max(1, p - 1))}
-                              disabled={importPage === 1 || isLoadingImport}
-                              className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40"
-                            >
-                              <ChevronLeft className="size-4" />
-                            </button>
-                            {Array.from({ length: importTotalPages }, (_, i) => i + 1).map((p) => (
-                              <button
-                                key={p}
-                                type="button"
-                                onClick={() => setImportPage(p)}
-                                disabled={isLoadingImport}
-                                className={cn(
-                                  'flex size-7 items-center justify-center rounded-lg border text-xs font-semibold',
-                                  p === importPage
-                                    ? 'border-amber-500 bg-amber-500 text-white'
-                                    : 'border-amber-200 bg-white text-amber-700 hover:bg-amber-50'
-                                )}
-                              >
-                                {p}
-                              </button>
-                            ))}
-                            <button
-                              type="button"
-                              onClick={() => setImportPage((p) => Math.min(importTotalPages, p + 1))}
-                              disabled={importPage === importTotalPages || isLoadingImport}
-                              className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40"
-                            >
-                              <ChevronRight className="size-4" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </>
-          )}
-
-          {activeTab === 'EXPORT' && (
-            <div className="space-y-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="relative max-w-md flex-1">
-                  <Search className="absolute left-3 top-1/2 -mt-2 size-4 -translate-y-1/2 text-amber-600" />
-                  <Input
-                    placeholder="Tìm theo mã phiếu xuất..."
-                    className="border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
-                  />
-                </div>
-              </div>
-
-              <Card className="border-amber-100 bg-white shadow-sm">
-                <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-                  <CardTitle className="flex items-center gap-2 text-sm font-bold text-amber-900">
-                    <FileText className="size-4 text-amber-500" />
-                    Danh sách phiếu xuất kho
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
-                          <th className="px-4 py-2 font-semibold">Mã phiếu xuất</th>
-                          <th className="px-4 py-2 font-semibold">Cửa hàng</th>
-                          <th className="px-4 py-2 font-semibold">Ngày xuất</th>
-                          <th className="px-4 py-2 font-semibold text-right">Trạng thái</th>
-                          <th className="px-4 py-2 font-semibold text-right">Thao tác</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-amber-50">
-                        {isLoadingExport ? (
-                          <tr>
-                            <td colSpan={4} className="px-4 py-6 text-center text-xs text-stone-500">
-                              Đang tải danh sách phiếu xuất kho...
-                            </td>
-                          </tr>
-                        ) : (
-                          exportNotes.map((note) => (
-                            <tr key={note.exportId} className="hover:bg-amber-50/40">
-                              <td className="px-4 py-2">
-                                <p className="text-sm font-semibold text-stone-900">{note.exportCode}</p>
-                                <p className="text-[11px] text-stone-500">ID: {note.exportId}</p>
-                              </td>
-                              <td className="px-4 py-2 text-[11px] text-stone-800">{note.storeName ?? '—'}</td>
-                              <td className="px-4 py-2 text-[11px] text-stone-800">
-                                {note.exportDate
-                                  ? new Date(note.exportDate).toLocaleString('vi-VN', {
-                                      day: '2-digit',
-                                      month: '2-digit',
-                                      year: 'numeric',
-                                    })
-                                  : '—'}
-                              </td>
-                              <td className="px-4 py-2 text-right">
-                                <span className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
-                                  {note.status ?? '—'}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2 text-right">
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenExportDetail(note)}
-                                  className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-white px-3 py-1 text-[11px] font-medium text-amber-800 hover:bg-amber-50"
-                                >
-                                  Chi tiết
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-
-                        {exportError && !isLoadingExport && exportNotes.length === 0 && (
-                          <tr>
-                            <td colSpan={4} className="px-4 py-6 text-center text-xs text-rose-600">
-                              {exportError}
-                            </td>
-                          </tr>
-                        )}
-
-                        {!exportError && !isLoadingExport && exportNotes.length === 0 && (
-                          <tr>
-                            <td colSpan={4} className="px-4 py-6 text-center text-xs text-stone-500">
-                              Chưa có phiếu xuất kho nào.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                    {exportTotalElements > 0 && (
-                      <div className="flex items-center justify-between border-t border-amber-100 px-4 py-3">
-                        <p className="text-xs text-stone-500">
-                          {(exportPage - 1) * PAGE_SIZE + 1}–{Math.min(exportPage * PAGE_SIZE, exportTotalElements)} /{' '}
-                          {exportTotalElements} phiếu
-                        </p>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setExportPage((p) => Math.max(1, p - 1))}
-                            disabled={exportPage === 1 || isLoadingExport}
-                            className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40"
-                          >
-                            <ChevronLeft className="size-4" />
-                          </button>
-                          {Array.from({ length: exportTotalPages }, (_, i) => i + 1).map((p) => (
-                            <button
-                              key={p}
-                              type="button"
-                              onClick={() => setExportPage(p)}
-                              disabled={isLoadingExport}
-                              className={cn(
-                                'flex size-7 items-center justify-center rounded-lg border text-xs font-semibold',
-                                p === exportPage
-                                  ? 'border-amber-500 bg-amber-500 text-white'
-                                  : 'border-amber-200 bg-white text-amber-700 hover:bg-amber-50'
-                              )}
-                            >
-                              {p}
-                            </button>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() => setExportPage((p) => Math.min(exportTotalPages, p + 1))}
-                            disabled={exportPage === exportTotalPages || isLoadingExport}
-                            className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40"
-                          >
-                            <ChevronRight className="size-4" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+                </div>
+              </>
+            )}
+          </div>
 
-          <Dialog open={isExportDetailOpen} onOpenChange={setIsExportDetailOpen}>
-            <DialogContent className="max-w-2xl border-amber-200">
-              <Card className="border-0 shadow-none">
-                <CardHeader className="pb-3">
-                  <CardTitle className=" gap-2 text-sm font-bold text-amber-900">
-                    <FileText className="size-4 text-amber-500" />
-                    Chi tiết phiếu xuất kho
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {isLoadingExportDetail || !selectedExport ? (
-                    <p className="py-4 text-center text-xs text-stone-500">Đang tải chi tiết phiếu xuất...</p>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-2 gap-3 text-[11px]">
-                        <div className="space-y-1">
-                          <p className="font-medium text-stone-500">Mã phiếu xuất</p>
-                          <p className="font-semibold text-stone-900">{selectedExport.exportCode}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="font-medium text-stone-500">Cửa hàng</p>
-                          <p className="font-semibold text-stone-900">{selectedExport.storeName}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="font-medium text-stone-500">Ngày xuất</p>
-                          <p className="font-semibold text-stone-900">
-                            {selectedExport.exportDate
-                              ? new Date(selectedExport.exportDate).toLocaleString('vi-VN', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  hour12: false,
-                                })
-                              : '—'}
-                          </p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="font-medium text-stone-500">Trạng thái</p>
-                          <p className="font-semibold text-amber-800">{selectedExport.status ?? '—'}</p>
-                        </div>
-                      </div>
+          {/* Footer */}
+          <div className="flex justify-end border-t border-gray-100 bg-gray-50/50 px-6 py-4">
+            <button
+              type="button"
+              onClick={() => setIsExportDetailOpen(false)}
+              className="rounded-xl border border-amber-200 px-5 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-50"
+            >
+              Đóng
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-                      <div className="rounded-lg border border-amber-100 bg-amber-50/40">
-                        <div className="border-b border-amber-100 bg-amber-50 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900">
-                          Danh sách mặt hàng xuất
-                        </div>
-                        <div className="max-h-60 overflow-auto">
-                          <table className="w-full text-[11px]">
-                            <thead>
-                              <tr className="border-b border-amber-100 bg-amber-50/60 text-left font-semibold text-amber-900">
-                                <th className="px-4 py-2">Sản phẩm</th>
-                                <th className="px-4 py-2 text-right">Số lượng</th>
-                                <th className="px-4 py-2">Đơn vị</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-amber-50">
-                              {selectedExport.items.map((item) => (
-                                <tr key={item.productId} className="hover:bg-amber-50/60">
-                                  <td className="px-4 py-2 font-medium text-stone-800">{item.productName}</td>
-                                  <td className="px-4 py-2 text-right font-semibold text-stone-900">
-                                    {item.quantity.toLocaleString('vi-VN')}
-                                  </td>
-                                  <td className="px-4 py-2 text-stone-700">{item.unitName}</td>
-                                </tr>
-                              ))}
-                              {!selectedExport.items.length && (
-                                <tr>
-                                  <td colSpan={3} className="px-4 py-4 text-center text-xs text-stone-500">
-                                    Phiếu xuất này chưa có danh sách mặt hàng chi tiết.
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </DialogContent>
-          </Dialog>
-        </CardContent>
-      </Card>
+      {/* ── Modal chi tiết biên lai NHẬP kho ───────────────────────────── */}
       <Dialog open={isReceiptDetailOpen} onOpenChange={setIsReceiptDetailOpen}>
-        <DialogContent className="max-w-3xl border border-amber-200 bg-white p-0 overflow-auto">
-          {!selectedReceipt && (
-            <div className="px-8 py-10 text-center text-xs text-stone-500">Đang tải chi tiết biên lai...</div>
-          )}
-
-          {selectedReceipt && (
-            <>
-              <div className="border-b border-amber-100 bg-amber-50/70 px-6 py-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-baseline gap-3">
-                    <Hash className="size-4 text-amber-600" />
-                    <div>
-                      <p className="text-[10px] font-medium uppercase tracking-wider text-amber-700/80">Mã biên lai</p>
-                      <p className="mt-0.5 text-lg font-bold text-stone-900">{selectedReceipt.receiptCode}</p>
-                      <p className="mt-0.5 text-[11px] text-stone-500">ID: {selectedReceipt.receiptId}</p>
-                    </div>
-                  </div>
-                  <span
-                    className={cn(
-                      'inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-semibold',
-                      RECEIPT_STATUS_CLASS[selectedReceipt.status]
-                    )}
-                  >
-                    {RECEIPT_STATUS_LABEL[selectedReceipt.status]}
-                  </span>
-                </div>
+        <DialogContent className="w-[min(95vw,640px)] max-w-none overflow-hidden rounded-2xl border border-amber-100 p-0 shadow-2xl">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md shadow-amber-200">
+                <ClipboardList className="size-4" />
               </div>
-
-              <div className="grid grid-cols-2 gap-4 border-b border-amber-100 bg-white px-6 py-4 text-[11px]">
-                <div>
-                  <p className="font-medium text-stone-500">Ngày lập</p>
-                  <p className="mt-0.5 font-semibold text-stone-900">{formatDateTime(selectedReceipt.receiptDate)}</p>
-                </div>
-                <div>
-                  <p className="font-medium text-stone-500">Người lập</p>
-                  <p className="mt-0.5 font-semibold text-stone-900">{selectedReceipt.createdByName ?? '—'}</p>
-                </div>
-              </div>
-
-              <div className="max-h-72 overflow-auto px-6 py-4">
-                <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-stone-500">
-                  Danh sách mặt hàng
-                </p>
-                {isLoadingReceiptDetail && !selectedReceipt.items?.length ? (
-                  <p className="py-6 text-center text-xs text-stone-500">Đang tải danh sách mặt hàng...</p>
-                ) : selectedReceipt.items && selectedReceipt.items.length > 0 ? (
-                  <table className="w-full text-[11px]">
-                    <thead>
-                      <tr className="border-b border-stone-200 text-left font-semibold text-stone-600">
-                        <th className="px-2 py-2">Mã lô</th>
-                        <th className="px-2 py-2 text-center">Số lượng</th>
-                        <th className="px-2 py-2 text-right">Batch ID</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {selectedReceipt.items.map((item) => (
-                        <tr key={item.receiptItemId}>
-                          <td className="px-2 py-2 font-medium text-stone-900">{item.batchCode}</td>
-                          <td className="px-2 py-2 text-center font-semibold text-stone-800">{item.quantity}</td>
-                          <td className="px-2 py-2 text-right text-stone-500">{item.batchId}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p className="py-6 text-center text-xs text-stone-500">Biên lai này chưa có mặt hàng nào.</p>
+              <div>
+                <p className="text-base font-bold text-gray-800">Chi tiết biên lai nhập kho</p>
+                {selectedReceipt && (
+                  <p className="text-xs text-gray-500">
+                    Mã biên lai:{' '}
+                    <span className="font-semibold text-amber-700">{selectedReceipt.receiptCode}</span>
+                  </p>
                 )}
               </div>
-            </>
-          )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsReceiptDetailOpen(false)}
+              className="flex size-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-amber-100 hover:text-gray-600"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="space-y-5 px-6 py-5">
+            {!selectedReceipt || isLoadingReceiptDetail ? (
+              <div className="flex flex-col items-center gap-3 py-12">
+                <Loader2 className="size-8 animate-spin text-amber-400" />
+                <p className="text-sm text-gray-400">Đang tải chi tiết biên lai...</p>
+              </div>
+            ) : (
+              <>
+                {/* Info grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: 'Mã biên lai', value: selectedReceipt.receiptCode },
+                    { label: 'Người lập', value: selectedReceipt.createdByName ?? '—' },
+                    { label: 'Ngày lập', value: formatDateTime(selectedReceipt.receiptDate) },
+                  ].map((info) => (
+                    <div key={info.label} className="rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-3">
+                      <p className="mb-1 text-xs text-gray-500">{info.label}</p>
+                      <p className="text-sm font-semibold text-gray-900">{info.value}</p>
+                    </div>
+                  ))}
+                  <div className="rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-3">
+                    <p className="mb-1.5 text-xs text-gray-500">Trạng thái</p>
+                    <StatusBadge status={selectedReceipt.status} />
+                  </div>
+                </div>
+
+                {/* Items */}
+                <div>
+                  <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    Danh sách mặt hàng nhập
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">
+                      {selectedReceipt.items?.length ?? 0} mặt hàng
+                    </span>
+                  </p>
+                  <div className="overflow-hidden rounded-xl border border-gray-200">
+                    <div className="max-h-56 overflow-auto">
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 z-10">
+                          <tr className="bg-gray-50 text-left text-xs font-bold uppercase tracking-wide text-gray-500">
+                            <th className="px-4 py-2.5">Mã lô hàng</th>
+                            <th className="px-4 py-2.5 text-center">Số lượng</th>
+                            <th className="px-4 py-2.5 text-center">Batch ID</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 bg-white">
+                          {selectedReceipt.items && selectedReceipt.items.length > 0 ? (
+                            selectedReceipt.items.map((item) => (
+                              <tr key={item.receiptItemId} className="transition-colors hover:bg-amber-50/40">
+                                <td className="px-4 py-2.5 font-medium text-gray-900">{item.batchCode}</td>
+                                <td className="px-4 py-2.5 text-center">
+                                  <span className="inline-flex items-center justify-center rounded-full bg-amber-100 px-3 py-0.5 font-bold text-amber-800">
+                                    {item.quantity}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2.5 text-center text-xs text-gray-400">#{item.batchId}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-400">
+                                Biên lai này chưa có mặt hàng nào.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-end border-t border-gray-100 bg-gray-50/50 px-6 py-4">
+            <button
+              type="button"
+              onClick={() => setIsReceiptDetailOpen(false)}
+              className="rounded-xl border border-amber-200 px-5 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-50"
+            >
+              Đóng
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

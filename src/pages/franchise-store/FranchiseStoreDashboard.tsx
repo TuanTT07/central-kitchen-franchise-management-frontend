@@ -35,6 +35,7 @@ const ORDER_STATUS_CLASS: Record<string, string> = {
 
 const EXPORT_STATUS_CLASS: Record<string, string> = {
   READY: 'bg-sky-100 text-sky-800 border-sky-200',
+  SHIPPING: 'bg-blue-100 text-blue-800 border-blue-200',
   SHIPPED: 'bg-amber-500 text-white border-amber-600',
   IN_TRANSIT: 'bg-blue-100 text-blue-800 border-blue-200',
   COMPLETED: 'bg-emerald-100 text-emerald-800 border-emerald-200',

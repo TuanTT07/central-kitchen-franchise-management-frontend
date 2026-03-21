@@ -9,6 +9,7 @@ export const STATUS_LABEL_MAP: Record<string, string> = {
   // Phiếu xuất / giao nhận (theo yêu cầu mapping chuẩn)
   READY: 'Sẵn sàng',
   IN_TRANSIT: 'Đang giao',
+  SHIPPING: 'Đang giao',
   SHIPPED: 'Đã giao',
   COMPLETED: 'Hoàn thành',
   PLANNED: 'Chờ thực hiện',
@@ -38,9 +39,15 @@ export const ROLE_LABEL_MAP: Record<string, string> = {
   CENTRAL_KITCHEN_STAFF: 'Bếp trung tâm',
 };
 
+export const normalizeStatusKey = (status?: string | null): string => {
+  if (!status) return '';
+  return status.trim().toUpperCase().replace(/[\s-]+/g, '_');
+};
+
 export const translateStatus = (status?: string | null) => {
   if (!status) return '';
-  return STATUS_LABEL_MAP[status] ?? status;
+  const key = normalizeStatusKey(status);
+  return STATUS_LABEL_MAP[key] ?? status;
 };
 
 export const translateRole = (role?: string | null) => {

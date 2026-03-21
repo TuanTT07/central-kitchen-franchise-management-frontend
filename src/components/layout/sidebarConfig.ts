@@ -21,7 +21,7 @@ export const MANAGER_SIDEBAR_ITEMS = [
   { label: 'Trang chủ', href: '/', icon: LayoutDashboard },
   { label: 'Danh mục', href: '/manager/categories', icon: BookOpen },
   { label: 'Sản phẩm', href: '/manager/products', icon: UtensilsCrossed },
-  { label: 'Biên lai nhập kho', href: '/manager/receipts', icon: BookOpen },
+  { label: 'Biên Lai kho', href: '/manager/receipts', icon: ReceiptText },
   { label: 'Tổng quan kho', href: '/manager/inventory-overview', icon: Boxes },
   { label: 'Báo cáo', href: '/manager/reports', icon: BarChart3 },
 ] as const;
