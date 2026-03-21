@@ -1,3 +1,13 @@
+/**
+ * File: FranchiseCartOverlay.tsx
+ * Description: Hiển thị giỏ hàng dưới dạng Overlay/Drawer, hỗ trợ chọn ngày giao
+ *              và cập nhật số lượng theo bội số sản phẩm.
+ * Author: Tuan Tran
+ * Created: 2026
+ */
+
+// ================= IMPORTS =================
+
 import React, { useMemo, useRef, useState } from 'react';
 import { CalendarDays, Minus, Plus, ShoppingCart, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,18 +21,36 @@ import { cn } from '@/lib/utils';
 
 type Step = 'REVIEW' | 'DATE';
 
+// ================= UTILS =================
+
 const formatCurrencyVND = (value: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 
+/**
+ * FranchiseCartOverlay Component
+ * - Hiển thị danh sách món trong giỏ hàng
+ * - Cho phép tăng/giảm số lượng theo orderMultiplier
+ * - Chọn ngày giao hàng dự kiến và gửi đơn hàng
+ */
 export default function FranchiseCartOverlay({ children }: { children: React.ReactNode }) {
+
+  // ================= CONTEXT =================
+
   const { items, totalQuantity, updateQuantity, removeItem, clear } = useCart();
   const { user } = useAuth();
+
+  // ================= STATE =================
 
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>('REVIEW');
   const [deliveryDate, setDeliveryDate] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+
+  // ================= REF =================
+
   const deliveryDateRef = useRef<HTMLInputElement | null>(null);
+
+  // ================= UTILS =================
 
   const canProceed = items.length > 0;
   const totalAmount = useMemo(
@@ -33,6 +61,8 @@ export default function FranchiseCartOverlay({ children }: { children: React.Rea
       }, 0),
     [items]
   );
+
+  // ================= HANDLER =================
 
   const closeAndReset = () => {
     setOpen(false);
@@ -51,6 +81,8 @@ export default function FranchiseCartOverlay({ children }: { children: React.Rea
     el.focus();
     el.click();
   };
+
+  // ================= API =================
 
   const submitOrder = async () => {
     let currentUser: any = user;
@@ -98,6 +130,8 @@ export default function FranchiseCartOverlay({ children }: { children: React.Rea
     }
   };
 
+  // ================= RENDER =================
+
   return (
     <>
       {children}
@@ -110,8 +144,8 @@ export default function FranchiseCartOverlay({ children }: { children: React.Rea
         title={
           <div className="flex items-center justify-between gap-3 pr-1">
             <div className="min-w-0 flex-1">
-              <h2 className="text-base font-semibold text-amber-950">Chi tiết đơn hàng</h2>
-              <p className="mt-0.5 text-xs text-amber-700/60">
+              <h2 className="text-lg font-bold tracking-tight text-amber-950">Giỏ hàng</h2>
+              <p className="mt-0.5 text-xs font-medium text-amber-800/70">
                 {items.length} món · {totalQuantity} đơn vị
               </p>
             </div>
@@ -156,14 +190,27 @@ export default function FranchiseCartOverlay({ children }: { children: React.Rea
                           <p className="truncate text-sm font-medium text-amber-950">{i.name}</p>
                           <p className="mt-0.5 text-xs text-amber-700/50">
                             {formatCurrencyVND(safeUnit)}
-                            {i.unitName ? <span> · {i.unitName}</span> : null}
+                            {i.unitName ? <span className="text-amber-700/50"> · {i.unitName}</span> : null}
+                            {i.orderMultiplier && i.orderMultiplier > 1 ? (
+                              <span className="ml-2 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+                                Bội số: {i.orderMultiplier}
+                              </span>
+                            ) : null}
                           </p>
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
                           <button
                             type="button"
-                            onClick={() => updateQuantity({ productId: i.productId, quantity: i.quantity - 1 })}
-                            className="flex size-7 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-600 transition hover:bg-amber-50"
+                            onClick={() => {
+                              const multiplier = i.orderMultiplier || 1;
+                              const nextQty = i.quantity - multiplier;
+                              if (nextQty < multiplier) {
+                                toast.error(`Số lượng tối thiểu là ${multiplier}`);
+                                return;
+                              }
+                              updateQuantity({ productId: i.productId, quantity: nextQty });
+                            }}
+                            className="flex size-8 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-700 transition hover:bg-amber-50"
                             aria-label="Giảm số lượng"
                           >
                             <Minus className="size-3" strokeWidth={2.5} />
@@ -173,8 +220,11 @@ export default function FranchiseCartOverlay({ children }: { children: React.Rea
                           </span>
                           <button
                             type="button"
-                            onClick={() => updateQuantity({ productId: i.productId, quantity: i.quantity + 1 })}
-                            className="flex size-7 items-center justify-center rounded-lg bg-amber-500 text-white transition hover:bg-amber-600"
+                            onClick={() => {
+                              const multiplier = i.orderMultiplier || 1;
+                              updateQuantity({ productId: i.productId, quantity: i.quantity + multiplier });
+                            }}
+                            className="flex size-8 items-center justify-center rounded-lg border border-orange-300 bg-orange-500 text-white shadow-sm transition hover:bg-orange-600"
                             aria-label="Tăng số lượng"
                           >
                             <Plus className="size-3" strokeWidth={2.5} />
