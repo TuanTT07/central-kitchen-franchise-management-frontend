@@ -65,12 +65,12 @@ const ProductManagementPage = () => {
   // Trang hiện tại
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
-  
+
   // Trạng thái Dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  
+
   // Sản phẩm đang tác động (Sửa/Xóa/Chi tiết)
   const [editingProduct, setEditingProduct] = useState<ProductsResponse | null>(null);
   const [productToDelete, setProductToDelete] = useState<ProductsResponse | null>(null);
@@ -209,6 +209,7 @@ const ProductManagementPage = () => {
       categoryId: 0,
       status: 'ACTIVE',
       price: 0,
+      orderMultiplier: 1,
       shelfLifeDays: 1,
     });
     setDialogOpen(true);
@@ -234,7 +235,7 @@ const ProductManagementPage = () => {
     setPreviewUrl(product.imageUrl || null);
     getCategories();
     getUnits();
-    
+
     const toastId = toast.loading('Đang tải thông tin chi tiết...');
     try {
       const detailedProduct = await getProductDetail(product.productId);
@@ -248,6 +249,7 @@ const ProductManagementPage = () => {
         categoryId: detailedProduct.categoryId,
         status: detailedProduct.status,
         price: detailedProduct.price ?? 0,
+        orderMultiplier: detailedProduct.orderMultiplier,
         shelfLifeDays: detailedProduct.shelfLifeDays ?? 1,
       });
       setPreviewUrl(detailedProduct.imageUrl || null);
@@ -272,8 +274,9 @@ const ProductManagementPage = () => {
     formData.append('description', data.description || '');
     formData.append('categoryId', String(data.categoryId));
     formData.append('price', String(data.price));
+    formData.append('orderMultiplier', String(data.orderMultiplier));
     formData.append('shelfLifeDays', String(data.shelfLifeDays));
-    
+
     // Đính kèm file ảnh nếu có lựa chọn mới, nếu không giữ URL cũ
     if (selectedFile) {
       formData.append('image', selectedFile);
@@ -326,7 +329,7 @@ const ProductManagementPage = () => {
     setEditingUnit(false);
     setUnitDialogOpen(true);
   };
-  
+
   const handleEditUnit = (unit: UnitResponse) => {
     setEditingUnit(unit);
     resetUnit({
@@ -358,8 +361,8 @@ const ProductManagementPage = () => {
           resetUnit({ unitName: '', description: '' });
           toast.success(`${response.message}`);
         }
-      } 
-    }catch (error) {
+      }
+    } catch (error) {
       toast.error('Không thể lưu đơn vị');
     }
   };
@@ -448,10 +451,7 @@ const ProductManagementPage = () => {
                 className="border-amber-200 bg-amber-50/50 pl-9 focus:border-amber-400 focus:ring-amber-200"
               />
             </div>
-            <Button
-              onClick={openAdd}
-              className="h-10 gap-2 bg-amber-600 px-5 text-white shadow-md hover:bg-amber-700"
-            >
+            <Button onClick={openAdd} className="h-10 gap-2 bg-amber-600 px-5 text-white shadow-md hover:bg-amber-700">
               <Plus className="size-4" />
               Thêm sản phẩm
             </Button>
@@ -492,12 +492,14 @@ const ProductManagementPage = () => {
               </thead>
               <tbody className="divide-y divide-amber-100/60">
                 {paginatedProducts.map((product, index) => (
-                  <tr 
-                    key={product.productId} 
+                  <tr
+                    key={product.productId}
                     className="group cursor-pointer transition hover:bg-amber-50/40"
                     onClick={() => openDetail(product)}
                   >
-                    <td className="px-6 py-4 text-xs font-mono text-amber-600/70">{(page - 1) * PAGE_SIZE + index + 1}</td>
+                    <td className="px-6 py-4 text-xs font-mono text-amber-600/70">
+                      {(page - 1) * PAGE_SIZE + index + 1}
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="flex size-12 items-center justify-center overflow-hidden rounded-lg border border-amber-100 bg-amber-50/60">
@@ -589,7 +591,8 @@ const ProductManagementPage = () => {
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-amber-100 px-4 py-3">
                 <p className="text-xs text-stone-500 whitespace-nowrap">
-                  {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, displayProducts.length)} / {displayProducts.length}
+                  {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, displayProducts.length)} /{' '}
+                  {displayProducts.length}
                 </p>
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar ml-4">
                   <button
@@ -634,7 +637,7 @@ const ProductManagementPage = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent
           onClose={() => setDialogOpen(false)}
-          className="max-w-2xl min-w-[320px] overflow-hidden border-none p-0 shadow-2xl"
+          className="max-w-3xl min-w-[320px] overflow-hidden border-none p-0 shadow-2xl"
         >
           <form
             noValidate
@@ -646,15 +649,16 @@ const ProductManagementPage = () => {
                 {editingProduct ? <Pencil className="size-6" /> : <Plus className="size-6" />}
                 {editingProduct ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
               </DialogTitle>
-              <p className="mt-1 text-sm text-amber-50/80">
-                Nhập thông tin chi tiết cho sản phẩm.
-              </p>
+              <p className="mt-1 text-sm text-amber-50/80">Nhập thông tin chi tiết cho sản phẩm.</p>
             </DialogHeader>
 
             <div className="flex-1 space-y-6 overflow-y-auto bg-white px-8 py-6">
               <div className="grid gap-6 md:grid-cols-2">
                 <Field>
-                  <FieldLabel htmlFor="productName" className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold">
+                  <FieldLabel
+                    htmlFor="productName"
+                    className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold"
+                  >
                     <Package className="size-4 text-amber-500" />
                     Tên sản phẩm
                   </FieldLabel>
@@ -673,7 +677,10 @@ const ProductManagementPage = () => {
                 </Field>
 
                 <Field>
-                  <FieldLabel htmlFor="categoryId" className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold">
+                  <FieldLabel
+                    htmlFor="categoryId"
+                    className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold"
+                  >
                     <Tag className="size-4 text-amber-500" />
                     Danh mục
                   </FieldLabel>
@@ -741,14 +748,17 @@ const ProductManagementPage = () => {
 
               {/* Khu vực Upload Ảnh Sản phẩm */}
               <Field>
-                <FieldLabel htmlFor="image_upload" className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold">
+                <FieldLabel
+                  htmlFor="image_upload"
+                  className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold"
+                >
                   <ImageIcon className="size-4 text-amber-500" />
                   Ảnh sản phẩm (Chỉ chọn 1 ảnh)
                 </FieldLabel>
                 <FieldContent>
                   <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-4">
-                      <label 
+                      <label
                         htmlFor="image_upload"
                         className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border-2 border-dashed border-amber-200 bg-amber-50/40 px-4 text-sm font-medium text-amber-700 transition hover:border-amber-400 hover:bg-amber-100/50"
                       >
@@ -763,7 +773,7 @@ const ProductManagementPage = () => {
                           onChange={handleFileChange}
                         />
                       </label>
-                      
+
                       {previewUrl && (
                         <Button
                           type="button"
@@ -780,11 +790,7 @@ const ProductManagementPage = () => {
 
                     {previewUrl && (
                       <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-amber-100 bg-stone-50 shadow-inner">
-                        <img 
-                          src={previewUrl} 
-                          alt="Preview" 
-                          className="size-full object-contain"
-                        />
+                        <img src={previewUrl} alt="Preview" className="size-full object-contain" />
                       </div>
                     )}
                   </div>
@@ -814,7 +820,10 @@ const ProductManagementPage = () => {
                 </Field>
 
                 <Field>
-                  <FieldLabel htmlFor="shelfLifeDays" className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold">
+                  <FieldLabel
+                    htmlFor="shelfLifeDays"
+                    className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold"
+                  >
                     <CheckCircle2 className="size-4 text-emerald-500" />
                     Hạn dùng (Ngày)
                   </FieldLabel>
@@ -833,10 +842,37 @@ const ProductManagementPage = () => {
                     {errors.shelfLifeDays && <FieldError errors={[errors.shelfLifeDays]} />}
                   </FieldContent>
                 </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="orderMultiplier"
+                    className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold"
+                  >
+                    <Scale className="size-4 text-amber-500" />
+                    Bội số đặt hàng
+                  </FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="orderMultiplier"
+                      type="number"
+                      placeholder="Ví dụ: 5"
+                      className="h-11 border-amber-200 bg-amber-50/40 focus:border-amber-500 focus:ring-amber-200"
+                      {...register('orderMultiplier', {
+                        required: 'Bội số là bắt buộc',
+                        min: { value: 1, message: 'Tối thiểu là 1' },
+                        valueAsNumber: true,
+                      })}
+                    />
+                    {errors.orderMultiplier && <FieldError errors={[errors.orderMultiplier]} />}
+                  </FieldContent>
+                </Field>
               </div>
 
               <Field>
-                <FieldLabel htmlFor="description" className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold">
+                <FieldLabel
+                  htmlFor="description"
+                  className="mb-1.5 flex items-center gap-2 text-amber-900 font-semibold"
+                >
                   <Info className="size-4 text-amber-500" />
                   Mô tả sản phẩm
                 </FieldLabel>
@@ -885,9 +921,9 @@ const ProductManagementPage = () => {
                   </div>
                   Thông tin chi tiết
                 </DialogTitle>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setDetailDialogOpen(false)}
                   className="rounded-full bg-white/10 text-white hover:bg-white/20"
                 >
@@ -902,7 +938,11 @@ const ProductManagementPage = () => {
                 <div className="flex flex-col gap-6">
                   <div className="group relative aspect-square overflow-hidden rounded-[24px] border-4 border-white bg-amber-50/50 shadow-2xl transition-transform hover:scale-[1.02]">
                     {editingProduct?.imageUrl ? (
-                      <img src={editingProduct.imageUrl} alt={editingProduct.productName} className="size-full object-cover" />
+                      <img
+                        src={editingProduct.imageUrl}
+                        alt={editingProduct.productName}
+                        className="size-full object-cover"
+                      />
                     ) : (
                       <div className="flex size-full flex-col items-center justify-center gap-3">
                         <ImageIcon className="size-20 text-amber-200" />
@@ -910,29 +950,35 @@ const ProductManagementPage = () => {
                       </div>
                     )}
                     {/* Badge trạng thái nổi lên trên ảnh */}
-                    <div className={cn(
-                      "absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-lg backdrop-blur-md border",
-                      editingProduct?.status === 'ACTIVE' 
-                        ? "bg-emerald-500/90 text-white border-emerald-400" 
-                        : "bg-stone-500/90 text-white border-stone-400"
-                    )}>
-                      {editingProduct?.status === 'ACTIVE' ? <CheckCircle2 className="size-4" /> : <XCircle className="size-4" />}
+                    <div
+                      className={cn(
+                        'absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-lg backdrop-blur-md border',
+                        editingProduct?.status === 'ACTIVE'
+                          ? 'bg-emerald-500/90 text-white border-emerald-400'
+                          : 'bg-stone-500/90 text-white border-stone-400'
+                      )}
+                    >
+                      {editingProduct?.status === 'ACTIVE' ? (
+                        <CheckCircle2 className="size-4" />
+                      ) : (
+                        <XCircle className="size-4" />
+                      )}
                       {editingProduct?.status === 'ACTIVE' ? 'ĐANG KINH DOANH' : 'NGỪNG KINH DOANH'}
                     </div>
                   </div>
-                  
+
                   <div className="flex flex-col gap-2 rounded-2xl bg-amber-50/50 p-4 border border-amber-100/50">
                     <div className="flex items-center gap-2 text-xs font-bold text-amber-600">
                       <Tag className="size-3.5" />
                       DANH MỤC & ĐƠN VỊ
                     </div>
                     <div className="flex flex-wrap gap-2">
-                       <span className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 shadow-sm border border-amber-100">
-                         {editingProduct?.categoryName}
-                       </span>
-                       <span className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 shadow-sm border border-amber-100">
-                         {editingProduct?.unitName}
-                       </span>
+                      <span className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 shadow-sm border border-amber-100">
+                        {editingProduct?.categoryName}
+                      </span>
+                      <span className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 shadow-sm border border-amber-100">
+                        {editingProduct?.unitName}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -940,16 +986,20 @@ const ProductManagementPage = () => {
                 {/* Cột phải: Thông tin chi tiết */}
                 <div className="flex flex-col gap-8">
                   <div className="space-y-2">
-                    <span className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-500">Sản phẩm món ăn</span>
+                    <span className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-500">
+                      Sản phẩm món ăn
+                    </span>
                     <h2 className="text-4xl font-black leading-tight text-stone-900">{editingProduct?.productName}</h2>
                     <div className="inline-flex items-center gap-1.5 rounded-md bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-stone-500">
                       MÃ SỐ: #{editingProduct?.productId}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="rounded-2xl bg-amber-100/30 p-5 border border-amber-100/50">
-                      <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-amber-600/70">Đơn giá niêm yết</div>
+                      <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-amber-600/70">
+                        Đơn giá niêm yết
+                      </div>
                       <div className="flex items-baseline gap-1">
                         <span className="text-3xl font-black text-amber-700">
                           {editingProduct?.price?.toLocaleString('vi-VN')}
@@ -958,10 +1008,21 @@ const ProductManagementPage = () => {
                       </div>
                     </div>
                     <div className="rounded-2xl bg-emerald-50/50 p-5 border border-emerald-100/50">
-                      <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600/70">Hạn sử dụng</div>
+                      <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600/70">
+                        Hạn sử dụng
+                      </div>
                       <div className="flex items-baseline gap-1">
                         <span className="text-3xl font-black text-emerald-700">{editingProduct?.shelfLifeDays}</span>
                         <span className="text-xs font-bold text-emerald-600/60 uppercase">ngày</span>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl bg-stone-100/50 p-5 border border-stone-200">
+                      <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-stone-500">
+                        Bội số đặt hàng
+                      </div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-black text-stone-700">{editingProduct?.orderMultiplier}</span>
+                        <span className="text-xs font-bold text-stone-500 uppercase">bội số</span>
                       </div>
                     </div>
                   </div>
@@ -972,7 +1033,8 @@ const ProductManagementPage = () => {
                       Mô tả chi tiết
                     </div>
                     <div className="rounded-[20px] bg-stone-50 p-6 text-sm leading-relaxed text-stone-600 border border-stone-100 shadow-inner">
-                      {editingProduct?.description || "Sản phẩm chưa cập nhật mô tả chi tiết. Vui lòng bổ sung để hỗ trợ quản lý tốt hơn."}
+                      {editingProduct?.description ||
+                        'Sản phẩm chưa cập nhật mô tả chi tiết. Vui lòng bổ sung để hỗ trợ quản lý tốt hơn.'}
                     </div>
                   </div>
                 </div>
@@ -980,14 +1042,14 @@ const ProductManagementPage = () => {
             </div>
 
             <DialogFooter className="border-t border-stone-100 bg-white p-6 gap-3">
-              <Button 
-                variant="ghost" 
-                onClick={() => setDetailDialogOpen(false)} 
+              <Button
+                variant="ghost"
+                onClick={() => setDetailDialogOpen(false)}
                 className="h-12 px-8 rounded-xl text-stone-500 font-bold hover:bg-stone-50 transition-all"
               >
                 Đóng
               </Button>
-              <Button 
+              <Button
                 onClick={() => {
                   setDetailDialogOpen(false);
                   if (editingProduct) openEdit(editingProduct);
@@ -1015,12 +1077,16 @@ const ProductManagementPage = () => {
             Bạn có chắc muốn xóa <span className="font-semibold text-amber-800">{productToDelete?.productName}</span>?
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Hủy</Button>
-            <Button variant="destructive" onClick={handleDelete}>Xóa</Button>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+              Hủy
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Xóa
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* ================= UNIT SETTINGS ================= */}
       <Dialog open={unitDialogOpen} onOpenChange={setUnitDialogOpen}>
         <DialogContent className="max-w-2xl border-none p-0 shadow-2xl">
@@ -1059,7 +1125,7 @@ const ProductManagementPage = () => {
                   </Button>
                 </div>
               </form>
-              
+
               <div className="max-h-[300px] overflow-y-auto rounded-xl border border-stone-100 bg-white">
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 bg-stone-50 text-left text-xs text-stone-500">
@@ -1076,8 +1142,17 @@ const ProductManagementPage = () => {
                         <td className="px-4 py-3 text-stone-500">{u.description}</td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handleEditUnit(u)}><Pencil className="size-3.5" /></Button>
-                            <Button variant="ghost" size="icon" className="text-rose-500" onClick={() => openDeleteUnit(u)}><Trash2 className="size-3.5" /></Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleEditUnit(u)}>
+                              <Pencil className="size-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-rose-500"
+                              onClick={() => openDeleteUnit(u)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -1087,24 +1162,31 @@ const ProductManagementPage = () => {
               </div>
             </div>
             <DialogFooter className="bg-stone-50 p-4">
-              <Button variant="outline" onClick={() => setUnitDialogOpen(false)}>Đóng</Button>
+              <Button variant="outline" onClick={() => setUnitDialogOpen(false)}>
+                Đóng
+              </Button>
             </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>
-      
+
       {/* Modal xác nhận xóa đơn vị */}
       <Dialog open={unitDeleteConfirmOpen} onOpenChange={setUnitDeleteConfirmOpen}>
         <DialogContent className="max-w-sm">
           <DialogTitle>Xác nhận xóa đơn vị</DialogTitle>
-          <p className="py-2 text-sm text-stone-600">Bạn muốn xóa đơn vị <span className="font-bold">{unitToDelete?.unitName}</span>?</p>
+          <p className="py-2 text-sm text-stone-600">
+            Bạn muốn xóa đơn vị <span className="font-bold">{unitToDelete?.unitName}</span>?
+          </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setUnitDeleteConfirmOpen(false)}>Hủy</Button>
-            <Button variant="destructive" onClick={handleDeleteUnit}>Xóa</Button>
+            <Button variant="outline" onClick={() => setUnitDeleteConfirmOpen(false)}>
+              Hủy
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteUnit}>
+              Xóa
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 };
