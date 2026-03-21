@@ -275,6 +275,7 @@ const ProductManagementPage = () => {
     formData.append('price', String(data.price));
     formData.append('orderMultiplier', String(data.orderMultiplier));
     formData.append('shelfLifeDays', String(data.shelfLifeDays));
+    formData.append('status', String(data.status));
 
     // Đính kèm file ảnh nếu có lựa chọn mới, nếu không giữ URL cũ
     if (selectedFile) {
@@ -298,6 +299,7 @@ const ProductManagementPage = () => {
         const response = await managerServices.createProduct(formData);
         if (response) {
           getProducts();
+          setPage(1);
           toast.success(`${response.message}`);
         }
       } catch (error) {
@@ -409,7 +411,7 @@ const ProductManagementPage = () => {
         categoryName: category?.categoryName || p.categoryName || 'Chưa phân loại',
         unitName: unit?.unitName || p.unitName || 'Không xác định',
       };
-    });
+    }).sort((a, b) => (b.productId || 0) - (a.productId || 0));
 
     if (!search.trim()) return rawList;
     const keyword = search.toLowerCase();
@@ -442,7 +444,7 @@ const ProductManagementPage = () => {
           </div>
           <div className="flex items-center gap-3">
             <div className="relative hidden w-64 items-center md:flex">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-600" />
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/12 -mt-2 text-amber-600" />
               <Input
                 placeholder="Tìm theo tên sản phẩm, danh mục..."
                 value={search}
