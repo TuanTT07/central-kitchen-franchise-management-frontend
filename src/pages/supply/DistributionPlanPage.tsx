@@ -11,8 +11,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { LayoutGrid, MapPin, Search, Loader2, Package, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutGrid, MapPin, Search, Loader2, Package, ChevronLeft, ChevronRight, RefreshCw, SlidersHorizontal, Filter, Plus } from 'lucide-react';
 import {
   supplyServices,
   type ExportNotesResponse,
@@ -24,23 +23,29 @@ import type { OrderResponse, OrderDetailResponse } from '@/services/franchiseSer
 import { translateStatus } from '@/utils/labelMapping';
 import { toast } from 'sonner';
 
-// ================= TYPES =================
+// ================= STATUS BADGE =================
 
-type PlanStatus = 'READY' | 'SHIPPED' | 'CANCEL';
+function DistributionStatusBadge({ status }: { status: string }) {
+  const label = translateStatus(status) || status;
 
-// ================= CONSTANTS =================
+  const colorMap: Record<string, string> = {
+    READY:     'bg-amber-100 text-amber-800',
+    SHIPPING:  'bg-sky-100 text-sky-800',
+    SHIPPED:   'bg-emerald-100 text-emerald-800',
+    COMPLETED: 'bg-emerald-100 text-emerald-800',
+    CANCEL:    'bg-red-100 text-red-700',
+    CANCELLED: 'bg-red-100 text-red-700',
+    IN_TRANSIT:'bg-blue-100 text-blue-800',
+  };
 
-const STATUS_LABEL: Record<PlanStatus, string> = {
-  READY: translateStatus('READY') || 'Sẵn sàng',
-  SHIPPED: translateStatus('SHIPPED') || 'Đã giao',
-  CANCEL: translateStatus('CANCEL') || 'Đã hủy',
-};
+  const cls = colorMap[status] ?? 'bg-gray-100 text-gray-700';
 
-const STATUS_CLASS: Record<PlanStatus, string> = {
-  READY: 'bg-amber-100 text-amber-800 border-amber-200',
-  SHIPPED: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  CANCEL: 'bg-stone-100 text-stone-600 border-stone-200',
-};
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${cls}`}>
+      {label}
+    </span>
+  );
+}
 
 /**
  * DistributionPlanPage Component
@@ -54,6 +59,7 @@ const DistributionPlanPage = () => {
 
   const [exportNotes, setExportNotes] = useState<ExportNotesResponse[]>([]);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   // Trạng thái modal và dữ liệu tạo đợt mới
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -68,9 +74,8 @@ const DistributionPlanPage = () => {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedExportNote, setSelectedExportNote] = useState<ExportNotesResponse | null>(null);
 
-  // Phân trang
+  // Phân trang (client-side sau khi lọc/sắp xếp)
   const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
   const PAGE_SIZE = 10;
 
   // Loading states
@@ -80,10 +85,10 @@ const DistributionPlanPage = () => {
 
   // ================= EFFECT =================
 
-  // Gọi lại API khi trang thay đổi
+  // Gọi API khi load trang
   useEffect(() => {
     getExportNotes();
-  }, [page]);
+  }, []);
 
   // ================= API =================
 
@@ -93,11 +98,21 @@ const DistributionPlanPage = () => {
   const getExportNotes = async () => {
     try {
       setLoading(true);
-      const response = await supplyServices.getAllExportNote(page, PAGE_SIZE);
-      if (response.data.success) {
-        setExportNotes(response.data.data.items);
-        // Lưu tổng số trang từ response phân trang
-        setTotalPages(response.data.data.totalPages || 1);
+      // Tải toàn bộ phiếu xuất để lọc/sắp xếp đúng trên toàn bộ dữ liệu
+      const firstResponse = await supplyServices.getAllExportNote(0, PAGE_SIZE);
+      if (firstResponse.data.success) {
+        const firstPage = firstResponse.data.data.items ?? [];
+        const lastPage = firstResponse.data.data.totalPages || 1;
+
+        if (lastPage <= 1) {
+          setExportNotes(firstPage);
+        } else {
+          const restPages = await Promise.all(
+            Array.from({ length: lastPage - 1 }, (_, i) => supplyServices.getAllExportNote(i + 1, PAGE_SIZE))
+          );
+          const restItems = restPages.flatMap((res) => (res.data.success ? res.data.data.items ?? [] : []));
+          setExportNotes([...firstPage, ...restItems]);
+        }
       }
     } catch (error) {
       toast.error('Không thể tải danh sách phiếu xuất kho');
@@ -160,12 +175,9 @@ const DistributionPlanPage = () => {
         toast.success('Tạo đợt phân phối thành công');
         setIsCreateModalOpen(false);
         setSelectedOrderIds([]);
-        // Đưa về trang 0 để thấy bản ghi mới nhất
-        if (page === 0) {
-          getExportNotes();
-        } else {
-          setPage(0);
-        }
+        // Đưa về trang đầu để thấy đợt mới và tải lại toàn bộ danh sách
+        setPage(0);
+        getExportNotes();
       }
     } catch (error) {
       toast.error('Tạo đợt phân phối thất bại');
@@ -202,19 +214,44 @@ const DistributionPlanPage = () => {
   // ================= UTILS =================
 
   const filteredPlans = useMemo(() => {
-    const q = search.toLowerCase().trim();
-    const filtered = q
-      ? exportNotes.filter(
-          (p: ExportNotesResponse) =>
-            p.exportCode.toLowerCase().includes(q) ||
-            p.storeName.toLowerCase().includes(q) ||
-            p.items.some((item: ExportNoteItem) => item.productName.toLowerCase().includes(q))
-        )
-      : exportNotes;
+    let filtered = [...exportNotes];
 
-    // Sắp xếp ID giảm dần để đợt mới nhất luôn ở đầu
-    return [...filtered].sort((a, b) => b.exportId - a.exportId);
-  }, [search, exportNotes]);
+    if (statusFilter) {
+      filtered = filtered.filter((p) => p.status === statusFilter);
+    }
+
+    const q = search.toLowerCase().trim();
+    if (q) {
+      filtered = filtered.filter(
+        (p: ExportNotesResponse) =>
+          p.exportCode.toLowerCase().includes(q) ||
+          p.storeName.toLowerCase().includes(q) ||
+          p.items.some((item: ExportNoteItem) => item.productName.toLowerCase().includes(q))
+      );
+    }
+
+    // Ưu tiên: READY lên trên cùng, sau đó sắp xếp theo exportId giảm dần (mới nhất trước)
+    const STATUS_PRIORITY: Record<string, number> = { READY: 0, SHIPPING: 1, SHIPPED: 2, CANCEL: 3 };
+    return filtered.sort((a, b) => {
+      const pa = STATUS_PRIORITY[a.status] ?? 99;
+      const pb = STATUS_PRIORITY[b.status] ?? 99;
+      if (pa !== pb) return pa - pb;
+      return b.exportId - a.exportId;
+    });
+  }, [search, statusFilter, exportNotes]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPlans.length / PAGE_SIZE));
+  const paginatedPlans = filteredPlans.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(0);
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    if (page > totalPages - 1) {
+      setPage(Math.max(0, totalPages - 1));
+    }
+  }, [page, totalPages]);
 
   /**
    * Thống kê số lượng
@@ -245,8 +282,9 @@ const DistributionPlanPage = () => {
   // ================= RENDER =================
 
   return (
-    <div className="h-full w-full">
-      <Card className="border-amber-200/60 bg-white shadow-md">
+    <div className="h-full w-full space-y-5">
+      {/* ── Header Card ── */}
+      <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
         <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
           <div className="flex flex-col gap-1">
             <CardTitle className="flex items-center gap-2 text-xl font-bold text-amber-900">
@@ -257,43 +295,86 @@ const DistributionPlanPage = () => {
               Lập và theo dõi các đợt phân phối từ bếp trung tâm tới chi nhánh.
             </CardDescription>
           </div>
-          <div className="hidden items-center gap-6 md:flex">
-            <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Tổng đợt</span>
-              <span className="text-lg font-semibold text-amber-900">{stats.total}</span>
+          <div className="hidden items-center gap-4 md:flex">
+            <div className="flex flex-col items-center rounded-xl border border-amber-100 bg-white/70 px-5 py-2.5 shadow-sm">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">Tổng đợt</span>
+              <span className="mt-0.5 text-2xl font-bold text-amber-900">{stats.total}</span>
             </div>
-            <div className="h-10 w-px bg-amber-200/70" />
-            <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Sẵn sàng giao</span>
-              <span className="text-lg font-semibold text-amber-900">{stats.ready}</span>
+            <div className="flex flex-col items-center rounded-xl border border-yellow-100 bg-white/70 px-5 py-2.5 shadow-sm">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-yellow-600">Sẵn sàng giao</span>
+              <span className="mt-0.5 text-2xl font-bold text-yellow-700">{stats.ready}</span>
             </div>
-            <div className="h-10 w-px bg-amber-200/70" />
-            <div className="flex flex-col text-right">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">Đã giao</span>
-              <span className="text-lg font-semibold text-amber-900">{stats.shipped}</span>
+            <div className="flex flex-col items-center rounded-xl border border-emerald-100 bg-white/70 px-5 py-2.5 shadow-sm">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Đã giao</span>
+              <span className="mt-0.5 text-2xl font-bold text-emerald-700">{stats.shipped}</span>
             </div>
           </div>
         </CardHeader>
+      </Card>
 
-        <CardContent className="space-y-5 p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 -mt-2 text-amber-600" />
-              <Input
-                placeholder="Tìm theo mã đợt, chi nhánh hoặc sản phẩm..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
-              />
-            </div>
-            <Button
-              onClick={handleOpenCreateModal}
-              className="h-9 rounded-full bg-amber-500 px-4 text-xs text-white hover:bg-amber-600"
-            >
-              Tạo đợt phân phối
-            </Button>
-          </div>
+      {/* ── Toolbar ── */}
+      <div className="flex items-center gap-3 rounded-xl border border-amber-100 bg-white px-4 py-3 shadow-sm">
+        {/* Search */}
+        <div className="relative w-72 flex-none">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-400" />
+          <input
+            type="text"
+            placeholder="Tìm theo mã đợt, chi nhánh hoặc sản phẩm..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9 w-full rounded-md border border-amber-200 bg-amber-50/40 pl-9 pr-3 text-xs text-stone-800 placeholder:text-stone-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60"
+          />
+        </div>
 
+        {/* Status Filter */}
+        <div className="relative flex h-9 flex-none items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50/50 px-3">
+          <SlidersHorizontal className="size-3.5 shrink-0 text-amber-500" />
+          <span className="whitespace-nowrap text-[11px] font-medium text-amber-700">Bộ lọc:</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="cursor-pointer appearance-none bg-transparent pr-4 text-xs font-semibold text-amber-900 outline-none"
+          >
+            <option value="">Tất cả</option>
+            <option value="READY">Sẵn sàng</option>
+            <option value="SHIPPING">Đang giao</option>
+            <option value="SHIPPED">Đã giao</option>
+            <option value="CANCEL">Đã hủy</option>
+          </select>
+          <Filter className="pointer-events-none absolute right-2 top-1/2 size-3 -translate-y-1/2 text-amber-400" />
+        </div>
+
+        {/* Refresh */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={getExportNotes}
+          className="h-9 flex-none gap-1.5 border-amber-200 text-xs text-amber-700 hover:bg-amber-50"
+        >
+          <RefreshCw className="size-3.5" />
+          Làm mới
+        </Button>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Divider */}
+        <div className="h-6 w-px shrink-0 bg-amber-200" />
+
+        {/* Action */}
+        <Button
+          size="sm"
+          onClick={handleOpenCreateModal}
+          className="h-9 flex-none gap-1.5 rounded-lg bg-amber-500 px-4 text-xs text-white shadow-sm transition-all hover:bg-amber-600 active:scale-95"
+        >
+          <Plus className="size-3.5" />
+          Tạo đợt phân phối
+        </Button>
+      </div>
+
+      {/* ── Content ── */}
+      <Card className="border-amber-200/60 bg-white shadow-md">
+        <CardContent className="p-6">
           <div className="grid gap-5 lg:grid-cols-3">
             <Card className="border-amber-100 bg-white shadow-sm lg:col-span-2">
               <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
@@ -312,7 +393,7 @@ const DistributionPlanPage = () => {
                         <th className="px-4 py-2 font-semibold">Sản phẩm</th>
                         <th className="px-2 py-2 font-semibold text-center">SL mặt hàng</th>
                         <th className="px-2 py-2 font-semibold text-right">Tổng SL</th>
-                        <th className="px-4 py-2 font-semibold text-right">Trạng thái</th>
+                        <th className="px-4 py-2 font-semibold">Trạng thái</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50">
@@ -323,7 +404,7 @@ const DistributionPlanPage = () => {
                           </td>
                         </tr>
                       ) : (
-                        filteredPlans.map((p: ExportNotesResponse) => (
+                        paginatedPlans.map((p: ExportNotesResponse) => (
                           <tr
                             key={p.exportId}
                             className="cursor-pointer hover:bg-amber-50/40"
@@ -339,12 +420,8 @@ const DistributionPlanPage = () => {
                             <td className="px-2 py-3 text-right text-stone-800 font-bold">
                               {p.items.reduce((sum: number, i: ExportNoteItem) => sum + i.quantity, 0)}
                             </td>
-                            <td className="px-4 py-3 text-right">
-                              <span
-                                className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${STATUS_CLASS[p.status as PlanStatus] || 'bg-gray-100 text-gray-600'}`}
-                              >
-                                {STATUS_LABEL[p.status as PlanStatus] || p.status}
-                              </span>
+                            <td className="px-4 py-3">
+                              <DistributionStatusBadge status={p.status} />
                             </td>
                           </tr>
                         ))
@@ -353,7 +430,13 @@ const DistributionPlanPage = () => {
                   </table>
                 </div>
                 {!loading && filteredPlans.length === 0 && (
-                  <div className="py-10 text-center text-xs text-stone-500">Không có đợt phân phối nào phù hợp.</div>
+                  <div className="py-14 text-center">
+                    <div className="flex flex-col items-center gap-2 text-stone-400">
+                      <LayoutGrid className="size-10 opacity-30" />
+                      <p className="text-sm font-medium">Không có đợt phân phối nào</p>
+                      <p className="text-xs">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
+                    </div>
+                  </div>
                 )}
 
                 {/* ================= PAGINATION ================= */}
@@ -431,11 +514,7 @@ const DistributionPlanPage = () => {
                         </p>
                       </div>
                     </div>
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_CLASS[group.status as PlanStatus] || 'bg-gray-100 text-gray-600'}`}
-                    >
-                      {STATUS_LABEL[group.status as PlanStatus] || group.status}
-                    </span>
+                    <DistributionStatusBadge status={group.status} />
                   </div>
                 ))}
                 {storeGroups.length === 0 && (
@@ -447,6 +526,7 @@ const DistributionPlanPage = () => {
         </CardContent>
       </Card>
 
+      {/* ── Modals ── */}
       {/* ================= MODAL: TẠO ĐỢT PHÂN PHỐI ================= */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-6">

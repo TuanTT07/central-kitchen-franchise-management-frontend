@@ -18,6 +18,7 @@ import {
   DistributionPlanPage,
   IssueHandlingPage,
   SummaryOrdersPage,
+  InventoryPage,
 } from './pages/supply/index.ts';
 
 import { ManufacturingOrders, ProductBatches, Receipts } from './pages/central-kitchen/index.ts';
@@ -123,6 +124,7 @@ function App() {
                   <Route path="/supply-coordinator/distribution-plan" element={<DistributionPlanPage />}></Route>
                   <Route path="/supply-coordinator/issues" element={<IssueHandlingPage />}></Route>
                   <Route path="/supply-coordinator/summary-orders" element={<SummaryOrdersPage />}></Route>
+                  <Route path="/supply-coordinator/inventory" element={<InventoryPage />}></Route>
                 </Route>
               </Route>
             </Route>

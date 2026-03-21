@@ -22,6 +22,9 @@ import {
   ChevronLeft,
   Plus,
   Loader2,
+  RefreshCw,
+  SlidersHorizontal,
+  Filter,
 } from 'lucide-react';
 import {
   supplyServices,
@@ -66,6 +69,7 @@ const DeliverySchedulePage = () => {
 
   // Giá trị tìm kiếm trên trang chính
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
 
   // ---------------- Modal State ----------------
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -285,13 +289,15 @@ const DeliverySchedulePage = () => {
     );
   };
 
-  // Lọc danh sách theo từ khóa tìm kiếm (Đảm bảo deliveryPlans là mảng)
+  // Lọc danh sách theo từ khóa tìm kiếm và trạng thái
   const filteredPlans = Array.isArray(deliveryPlans)
-    ? deliveryPlans.filter(
-        (plan) =>
+    ? deliveryPlans.filter((plan) => {
+        const matchesSearch =
           (plan?.deliveryCode?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-          (plan?.driverName?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-      )
+          (plan?.driverName?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+        const matchesStatus = statusFilter ? plan.status === statusFilter : true;
+        return matchesSearch && matchesStatus;
+      })
     : [];
 
   // Định dạng ngày tháng
@@ -307,13 +313,16 @@ const DeliverySchedulePage = () => {
     });
   };
 
+  const completedCount = deliveryPlans.filter((p) => p.status === 'COMPLETED').length;
+  const inTransitCount = deliveryPlans.filter((p) => p.status === 'IN_TRANSIT').length;
+
   // ================= RENDER =================
 
   return (
-    <div className="h-full w-full space-y-6">
-      {/* Header Card */}
-      <Card className="border-amber-200/60 bg-white shadow-sm overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50/50 to-orange-50/50 px-6 py-5">
+    <div className="h-full w-full space-y-5">
+      {/* ── Header Card ── */}
+      <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
           <div className="flex flex-col gap-1">
             <CardTitle className="flex items-center gap-2 text-xl font-bold text-amber-900">
               <Truck className="size-6 text-amber-500" />
@@ -323,38 +332,86 @@ const DeliverySchedulePage = () => {
               Theo dõi và điều phối các chuyến hàng từ kho trung tâm tới chi nhánh.
             </CardDescription>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="hidden flex-col text-right md:flex border-r border-amber-200 pr-6">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600/70">
-                Tổng chuyến giao
-              </span>
-              <span className="text-xl font-black text-amber-900">{deliveryPlans.length}</span>
+          <div className="hidden items-center gap-4 md:flex">
+            <div className="flex flex-col items-center rounded-xl border border-amber-100 bg-white/70 px-5 py-2.5 shadow-sm">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">Tổng chuyến</span>
+              <span className="mt-0.5 text-2xl font-bold text-amber-900">{deliveryPlans.length}</span>
             </div>
-            <Button
-              onClick={() => setIsModalOpen(true)}
-              className="h-10 rounded-xl bg-amber-500 px-5 text-xs font-bold text-white hover:bg-amber-600 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md shadow-amber-200"
-            >
-              <Plus className="size-4 mr-2" />
-              Tạo lịch mới
-            </Button>
+            <div className="flex flex-col items-center rounded-xl border border-sky-100 bg-white/70 px-5 py-2.5 shadow-sm">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-sky-600">Đang giao</span>
+              <span className="mt-0.5 text-2xl font-bold text-sky-700">{inTransitCount}</span>
+            </div>
+            <div className="flex flex-col items-center rounded-xl border border-emerald-100 bg-white/70 px-5 py-2.5 shadow-sm">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Hoàn thành</span>
+              <span className="mt-0.5 text-2xl font-bold text-emerald-700">{completedCount}</span>
+            </div>
           </div>
         </CardHeader>
+      </Card>
 
+      {/* ── Toolbar ── */}
+      <div className="flex items-center gap-3 rounded-xl border border-amber-100 bg-white px-4 py-3 shadow-sm">
+        {/* Search */}
+        <div className="relative w-72 flex-none">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-400" />
+          <input
+            type="text"
+            placeholder="Tìm mã chuyến, tài xế..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            className="h-9 w-full rounded-md border border-amber-200 bg-amber-50/40 pl-9 pr-3 text-xs text-stone-800 placeholder:text-stone-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60"
+          />
+        </div>
+
+        {/* Status Filter */}
+        <div className="relative flex h-9 flex-none items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50/50 px-3">
+          <SlidersHorizontal className="size-3.5 shrink-0 text-amber-500" />
+          <span className="whitespace-nowrap text-[11px] font-medium text-amber-700">Bộ lọc:</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="cursor-pointer appearance-none bg-transparent pr-4 text-xs font-semibold text-amber-900 outline-none"
+          >
+            <option value="">Tất cả</option>
+            <option value="PLANNED">{translateStatus('PLANNED')}</option>
+            <option value="IN_TRANSIT">{translateStatus('IN_TRANSIT')}</option>
+            <option value="COMPLETED">{translateStatus('COMPLETED')}</option>
+            <option value="CANCELLED">{translateStatus('CANCELLED')}</option>
+          </select>
+          <Filter className="pointer-events-none absolute right-2 top-1/2 size-3 -translate-y-1/2 text-amber-400" />
+        </div>
+
+        {/* Refresh */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fetchDeliveryPlans(currentPage)}
+          className="h-9 flex-none gap-1.5 border-amber-200 text-xs text-amber-700 hover:bg-amber-50"
+        >
+          <RefreshCw className="size-3.5" />
+          Làm mới
+        </Button>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Divider */}
+        <div className="h-6 w-px shrink-0 bg-amber-200" />
+
+        {/* Action */}
+        <Button
+          size="sm"
+          onClick={() => setIsModalOpen(true)}
+          className="h-9 flex-none gap-1.5 rounded-lg bg-amber-500 px-4 text-xs text-white shadow-sm transition-all hover:bg-amber-600 active:scale-95"
+        >
+          <Plus className="size-3.5" />
+          Tạo lịch mới
+        </Button>
+      </div>
+
+      {/* ── Content ── */}
+      <Card className="border-amber-200/60 bg-white shadow-md">
         <CardContent className="p-6">
-          {/* Toolbar */}
-          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="relative w-full lg:w-80">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-stone-400" />
-              <input
-                type="text"
-                placeholder="Tìm mã chuyến, tài xế..."
-                value={searchTerm}
-                onChange={handleSearchChange}
-                className="h-10 w-full rounded-xl border border-amber-100 bg-amber-50/30 pl-10 pr-4 text-xs text-stone-700 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400/50 transition-all font-medium"
-              />
-            </div>
-          </div>
-
           {/* Main Table */}
             <div className="overflow-hidden rounded-2xl border border-amber-100 bg-white shadow-sm shadow-amber-50">
               <table className="w-full text-left border-collapse">
@@ -484,6 +541,7 @@ const DeliverySchedulePage = () => {
         </CardContent>
       </Card>
 
+      {/* ── Modals ── */}
       {/* MODAL TẠO LỊCH MỚI */}
       <Dialog
         open={isModalOpen}
@@ -919,11 +977,11 @@ const DeliverySchedulePage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <div className="flex items-start gap-2 px-6 py-3 bg-amber-50/50 rounded-xl border border-dashed border-amber-200">
-        <div className="mt-0.5 rounded-full bg-amber-200 p-1">
+      <div className="flex items-start gap-2 rounded-xl border border-dashed border-amber-200 bg-amber-50/50 px-4 py-3">
+        <div className="mt-0.5 shrink-0 rounded-full bg-amber-200 p-1">
           <Truck className="size-3 text-amber-700" />
         </div>
-        <p className="text-[10px] font-medium text-amber-800/80 leading-relaxed">
+        <p className="text-[10px] font-medium leading-relaxed text-amber-800/80">
           <span className="font-bold">Lưu ý:</span> Lịch giao hàng được đồng bộ tự động từ hệ thống điều phối vận tải.
           Các thay đổi về tài xế hoặc lộ trình cần được cập nhật trước khi chuyến hàng bắt đầu trạng thái "Đang giao".
         </p>
