@@ -1,4 +1,23 @@
+/**
+ * File: CartContext.tsx
+ * Description: Quản lý trạng thái giỏ hàng của cửa hàng nhượng quyền,
+ *              hỗ trợ lưu trữ local, cập nhật số lượng theo bội số sản phẩm.
+ * Author: Tuan Tran
+ * Created: 2026
+ */
+
+// ================= IMPORTS =================
+
 import React, { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
+
+/**
+ * CartProvider Component
+ * - Cung cấp context quản lý giỏ hàng toàn ứng dụng
+ * - Tự động đồng bộ với localStorage
+ * - Xử lý thêm/sửa/xóa sản phẩm với logic bội số (orderMultiplier)
+ */
+
+// ================= TYPES =================
 
 export type CartItem = {
   productId: number;
@@ -7,6 +26,7 @@ export type CartItem = {
   unitPrice?: number;
   imageUrl?: string;
   quantity: number;
+  orderMultiplier?: number;
 };
 
 type CartState = {
@@ -25,6 +45,8 @@ type CartAction =
 
 const CART_STORAGE_KEY = 'franchise_cart_v1';
 
+// ================= CONTEXT =================
+
 const CartContext = createContext<{
   items: CartItem[];
   totalQuantity: number;
@@ -34,6 +56,11 @@ const CartContext = createContext<{
   clear: () => void;
 } | null>(null);
 
+// ================= UTILS =================
+
+/**
+ * Tải trạng thái giỏ hàng từ localStorage
+ */
 function safeLoadCartState(): CartState {
   try {
     const raw = localStorage.getItem(CART_STORAGE_KEY);
@@ -49,6 +76,7 @@ function safeLoadCartState(): CartState {
         unitPrice: i?.unitPrice != null ? Number(i.unitPrice) : undefined,
         imageUrl: i?.imageUrl ? String(i.imageUrl) : undefined,
         quantity: Number(i?.quantity ?? 0),
+        orderMultiplier: i?.orderMultiplier != null ? Number(i.orderMultiplier) : undefined,
       }))
       .filter((i) => Number.isFinite(i.productId) && i.productId > 0 && !!i.name && Number.isFinite(i.quantity) && i.quantity > 0);
 
@@ -58,10 +86,16 @@ function safeLoadCartState(): CartState {
   }
 }
 
+/**
+ * Reducer xử lý các hành động thay đổi giỏ hàng
+ */
 function cartReducer(state: CartState, action: CartAction): CartState {
   switch (action.type) {
     case 'ADD_ITEM': {
-      const qtyToAdd = Math.max(1, Number(action.payload.quantity ?? 1));
+      const multiplier = Math.max(1, Number(action.payload.orderMultiplier ?? 1));
+      // Nếu không truyền quantity, mặc định lấy multiplier
+      const qtyToAdd = action.payload.quantity ?? multiplier;
+      
       const idx = state.items.findIndex((i) => i.productId === action.payload.productId);
       if (idx === -1) {
         return {
@@ -74,6 +108,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
               unitPrice: action.payload.unitPrice,
               imageUrl: action.payload.imageUrl,
               quantity: qtyToAdd,
+              orderMultiplier: multiplier,
             },
           ],
         };
@@ -109,9 +144,17 @@ function cartReducer(state: CartState, action: CartAction): CartState {
   }
 }
 
+// ================= PROVIDER =================
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  
+  // ================= STATE =================
+
   const [state, dispatch] = useReducer(cartReducer, undefined, safeLoadCartState);
 
+  // ================= EFFECT =================
+
+  // Lưu giỏ hàng vào localStorage mỗi khi có thay đổi
   useEffect(() => {
     try {
       if (state.items.length === 0) {
@@ -120,9 +163,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
       localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({ items: state.items }));
     } catch {
-      // ignore storage errors (quota/private mode)
+      // ignore storage errors
     }
   }, [state.items]);
+
+  // ================= HANDLER =================
 
   const value = useMemo(() => {
     const totalQuantity = state.items.reduce((sum, i) => sum + i.quantity, 0);
@@ -136,8 +181,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     };
   }, [state.items]);
 
+  // ================= RENDER =================
+
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
+
+// ================= HOOKS =================
 
 export function useCart() {
   const ctx = useContext(CartContext);
@@ -146,4 +195,3 @@ export function useCart() {
   }
   return ctx;
 }
-
