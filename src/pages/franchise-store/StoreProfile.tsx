@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react';
 import { Store, MapPin, Phone, CheckCircle2, User2, IdCard, Mail, ShieldCheck, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { franchiseServices, type OrderResponse, type OrderDetailResponse } from '@/services/franchiseServices';
+import { adminService } from '@/services/adminServices';
 import { cn } from '@/lib/utils';
 
 interface StoreBasicInfo {
   storeId: number;
   storeName: string;
+  address?: string;
+  phone?: string;
 }
 
 function StoreProfile() {
@@ -32,12 +35,32 @@ function StoreProfile() {
   useEffect(() => {
     franchiseServices
       .getOrders(0, 200)
-      .then((res) => {
+      .then(async (res) => {
         if (res.success && res.data) {
           const items = res.data.items ?? [];
           setOrders(items);
           if (items.length > 0 && items[0].storeId && items[0].storeName) {
-            setStoreInfo({ storeId: items[0].storeId, storeName: items[0].storeName });
+            const baseStoreInfo: StoreBasicInfo = {
+              storeId: items[0].storeId,
+              storeName: items[0].storeName,
+            };
+
+            try {
+              const storeRes = await adminService.getStoreById(items[0].storeId);
+              if (storeRes.data.success && storeRes.data.data) {
+                const storeData = storeRes.data.data;
+                setStoreInfo({
+                  ...baseStoreInfo,
+                  address: storeData.address,
+                  phone: storeData.phone,
+                });
+                return;
+              }
+            } catch {
+              // Keep base info if store detail endpoint is unavailable for this role.
+            }
+
+            setStoreInfo(baseStoreInfo);
           }
         }
       })
@@ -78,8 +101,18 @@ function StoreProfile() {
             <div className="space-y-3">
               <InfoRow icon={Store} label="Tên cửa hàng" value={storeInfo.storeName} />
               <InfoRow icon={IdCard} label="Mã cửa hàng" value={`#${storeInfo.storeId}`} />
-              <InfoRow icon={MapPin} label="Địa chỉ" value="Chưa có thông tin" muted />
-              <InfoRow icon={Phone} label="Điện thoại" value="Chưa có thông tin" muted />
+              <InfoRow
+                icon={MapPin}
+                label="Địa chỉ"
+                value={storeInfo.address || 'Chưa có thông tin'}
+                muted={!storeInfo.address}
+              />
+              <InfoRow
+                icon={Phone}
+                label="Điện thoại"
+                value={storeInfo.phone || 'Chưa có thông tin'}
+                muted={!storeInfo.phone}
+              />
               <div className="mt-2 flex items-center justify-between rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
                 <div className="flex items-center gap-2 text-emerald-700">
                   <CheckCircle2 className="size-4" />

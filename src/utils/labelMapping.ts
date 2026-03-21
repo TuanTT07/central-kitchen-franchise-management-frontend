@@ -15,7 +15,7 @@ export const STATUS_LABEL_MAP: Record<string, string> = {
   PLANNED: 'Chờ thực hiện',
   COOKING: 'Đang nấu',
   CANCEL: 'Đã hủy',
-  DONE: 'Hoàn thành',
+  DONE: 'Đã nhận',
 
   // Trạng thái phiếu / chứng từ khác
   DRAFT: 'Nháp',
