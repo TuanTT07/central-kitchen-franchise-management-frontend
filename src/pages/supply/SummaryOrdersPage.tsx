@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Package, Store, Search, Filter, ChevronLeft, ChevronRight, RefreshCw, SlidersHorizontal, Zap, ListChecks } from 'lucide-react';
+import { Package, Search, Filter, ChevronLeft, ChevronRight, RefreshCw, SlidersHorizontal, Zap, ListChecks } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import type { OrderDetailResponse, OrderResponse } from '@/services/franchiseServices';
 import type { ConsolidationProduct, ConsolidationResponse } from '@/services/supplyServices';
@@ -419,8 +419,8 @@ function SummaryOrdersPage() {
             </p>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-3">
-            <Card className="border-amber-100 bg-white shadow-sm lg:col-span-2">
+          <div className="grid gap-5">
+            <Card className="border-amber-100 bg-white shadow-sm">
               <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
                 <CardTitle className="text-sm font-bold text-amber-900">Danh sách đơn hàng</CardTitle>
                 <CardDescription className="text-[11px] text-amber-700/80">
@@ -541,83 +541,6 @@ function SummaryOrdersPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-amber-100 bg-white shadow-sm">
-              <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-                <CardTitle className="text-sm font-bold text-amber-900">Thống kê nhanh</CardTitle>
-                <CardDescription className="text-[11px] text-amber-700/80">
-                  Phân bổ đơn hàng theo chi nhánh
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 p-4 text-xs">
-                {/* Phân bổ % theo chi nhánh */}
-                <div className="space-y-2.5">
-                  {Array.from(new Set(orders.map((o) => o.storeName)))
-                    .slice(0, 5)
-                    .map((storeName) => {
-                      const count = orders.filter((o) => o.storeName === storeName).length;
-                      const percent = Math.round((count / orders.length) * 100) || 0;
-                      return (
-                        <div key={storeName} className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-stone-700 truncate max-w-[130px]">{storeName}</span>
-                            <span className="text-[11px] font-semibold text-amber-700">{count} đơn · {percent}%</span>
-                          </div>
-                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-amber-100">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-400 transition-all"
-                              style={{ width: `${percent}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-
-                <div className="h-px bg-amber-100" />
-
-                {/* Chi nhánh tích cực nhất */}
-                <div className="space-y-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">Chi nhánh tích cực nhất</p>
-                  {Array.from(
-                    new Map(
-                      orders
-                        .slice()
-                        .sort((a, b) => {
-                          const ca = orders.filter((x) => x.storeName === a.storeName).length;
-                          const cb = orders.filter((x) => x.storeName === b.storeName).length;
-                          return cb - ca;
-                        })
-                        .map((o) => [o.storeName, o])
-                    ).values()
-                  )
-                    .slice(0, 3)
-                    .map((o, idx) => (
-                      <div
-                        key={o.storeName}
-                        className="flex items-center justify-between rounded-lg border border-amber-100 bg-amber-50/40 px-3 py-2"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className={`flex size-7 items-center justify-center rounded-md text-white text-[11px] font-bold ${
-                            idx === 0 ? 'bg-gradient-to-br from-amber-400 to-orange-500' :
-                            idx === 1 ? 'bg-gradient-to-br from-amber-300 to-amber-400' :
-                            'bg-gradient-to-br from-stone-300 to-stone-400'
-                          }`}>
-                            {idx + 1}
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-stone-900">{o.storeName}</p>
-                            <p className="text-[10px] text-stone-400">{o.details?.[0]?.productName || 'N/A'}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 text-right text-[11px]">
-                          <Store className="size-3 text-amber-400" />
-                          <span className="font-semibold text-stone-700">{orders.filter((x) => x.storeName === o.storeName).length}</span>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </CardContent>
       </Card>
