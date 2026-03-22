@@ -48,12 +48,25 @@ export type ProductBatchStatus = 'WAITING_FOR_STOCK' | 'AVAILABLE' | 'OUT_OF_STO
 export interface ProductBatchesResponse {
   batchId: number;
   batchCode: string;
+  /** ID sản phẩm — dùng để gọi API chi tiết sản phẩm (ảnh, mô tả, …) */
+  productId?: number;
+  product_id?: number;
   productName: string;
   currentQuantity: number;
   initialQuantity: number;
   unitName: string;
   expiryDate: string;
   status: ProductBatchStatus;
+  /** Ngày sản xuất — backend có thể trả một trong các tên sau (Jackson / convention khác nhau) */
+  manufacturingDate?: string | null;
+  productionDate?: string | null;
+  manufactureDate?: string | null;
+  production_date?: string | null;
+  manufacturing_date?: string | null;
+  manufacture_date?: string | null;
+  mfgDate?: string | null;
+  dateOfManufacture?: string | null;
+  producedAt?: string | null;
 }
 
 /**

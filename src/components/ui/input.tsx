@@ -16,7 +16,7 @@ function Input({ className, type, errorMessage, ...props }: React.ComponentProps
         )}
         {...props}
       />
-      <div className="text-red-600 min-h-[1.25rem] text-sm">{errorMessage}</div>
+      {errorMessage ? <div className="min-h-[1.25rem] text-sm text-red-600">{errorMessage}</div> : null}
     </>
   );
 }
