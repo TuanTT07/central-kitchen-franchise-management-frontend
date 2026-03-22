@@ -34,7 +34,7 @@ export interface OrderResponse<T> {
   storeName: string;
   orderDate: string;
   deliveryDate?: string;
-  status: 'PENDING' | 'APPROVED' | 'CONSOLIDATED' | 'CANCELLED';
+  status: 'PENDING' | 'APPROVED' | 'CONSOLIDATED' | 'CANCELLED' | 'IN_TRANSIT' | 'DONE';
   details: T;
 }
 
@@ -140,6 +140,17 @@ export const franchiseServices = {
     return response.data;
   },
 
-
+  /**
+   * Tạo báo cáo vấn đề giao hàng (Delivery Issue)
+   * POST /orders/{id}/reject-delivery
+   */
+  createDeliveryIssue: async (id: number, formData: FormData) => {
+    const response = await http.post<Response<unknown>>(`/orders/${id}/reject-delivery`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
 };
 
