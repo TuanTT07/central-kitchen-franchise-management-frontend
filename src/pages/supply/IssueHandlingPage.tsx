@@ -18,6 +18,7 @@ import { translateStatus } from '@/utils/labelMapping';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { toast } from 'sonner';
 
 /**
  * IssueHandlingPage Component
@@ -60,6 +61,12 @@ const IssueHandlingPage = () => {
   // Trạng thái load chi tiết
   const [loadingDetail, setLoadingDetail] = useState(false);
 
+  // Trạng thái đang xử lý duyệt/từ chối
+  const [isReviewing, setIsReviewing] = useState(false);
+
+  // Ngày giao hàng dự kiến mới (cho đơn thay thế / giao lại)
+  const [newDeliveryDate, setNewDeliveryDate] = useState('');
+
   // ================= EFFECT =================
 
   // Tải dữ liệu khi component mount hoặc khi thay đổi trang/bộ lọc
@@ -98,12 +105,47 @@ const IssueHandlingPage = () => {
 
       if (res.success && res.data) {
         setSelectedIssue(res.data);
+        // Khởi tạo ngày giao mới từ ngày gốc (cắt chuỗi ISO cho datetime-local)
+        if (res.data.originalDeliveryDate) {
+          setNewDeliveryDate(res.data.originalDeliveryDate.slice(0, 16));
+        } else {
+          setNewDeliveryDate(new Date().toISOString().slice(0, 16));
+        }
         setIsModalOpen(true);
       }
     } catch (error) {
       console.error('Lỗi khi tải chi tiết sự cố:', error);
     } finally {
       setLoadingDetail(false);
+    }
+  };
+
+  // Xử lý Phê duyệt / Từ chối sự cố
+  const handleReview = async (decision: string) => {
+    if (!selectedIssue) return;
+
+    try {
+      setIsReviewing(true);
+      
+      // Sử dụng ngày giao mới do người dùng chọn
+      const res = await supplyServices.reviewDeliveryIssue(
+        selectedIssue.issueId, 
+        decision, 
+        newDeliveryDate
+      );
+
+      if (res.success) {
+        toast.success(decision === 'CREATE_REPLACEMENT_ORDER' ? 'Đã duyệt sự cố và tạo đơn giao bù' : 'Đã từ chối sự cố thành công');
+        setIsModalOpen(false);
+        fetchIssues(); // Refresh danh sách
+      } else {
+        toast.error(res.message || 'Xử lý thất bại');
+      }
+    } catch (error) {
+      console.error('Lỗi khi xử lý sự cố:', error);
+      toast.error('Có lỗi xảy ra trong quá trình xử lý');
+    } finally {
+      setIsReviewing(false);
     }
   };
 
@@ -320,7 +362,7 @@ const IssueHandlingPage = () => {
       {/* ── Modal Chi tiết Sự cố ── */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent 
-          className="max-w-xl max-h-[95vh] overflow-y-auto p-0 border-none shadow-2xl rounded-xl"
+          className="min-w-2xl max-h-[95vh] overflow-y-auto p-0 border-none shadow-2xl rounded-xl"
           onClose={() => setIsModalOpen(false)}
         >
           {selectedIssue && (
@@ -456,7 +498,7 @@ const IssueHandlingPage = () => {
                         <div className="flex items-center justify-between py-1">
                           <div className="flex items-center gap-3">
                             <div className="h-8 w-8 rounded-full bg-slate-100 border border-slate-200 overflow-hidden">
-                              <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRz-M8v4-5Lz2-C6_E9z2-C6_E9z2-C6_E9z2-C6_E9z2-C6_E9z2-C6_E9z2-C6_E9z2-C6_E9z2-C" className="h-full w-full object-cover" alt="mock" />
+                              <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRz-M8v4-5Lz2-C6_E9z2-C6_E9z2-C6_E9z2-C6_E9z2-C6_E9z2-C6_E9z2-C6_E9z2-C6_E9z2-C6_E9z2-C&s" className="h-full w-full object-cover" alt="mock" />
                             </div>
                             <span className="text-sm font-medium text-slate-700">Sốt ướp đặc chế</span>
                           </div>
@@ -469,20 +511,62 @@ const IssueHandlingPage = () => {
               </div>
 
               {/* Footer Buttons */}
-              <div className="px-6 py-5 bg-slate-50 border-t border-slate-100 flex gap-3">
-                <Button 
-                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-white h-11 text-xs font-bold rounded-lg shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                 Duyệt & tạo đơn giao bù
-                </Button>
-                <Button 
-                  variant="outline"
-                  className="flex-1 bg-[#f1f5f9] hover:bg-[#e2e8f0] text-slate-700 border-slate-200 h-11 text-xs font-bold rounded-lg shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                  <RotateCcw className="h-4 w-4 text-red-500" />
-                 Từ chối & giao lại đơn cũ
-                </Button>
+              <div className="px-6 py-5 bg-slate-50 border-t border-slate-100 flex flex-col gap-4">
+                {selectedIssue.issueStatus === 'PENDING_REVIEW' ? (
+                  <>
+                    {/* Trường chọn ngày mới */}
+                    <div className="space-y-2">
+                       <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">
+                          Ngày giao dự kiến mới <span className="text-red-500">*</span>
+                       </label>
+                       <div className="relative">
+                          <Calendar className="absolute left-3 top-1/4 -translate-y-1/4 h-4 w-4 text-amber-500" />
+                          <Input 
+                            type="datetime-local"
+                            className="pl-10 h-10 border-amber-200 bg-white focus:ring-amber-500/20 focus:border-amber-400 rounded-lg text-xs"
+                            value={newDeliveryDate}
+                            onChange={(e) => setNewDeliveryDate(e.target.value)}
+                          />
+                       </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button 
+                        className="flex-1 bg-amber-500 hover:bg-amber-600 text-white h-11 text-xs font-bold rounded-lg shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                        onClick={() => handleReview('CREATE_REPLACEMENT_ORDER')}
+                        disabled={isReviewing || !newDeliveryDate}
+                      >
+                        {isReviewing ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Plus className="h-4 w-4" />
+                        )}
+                        {isReviewing ? 'Đang xử lý...' : 'Duyệt & tạo đơn giao bù'}
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        className="flex-1 bg-white hover:bg-slate-50 text-slate-700 border-slate-200 h-11 text-xs font-bold rounded-lg shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                        onClick={() => handleReview('RESCHEDULE_CURRENT_ORDER')}
+                        disabled={isReviewing || !newDeliveryDate}
+                      >
+                        {isReviewing ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-red-500" />
+                        ) : (
+                          <RotateCcw className="h-4 w-4 text-red-500" />
+                        )}
+                        {isReviewing ? 'Đang xử lý...' : 'Từ chối & giao lại đơn cũ'}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <Button 
+                    variant="outline"
+                    className="w-full bg-white hover:bg-slate-50 text-slate-700 border-slate-200 h-11 text-xs font-bold rounded-lg shadow-sm transition-all active:scale-[0.98]"
+                    onClick={() => setIsModalOpen(false)}
+                  >
+                    Đóng
+                  </Button>
+                )}
               </div>
             </div>
           )}
