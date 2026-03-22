@@ -197,6 +197,7 @@ export interface DeliveryIssueResponse {
  * 
  * GET    /delivery-issues            -> Lấy danh sách vấn đề
  * GET    /delivery-issues/{id}       -> Lấy chi tiết vấn đề
+ * POST   /delivery-issues/{id}/review -> Phê duyệt/Từ chối vấn đề
  *
  *
  *
@@ -425,6 +426,22 @@ export const supplyServices = {
    */
   getDeliveryIssueById: async (id: number) => {
     const response = await http.get<Response<DeliveryIssueResponse>>(`/delivery-issues/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Phê duyệt/Từ chối vấn đề giao hàng (Delivery Issue)
+   *
+   * @param id ID của vấn đề giao hàng
+   * @param decision Quyết định phê duyệt/từ chối (CREATE_REPLACEMENT_ORDER, RESCHEDULE_CURRENT_ORDER)
+   * @param newDeliveryDate Ngày giao hàng mới (chỉ áp dụng khi RESCHEDULE_CURRENT_ORDER)
+   * @returns Promise<Response<DeliveryIssueResponse>>
+   */
+  reviewDeliveryIssue: async (id: number, decision: string, newDeliveryDate: string) => {
+    const response = await http.post<Response<DeliveryIssueResponse>>(`/delivery-issues/${id}/review`, {
+      decision,
+      newDeliveryDate,
+    });
     return response.data;
   },
 };
