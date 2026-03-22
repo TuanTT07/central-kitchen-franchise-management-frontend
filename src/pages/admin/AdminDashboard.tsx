@@ -4,6 +4,7 @@ import { ADMIN_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 import { adminService, type StoreResponse, type UserResponse } from '@/services/adminServices';
 import { cn } from '@/lib/utils';
 import { translateRole, translateStatus } from '@/utils/labelMapping';
+import { Role } from '@/Types';
 import {
   AlertTriangle,
   Building2,
@@ -80,6 +81,7 @@ const AdminDashboard = () => {
     }, {});
 
     const staffByStoreId = users.reduce<Record<number, number>>((acc, u) => {
+      if (u.role !== Role.FRANCHISE_STORE_STAFF) return acc;
       const sid = Number(u.storeId);
       if (!Number.isFinite(sid) || sid <= 0) return acc;
       acc[sid] = (acc[sid] ?? 0) + 1;
@@ -93,7 +95,9 @@ const AdminDashboard = () => {
       (s) => s.status === 'INACTIVE' && (staffByStoreId[s.storeId] ?? 0) > 0
     );
     const staffNoStore = users.filter(
-      (u) => !Number.isFinite(Number(u.storeId)) || Number(u.storeId) <= 0
+      (u) =>
+        u.role === Role.FRANCHISE_STORE_STAFF &&
+        (!Number.isFinite(Number(u.storeId)) || Number(u.storeId) <= 0)
     );
     const staffHealth = stores
       .map((s) => ({ store: s, count: staffByStoreId[s.storeId] ?? 0 }))
