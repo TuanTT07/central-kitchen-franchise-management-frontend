@@ -164,6 +164,13 @@ export interface DeliveryIssueResponse {
   reviewDecision: string | null;
   replacementOrderId: number | null;
   replacementOrderCode: string | null;
+  images?: string[];
+  issueItems?: {
+    productId: number;
+    productName: string;
+    quantity: number;
+    imageUrl?: string;
+  }[];
 }
 /**
  * =========================================================
@@ -189,6 +196,7 @@ export interface DeliveryIssueResponse {
  * 
  * 
  * GET    /delivery-issues            -> Lấy danh sách vấn đề
+ * GET    /delivery-issues/{id}       -> Lấy chi tiết vấn đề
  *
  *
  *
@@ -405,6 +413,18 @@ export const supplyServices = {
     const response = await http.get<Response<PaginatedResponse<DeliveryIssueResponse[]>>>(
       `/delivery-issues?page=${page}&size=${size}`
     );
+    return response.data;
+  },
+
+
+  /**
+   * Lấy chi tiết vấn đề giao hàng (Delivery Issue)
+   *
+   * @param id ID của vấn đề giao hàng
+   * @returns Promise<Response<DeliveryIssueResponse>>
+   */
+  getDeliveryIssueById: async (id: number) => {
+    const response = await http.get<Response<DeliveryIssueResponse>>(`/delivery-issues/${id}`);
     return response.data;
   },
 };
