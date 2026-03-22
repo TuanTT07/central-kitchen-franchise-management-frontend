@@ -77,21 +77,21 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
   // ================= RENDER =================
 
   return (
-    <div className={cn('w-full max-w-md rounded-2xl bg-white px-8 py-8 shadow-xl', className)} {...props}>
+    <div className={cn('mx-auto w-full max-w-md rounded-2xl bg-white px-6 py-8 shadow-xl sm:px-8', className)} {...props}>
       {/* Header */}
       <div className="flex flex-col items-center text-center">
-        <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
+        <div className="flex items-center justify-center gap-2">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100">
             <CookingPot className="h-5 w-5 text-orange-500" />
           </div>
           <span className="text-lg font-semibold text-gray-900">Kitchen Hub</span>
         </div>
-        <h1 className="mt-1 text-sm font-medium text-gray-900">Đăng nhập</h1>
-        <p className="mt-1 text-sm text-gray-500">Hệ thống quản lý bếp trung tâm</p>
+        <h1 className="mt-3 text-xl font-bold tracking-tight text-gray-900">Đăng nhập</h1>
+        <p className="mt-1.5 text-sm text-gray-500">Hệ thống quản lý bếp trung tâm</p>
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-8 space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-8 space-y-5">
         <FieldGroup className="gap-5">
           {/* Tài khoản */}
           <Field>
@@ -99,7 +99,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
               Tài khoản
             </FieldLabel>
             <div className="relative mt-1">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 -mt-2 text-orange-400">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-orange-400">
                 <User className="h-4 w-4" />
               </span>
               <Input
@@ -132,13 +132,13 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
               Mật khẩu
             </FieldLabel>
             <div className="relative mt-1">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 -mt-2 text-orange-400">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-orange-400">
                 <Lock className="h-4 w-4" />
               </span>
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 -mt-2 text-orange-300 hover:text-orange-400"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-300 hover:text-orange-400"
                 aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               >
                 {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}

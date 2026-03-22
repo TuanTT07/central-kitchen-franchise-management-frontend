@@ -1,15 +1,15 @@
 /**
  * File: OrderTrackingPage.tsx
- * Description: Trang theo dõi trạng thái đơn hàng và phiếu xuất kho của chi nhánh
+ * Description: Trang theo dõi trạng thái đơn hàng của chi nhánh
  * Author: Tuan Tran, Dat Tran
  */
 
 // ================= IMPORTS =================
 
 import { useMemo, useState, useEffect } from 'react';
+import { Link } from 'react-router';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
@@ -19,14 +19,26 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  CalendarClock, ChevronLeft, ChevronRight, Receipt,
-  Search, Truck, AlertTriangle, Loader2, XCircle, Check,
-  PackageCheck, RefreshCw, Package, Upload,
+  ChevronLeft,
+  ChevronRight,
+  Receipt,
+  Search,
+  Loader2,
+  XCircle,
+  Check,
+  RefreshCw,
+  Package,
+  LayoutGrid,
+  SlidersHorizontal,
+  Filter,
+  Plus,
+  AlertTriangle,
+  Upload,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { translateStatus } from '@/utils/labelMapping';
 import StatusBadge from '@/components/ui/StatusBadge';
-import { franchiseServices, type OrderResponse, type OrderDetailResponse, type ExportNotesResponse } from '@/services/franchiseServices';
+import { franchiseServices, type OrderResponse, type OrderDetailResponse } from '@/services/franchiseServices';
 import { toast } from 'sonner';
 
 /**
@@ -49,7 +61,6 @@ const OrderTrackingPage = () => {
   // ================= STATE =================
 
   const [orders, setOrders] = useState<OrderResponse<OrderDetailResponse[]>[]>([]);
-  const [exportData, setExportData] = useState<ExportNotesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [openCancelDialog, setOpenCancelDialog] = useState(false);
   const [search, setSearch] = useState('');
@@ -85,12 +96,8 @@ const OrderTrackingPage = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [orderRes, exportRes] = await Promise.all([
-        franchiseServices.getOrders(),
-        franchiseServices.getExportNote()
-      ]);
+      const orderRes = await franchiseServices.getOrders();
       if (orderRes.success && orderRes.data) setOrders(orderRes.data.items);
-      if (exportRes.success && exportRes.data) setExportData(exportRes.data);
     } catch {
       toast.error('Không thể tải dữ liệu đơn hàng');
     } finally {
@@ -255,111 +262,123 @@ const OrderTrackingPage = () => {
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
   const paginatedOrders = filteredOrders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const pendingCount   = orders.filter((o) => normalizeOrderStatus(o.status) === 'PENDING').length;
-  const approvedCount  = orders.filter((o) => normalizeOrderStatus(o.status) === 'APPROVED').length;
-  const inTransitCount = orders.filter((o) => normalizeOrderStatus(o.status) === 'IN_TRANSIT').length;
-  const cancelledCount = orders.filter((o) => normalizeOrderStatus(o.status) === 'CANCELLED').length;
+  const stats = useMemo(() => {
+    return {
+      total: orders.length,
+      pending: orders.filter((o) => normalizeOrderStatus(o.status) === 'PENDING').length,
+      inTransit: orders.filter((o) => normalizeOrderStatus(o.status) === 'IN_TRANSIT').length,
+    };
+  }, [orders]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(Math.max(1, totalPages));
+    }
+  }, [page, totalPages]);
 
   // ================= RENDER =================
 
-  if (loading) {
-    return (
-      <div className="flex h-full w-full items-center justify-center py-20">
-        <div className="flex flex-col items-center gap-3">
-          <div className="relative">
-            <div className="size-14 rounded-full bg-amber-100 flex items-center justify-center">
-              <Loader2 className="size-7 animate-spin text-amber-500" />
-            </div>
-          </div>
-          <p className="text-sm font-semibold text-amber-700">Đang tải dữ liệu đơn hàng...</p>
-          <p className="text-xs text-stone-400">Vui lòng chờ trong giây lát</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="h-full w-full space-y-0">
-      <Card className="border-amber-200/60 bg-white shadow-md overflow-hidden">
-        {/* ─── Header ─── */}
-        <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
-          <div className="flex flex-col gap-1">
+    <div className="h-full w-full space-y-5">
+      {/* ── Header Card (giống Supply — Kế hoạch phân phối) ── */}
+      <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
+          <div className="flex min-w-0 flex-col gap-1">
             <CardTitle className="flex items-center gap-2 text-xl font-bold text-amber-900">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-amber-500 shadow-sm text-white">
-                <Truck className="size-4" />
-              </div>
-              Theo dõi đơn đặt hàng
+              <LayoutGrid className="size-6 shrink-0 text-amber-500" />
+              Quản lý đơn hàng
             </CardTitle>
-            <CardDescription className="text-xs font-medium text-amber-700/80 ml-10">
-              Theo dõi trạng thái đơn hàng và thông tin lô hàng của cửa hàng.
+            <CardDescription className="text-xs font-medium text-amber-700/80">
+              Đặt và theo dõi đơn hàng từ cửa hàng tới bếp trung tâm.
             </CardDescription>
           </div>
-
-          {/* Stats Bar */}
-          <div className="hidden items-center gap-5 md:flex">
-            {[
-              { label: 'Tổng đơn', value: orders.length, color: 'text-amber-900' },
-              { label: 'Chờ duyệt', value: pendingCount, color: 'text-amber-700' },
-              { label: 'Đang giao', value: inTransitCount, color: 'text-blue-700' },
-            ].map((s, i, arr) => (
-              <div key={s.label} className="flex items-center gap-5">
-                <div className="flex flex-col items-end">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600/70">{s.label}</span>
-                  <span className={cn('text-xl font-black', s.color)}>{s.value}</span>
-                </div>
-                {i < arr.length - 1 && <div className="h-10 w-px bg-amber-200/70" />}
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={fetchData}
-              title="Làm mới"
-              className="ml-2 flex size-8 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-600 shadow-sm hover:bg-amber-50 transition"
-            >
-              <RefreshCw className="size-4" />
-            </button>
+          <div className="flex w-full flex-wrap items-center justify-end gap-2 md:w-auto md:flex-nowrap md:gap-4">
+            <div className="flex min-w-[5.5rem] flex-col items-center rounded-xl border border-amber-100 bg-white/70 px-4 py-2.5 shadow-sm md:px-5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">Tổng đơn</span>
+              <span className="mt-0.5 text-2xl font-bold text-amber-900">{stats.total}</span>
+            </div>
+            <div className="flex min-w-[5.5rem] flex-col items-center rounded-xl border border-yellow-100 bg-white/70 px-4 py-2.5 shadow-sm md:px-5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-yellow-600">Chờ duyệt</span>
+              <span className="mt-0.5 text-2xl font-bold text-yellow-700">{stats.pending}</span>
+            </div>
+            <div className="flex min-w-[5.5rem] flex-col items-center rounded-xl border border-emerald-100 bg-white/70 px-4 py-2.5 shadow-sm md:px-5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Đang giao</span>
+              <span className="mt-0.5 text-2xl font-bold text-emerald-700">{stats.inTransit}</span>
+            </div>
           </div>
         </CardHeader>
+      </Card>
 
-        <CardContent className="space-y-5 p-6">
-          {/* ─── Search + Filter ─── */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative max-w-md flex-1">
-              <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-amber-500" />
-              <Input
-                placeholder="Tìm theo mã đơn, ngày giao..."
-                value={search}
-                onChange={handleSearch}
-                className="border-amber-200 bg-amber-50/40 pl-9 text-xs focus:border-amber-400 focus:ring-amber-200"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs shadow-sm">
-                {FILTER_OPTIONS.map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => handleFilterChange(opt)}
-                    className={cn(
-                      'cursor-pointer px-3 py-1.5 font-medium transition-all duration-150',
-                      opt !== 'ALL' && 'border-l border-amber-200',
-                      statusFilter === opt
-                        ? 'bg-amber-500 text-white font-bold'
-                        : 'text-amber-800 hover:bg-amber-100'
-                    )}
-                  >
-                    {opt === 'ALL' ? 'Tất cả' : translateStatus(opt)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+      {/* ── Toolbar (giống Supply) ── */}
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-100 bg-white px-4 py-3 shadow-sm">
+        <div className="relative min-w-0 flex-1 basis-[min(100%,18rem)]">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-400" />
+          <input
+            type="text"
+            placeholder="Tìm theo mã đơn, ngày giao hoặc ghi chú..."
+            value={search}
+            onChange={handleSearch}
+            className="h-9 w-full rounded-md border border-amber-200 bg-amber-50/40 pl-9 pr-3 text-xs text-stone-800 placeholder:text-stone-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60"
+          />
+        </div>
 
-          {/* ─── Main Grid: Table + Sidebar ─── */}
-          <div className="grid gap-5 lg:grid-cols-3">
+        <div className="relative flex h-9 flex-none items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50/50 px-3">
+          <SlidersHorizontal className="size-3.5 shrink-0 text-amber-500" />
+          <span className="whitespace-nowrap text-[11px] font-medium text-amber-700">Bộ lọc:</span>
+          <select
+            value={statusFilter === 'ALL' ? '' : statusFilter}
+            onChange={(e) => {
+              const v = e.target.value;
+              handleFilterChange(v === '' ? 'ALL' : (v as FilterStatus));
+            }}
+            className="max-w-[10rem] cursor-pointer appearance-none bg-transparent pr-4 text-xs font-semibold text-amber-900 outline-none"
+          >
+            <option value="">Tất cả</option>
+            {FILTER_OPTIONS.filter((o) => o !== 'ALL').map((opt) => (
+              <option key={opt} value={opt}>
+                {translateStatus(opt)}
+              </option>
+            ))}
+          </select>
+          <Filter className="pointer-events-none absolute right-2 top-1/2 size-3 -translate-y-1/2 text-amber-400" />
+        </div>
 
-            {/* Orders Table */}
-            <Card className="border-amber-100 bg-white shadow-sm lg:col-span-2 overflow-hidden">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void fetchData()}
+          disabled={loading}
+          className="h-9 flex-none gap-1.5 border-amber-200 text-xs text-amber-700 hover:bg-amber-50"
+        >
+          <RefreshCw className={cn('size-3.5', loading && 'animate-spin')} />
+          Làm mới
+        </Button>
+
+        <div className="hidden min-h-[1px] flex-1 sm:block" />
+
+        <div className="hidden h-6 w-px shrink-0 bg-amber-200 sm:block" />
+
+        <Button
+          asChild
+          size="sm"
+          className="h-9 flex-none gap-1.5 rounded-lg bg-amber-500 px-4 text-xs text-white shadow-sm transition-all hover:bg-amber-600 active:scale-[0.98]"
+        >
+          <Link to="/franchise-store/create-order">
+            <Plus className="size-3.5" />
+            Tạo đơn hàng
+          </Link>
+        </Button>
+      </div>
+
+      {/* ── Bảng đơn ── */}
+      <Card className="border-amber-200/60 bg-white shadow-md">
+        <CardContent className="p-6">
+          <Card className="overflow-hidden border-amber-100 bg-white shadow-sm">
               <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 py-3 px-4">
                 <CardTitle className="flex items-center justify-between text-sm font-bold text-amber-900">
                   <span className="flex items-center gap-2">
@@ -367,9 +386,12 @@ const OrderTrackingPage = () => {
                     Danh sách đơn đặt hàng
                   </span>
                   <span className="text-[11px] font-normal text-amber-700/70">
-                    {filteredOrders.length} đơn
+                    {loading ? '…' : `${filteredOrders.length} đơn`}
                   </span>
                 </CardTitle>
+                <CardDescription className="text-[11px] text-amber-700/80">
+                  Theo dõi trạng thái duyệt và giao hàng.
+                </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
@@ -384,7 +406,14 @@ const OrderTrackingPage = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-50/60">
-                      {paginatedOrders.length === 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan={5} className="py-16 text-center">
+                            <Loader2 className="mx-auto size-8 animate-spin text-amber-500" />
+                            <p className="mt-3 text-sm font-medium text-amber-700">Đang tải đơn hàng...</p>
+                          </td>
+                        </tr>
+                      ) : paginatedOrders.length === 0 ? (
                         <tr>
                           <td colSpan={5} className="py-16 text-center">
                             <div className="flex flex-col items-center gap-3">
@@ -485,7 +514,7 @@ const OrderTrackingPage = () => {
                 </div>
 
                 {/* Pagination */}
-                {filteredOrders.length > PAGE_SIZE && (
+                {!loading && filteredOrders.length > PAGE_SIZE && (
                   <div className="flex items-center justify-between border-t border-amber-100 bg-amber-50/20 px-4 py-3">
                     <p className="text-[11px] text-stone-500">
                       <span className="font-semibold text-stone-700">
@@ -534,79 +563,6 @@ const OrderTrackingPage = () => {
                 )}
               </CardContent>
             </Card>
-
-            {/* ─── Sidebar ─── */}
-            <div className="space-y-4">
-              {/* Stats */}
-              <Card className="border-amber-100 overflow-hidden shadow-sm">
-                <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 py-3 px-4">
-                  <CardTitle className="flex items-center gap-2 text-sm font-bold text-amber-900">
-                    <CalendarClock className="size-4 text-amber-500" />
-                    Thống kê đơn hàng
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2.5 p-4">
-                  {[
-                    { label: 'Chờ duyệt', sub: translateStatus('PENDING'), count: pendingCount, icon: AlertTriangle, bg: 'bg-amber-500', border: 'border-amber-100', countColor: 'text-amber-900' },
-                    { label: 'Đã duyệt', sub: translateStatus('APPROVED'), count: approvedCount, icon: Check, bg: 'bg-emerald-500', border: 'border-emerald-100', countColor: 'text-emerald-900' },
-                    { label: 'Đang giao', sub: translateStatus('IN_TRANSIT'), count: inTransitCount, icon: Truck, bg: 'bg-blue-500', border: 'border-blue-100', countColor: 'text-blue-900' },
-                    { label: 'Đã hủy', sub: translateStatus('CANCELLED'), count: cancelledCount, icon: XCircle, bg: 'bg-stone-400', border: 'border-stone-200', countColor: 'text-stone-700' },
-                  ].map((s) => (
-                    <div key={s.label} className={cn('flex items-center justify-between rounded-xl border p-3 transition-colors hover:bg-stone-50', s.border)}>
-                      <div className="flex items-center gap-3">
-                        <div className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg text-white shadow-sm', s.bg)}>
-                          <s.icon className="size-4" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-stone-800">{s.label}</p>
-                          <p className="text-[10px] text-stone-400 uppercase tracking-tight">{s.sub}</p>
-                        </div>
-                      </div>
-                      <span className={cn('text-2xl font-black', s.countColor)}>{s.count}</span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              {/* Export Note Info */}
-              <Card className="border-sky-100 overflow-hidden shadow-sm">
-                <CardHeader className="border-b border-sky-50 bg-gradient-to-r from-sky-50/80 to-indigo-50/80 py-3 px-4">
-                  <CardTitle className="flex items-center gap-2 text-sm font-bold text-sky-900">
-                    <PackageCheck className="size-4 text-sky-500" />
-                    Lô hàng mới nhất
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4">
-                  {exportData && exportData.items.length > 0 ? (
-                    <div className="space-y-3">
-                      {exportData.items.slice(0, 3).map((item, idx) => (
-                        <div key={idx} className="rounded-lg border border-sky-50 bg-sky-50/30 p-3">
-                          <div className="flex items-start justify-between gap-2 mb-1.5">
-                            <span className="text-[11px] font-bold text-stone-800 leading-tight">{item.productName}</span>
-                            <span className="shrink-0 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">{item.batchCode}</span>
-                          </div>
-                          <div className="flex justify-between text-[10px] text-stone-500 font-medium">
-                            <span>{item.quantity} {item.unitName}</span>
-                            <span>HSD: {item.expiryDate}</span>
-                          </div>
-                        </div>
-                      ))}
-                      {exportData.items.length > 3 && (
-                        <p className="text-center text-[11px] text-sky-600 font-semibold cursor-pointer hover:underline">
-                          +{exportData.items.length - 3} lô hàng khác...
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 py-6 text-center">
-                      <PackageCheck className="size-8 text-sky-100" />
-                      <p className="text-xs text-stone-400 italic">Chưa có thông tin lô hàng được xuất.</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
         </CardContent>
       </Card>
 
@@ -681,7 +637,7 @@ const OrderTrackingPage = () => {
           <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-5 text-white text-center">
             <div className="flex flex-col items-center gap-3">
               <div className="flex size-14 items-center justify-center rounded-full bg-white/20 ring-4 ring-white/30">
-                <PackageCheck className="size-7" />
+                <Package className="size-7" />
               </div>
               <DialogHeader>
                 <DialogTitle className="text-base font-bold text-white">

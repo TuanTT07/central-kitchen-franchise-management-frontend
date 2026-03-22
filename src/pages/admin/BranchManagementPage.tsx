@@ -10,6 +10,7 @@
 
 // ================= IMPORT =================
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +27,7 @@ type StoreFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
 // ================= COMPONENT =================
 const BranchManagementPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   // ================= INTERNAL COMPONENTS =================
   /**
    * Component hiển thị Badge trạng thái cao cấp
@@ -128,6 +130,47 @@ const BranchManagementPage = () => {
   useEffect(() => {
     fetchStore(currentPage);
   }, [fetchStore, currentPage]);
+
+  /** Admin: mở sửa cửa hàng khi vào từ Quản lý người dùng (tài khoản franchise). */
+  const editStoreIdParam = searchParams.get('editStoreId');
+  useEffect(() => {
+    if (!editStoreIdParam) return;
+    const id = Number(editStoreIdParam);
+    if (!Number.isFinite(id) || id <= 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await adminService.getStoreById(id);
+        const payload = res.data as { success?: boolean; data?: StoreResponse; message?: string };
+        const store = payload?.data;
+        if (cancelled) return;
+        if (!store) {
+          toast.error('Không tìm thấy cửa hàng.');
+          return;
+        }
+        setEditingStore(store);
+        reset({
+          storeId: store.storeId,
+          storeName: store.storeName,
+          address: store.address,
+          phone: store.phone,
+          status: store.status,
+        });
+        setDialogOpen(true);
+        setSearchParams((prev: URLSearchParams) => {
+          const p = new URLSearchParams(prev);
+          p.delete('editStoreId');
+          return p;
+        }, { replace: true });
+      } catch {
+        toast.error('Không tải được cửa hàng để chỉnh sửa.');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [editStoreIdParam, reset, setSearchParams]);
 
   // ================= LOGIC / FILTER =================
   /**
