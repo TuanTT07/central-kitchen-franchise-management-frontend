@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, ChevronLeft, ChevronRight, AlertCircle, Loader2, Package, User, Calendar, ExternalLink, Clock, Plus, RotateCcw, Truck } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, AlertCircle, Loader2, Package, User, Calendar, Clock, Plus, RotateCcw, Truck } from 'lucide-react';
 import { supplyServices, type DeliveryIssueResponse } from '@/services/supplyServices';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { translateStatus } from '@/utils/labelMapping';
