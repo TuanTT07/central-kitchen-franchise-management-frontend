@@ -12,7 +12,6 @@ import {
   Filter,
   SlidersHorizontal,
   CalendarClock,
-  Scale,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { translateStatus } from '@/utils/labelMapping';
@@ -57,9 +56,13 @@ const PRODUCTION_DATE_KEYS = [
   'NSX',
 ] as const;
 
+/** Ép kiểu an toàn: TS không cho `ProductBatchesResponse` → Record trực tiếp (thiếu index signature) — phải qua `unknown`. */
+const batchAsRecord = (b: ProductBatchesResponse): Record<string, unknown> =>
+  b as unknown as Record<string, unknown>;
+
 /** Lấy ngày sản xuất từ payload API (quét thêm mọi key khả dĩ trên object) */
 const getProductionDate = (b: ProductBatchesResponse): string | null => {
-  const o = b as Record<string, unknown>;
+  const o = batchAsRecord(b);
   for (const k of PRODUCTION_DATE_KEYS) {
     const v = o[k];
     if (v != null && v !== '') {
@@ -72,7 +75,7 @@ const getProductionDate = (b: ProductBatchesResponse): string | null => {
 
 /** Lấy productId từ lô (nhiều kiểu tên field có thể có) */
 const getProductIdFromBatch = (b: ProductBatchesResponse): number | null => {
-  const o = b as Record<string, unknown>;
+  const o = batchAsRecord(b);
   const raw = b.productId ?? b.product_id ?? o.productId ?? o.product_id;
   if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw;
   if (typeof raw === 'string' && /^\d+$/.test(raw.trim())) {
@@ -91,6 +94,126 @@ const isNearExpiry = (expiryDate: string, daysThreshold = 3): boolean => {
   const diffDays = (exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
   return diffDays >= 0 && diffDays <= daysThreshold;
 };
+
+type BatchDetailPanelProps = {
+  batch: ProductBatchesResponse;
+  productDetail: ProductsResponse | null;
+  productDetailLoading: boolean;
+};
+
+/** Nội dung popup chi tiết — tách riêng để tránh IIFE, layout flex ổn định */
+function BatchDetailPanel({ batch, productDetail, productDetailLoading }: BatchDetailPanelProps) {
+  const nsxRaw = getProductionDate(batch);
+  const pid = getProductIdFromBatch(batch);
+
+  return (
+    <>
+      <section className="border-b border-amber-100 bg-white px-5 py-5 sm:px-6">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-amber-800">Sản phẩm</h3>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+          <div className="relative mx-auto aspect-square w-full max-w-[180px] shrink-0 overflow-hidden rounded-lg border border-amber-200 bg-amber-50 sm:mx-0 sm:w-40">
+            {productDetailLoading ? (
+              <div className="absolute inset-0 animate-pulse bg-amber-100" />
+            ) : productDetail?.imageUrl ? (
+              <img
+                src={productDetail.imageUrl}
+                alt={productDetail.productName || batch.productName}
+                className="size-full object-cover"
+              />
+            ) : (
+              <div className="flex size-full flex-col items-center justify-center gap-2 p-3 text-center">
+                <Boxes className="size-9 text-amber-300" />
+                <p className="text-[11px] text-amber-900/60">
+                  {pid == null ? 'Thiếu productId — không tải ảnh.' : 'Chưa có ảnh.'}
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="min-w-0 flex-1 space-y-2">
+            <h4 className="text-lg font-bold text-stone-900">{productDetail?.productName ?? batch.productName}</h4>
+            {productDetail ? (
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900">
+                  ID #{productDetail.productId}
+                </span>
+                {productDetail.categoryName ? (
+                  <span className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-900">
+                    {productDetail.categoryName}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+            {productDetail?.description ? (
+              <p className="line-clamp-4 text-[13px] leading-relaxed text-stone-600">{productDetail.description}</p>
+            ) : null}
+            {pid != null && !productDetailLoading && !productDetail ? (
+              <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+                Không tải được chi tiết sản phẩm.
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-amber-100 bg-white px-5 py-5 sm:px-6">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-amber-800">Thông tin lô</h3>
+        <div className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-mono text-sm font-semibold text-amber-950">{batch.batchCode}</p>
+            <p className="text-[12px] text-stone-600">ID lô #{batch.batchId}</p>
+          </div>
+          <StatusBadge status={batch.status} />
+        </div>
+      </section>
+
+      <section className="bg-white px-5 py-5 sm:px-6">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-amber-800">Tồn kho & hạn</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+            <p className="text-[10px] font-medium uppercase text-amber-800/80">SL ban đầu</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-stone-900">
+              {batch.initialQuantity.toLocaleString('vi-VN')}
+              {batch.unitName ? <span className="ml-1 text-sm font-normal text-stone-600">{batch.unitName}</span> : null}
+            </p>
+          </div>
+          <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+            <p className="text-[10px] font-medium uppercase text-amber-800/80">SL hiện tại</p>
+            <p
+              className={cn(
+                'mt-1 text-xl font-bold tabular-nums',
+                batch.currentQuantity === 0 ? 'text-amber-900/70' : 'text-stone-900'
+              )}
+            >
+              {batch.currentQuantity.toLocaleString('vi-VN')}
+              {batch.unitName ? <span className="ml-1 text-sm font-normal text-stone-600">{batch.unitName}</span> : null}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+            <div className="mb-1 flex items-center gap-1.5 text-[10px] font-medium uppercase text-amber-800/80">
+              <CalendarClock className="size-3.5 text-amber-600" />
+              NSX
+            </div>
+            <p className="text-base font-semibold text-stone-900">{formatDate(nsxRaw)}</p>
+            {!nsxRaw ? (
+              <p className="mt-1.5 text-[11px] text-stone-500">
+                Chưa có từ API (<code className="font-mono text-[10px]">manufacturingDate</code>).
+              </p>
+            ) : null}
+          </div>
+          <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+            <div className="mb-1 flex items-center gap-1.5 text-[10px] font-medium uppercase text-amber-800/80">
+              <CalendarClock className="size-3.5 text-amber-600" />
+              HSD
+            </div>
+            <p className="text-base font-semibold text-stone-900">{formatDate(batch.expiryDate)}</p>
+          </div>
+        </div>
+      </section>
+    </>
+  );
+}
 
 function ProductBatches() {
   const [productBatches, setProductBatches] = useState<ProductBatchesResponse[]>([]);
@@ -122,9 +245,14 @@ function ProductBatches() {
     try {
       setIsLoading(true);
       const response = await kitchenServices.getAllProductBatches();
-      const raw = response?.data;
-      const list = Array.isArray(raw) ? raw : [];
-      setProductBatches(list as ProductBatchesResponse[]);
+      const raw = response?.data as unknown;
+      let list: ProductBatchesResponse[] = [];
+      if (Array.isArray(raw)) {
+        list = raw as ProductBatchesResponse[];
+      } else if (raw && typeof raw === 'object' && 'items' in raw && Array.isArray((raw as { items: unknown }).items)) {
+        list = (raw as { items: ProductBatchesResponse[] }).items;
+      }
+      setProductBatches(list);
     } catch (error) {
       toast.error(`${error}`);
     } finally {
@@ -467,7 +595,7 @@ function ProductBatches() {
         </CardContent>
       </Card>
 
-      {/* ================= Chi tiết lô (UI giống Supply / InventoryPage) ================= */}
+      {/* Chi tiết lô — layout flex: header cố định, body cuộn, footer cố định */}
       <Dialog
         open={isDetailOpen}
         onOpenChange={(open) => {
@@ -478,146 +606,35 @@ function ProductBatches() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl overflow-hidden border-none p-0 shadow-2xl sm:max-w-2xl">
-          <DialogHeader className="bg-gradient-to-r from-amber-500 to-orange-500 px-8 pb-6 pt-8 text-white">
-            <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-              <Boxes className="size-6 shrink-0" />
-              Chi tiết lô & sản phẩm
-            </DialogTitle>
-            <p className="mt-1 text-sm text-amber-50/90">
-              Thông tin lô hàng và ảnh sản phẩm (1 lô — 1 sản phẩm).
-            </p>
-          </DialogHeader>
+        <DialogContent className="flex max-h-[85vh] w-[calc(100vw-2rem)] max-w-xl flex-col gap-0 overflow-hidden rounded-xl border border-amber-200 bg-white p-0 shadow-lg sm:w-full">
+          <div className="shrink-0 bg-amber-500 px-5 pb-5 pt-5 text-white sm:px-6">
+            <DialogHeader className="space-y-0 text-left">
+              <DialogTitle className="flex items-center gap-3 text-xl font-bold text-white">
+                <span className="inline-flex size-9 items-center justify-center rounded-lg bg-white/20">
+                  <Boxes className="size-5" />
+                </span>
+                Chi tiết lô & sản phẩm
+              </DialogTitle>
+              <p className="mt-2 text-sm text-amber-50">Ảnh sản phẩm, mã lô và số lượng.</p>
+            </DialogHeader>
+          </div>
 
-          {selectedBatch &&
-            (() => {
-              const nsxRaw = getProductionDate(selectedBatch);
-              const pid = getProductIdFromBatch(selectedBatch);
-              return (
-                <div className="max-h-[min(75vh,560px)] overflow-y-auto bg-white px-6 py-5">
-                  {/* Sản phẩm: ảnh + tóm tắt (từ API chi tiết sản phẩm) */}
-                  <div className="mb-4 flex flex-col gap-4 rounded-xl border border-amber-100 bg-gradient-to-br from-amber-50/80 to-orange-50/40 p-4 sm:flex-row sm:items-stretch">
-                    <div className="relative mx-auto aspect-square w-full max-w-[200px] shrink-0 overflow-hidden rounded-xl border border-amber-200/80 bg-white shadow-sm sm:mx-0 sm:w-44 sm:max-w-none">
-                      {productDetailLoading ? (
-                        <div className="absolute inset-0 animate-pulse bg-amber-100/80" />
-                      ) : productDetail?.imageUrl ? (
-                        <img
-                          src={productDetail.imageUrl}
-                          alt={productDetail.productName || selectedBatch.productName}
-                          className="size-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex size-full flex-col items-center justify-center gap-1 bg-stone-50 p-3 text-center text-[11px] text-stone-400">
-                          <Boxes className="size-10 opacity-40" />
-                          {pid == null ? (
-                            <span>Lô chưa kèm productId — không tải được ảnh.</span>
-                          ) : (
-                            <span>Chưa có ảnh sản phẩm</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-amber-800/80">Sản phẩm</p>
-                      <p className="text-lg font-bold leading-tight text-stone-900">
-                        {productDetail?.productName ?? selectedBatch.productName}
-                      </p>
-                      {productDetail && (
-                        <>
-                          <p className="text-[11px] text-stone-500">
-                            ID #{productDetail.productId}
-                            {productDetail.categoryName ? (
-                              <span className="text-stone-400"> · {productDetail.categoryName}</span>
-                            ) : null}
-                          </p>
-                          {productDetail.description ? (
-                            <p className="mt-2 line-clamp-3 text-[12px] leading-relaxed text-stone-600">
-                              {productDetail.description}
-                            </p>
-                          ) : null}
-                        </>
-                      )}
-                      {pid != null && !productDetailLoading && !productDetail && (
-                        <p className="mt-1 text-[11px] text-amber-800/90">Không tải được chi tiết sản phẩm.</p>
-                      )}
-                    </div>
-                  </div>
+          <div className="min-h-0 flex-1 overflow-y-auto bg-amber-50/50">
+            {selectedBatch ? (
+              <BatchDetailPanel
+                batch={selectedBatch}
+                productDetail={productDetail}
+                productDetailLoading={productDetailLoading}
+              />
+            ) : (
+              <p className="p-6 text-center text-sm text-stone-500">Không có dữ liệu lô.</p>
+            )}
+          </div>
 
-                  <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-100 bg-amber-50/60 px-4 py-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white text-amber-700 shadow-sm">
-                      <Boxes className="size-5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-mono text-[11px] font-semibold text-amber-800">{selectedBatch.batchCode}</p>
-                      <p className="text-sm font-bold text-stone-900">Lô #{selectedBatch.batchId}</p>
-                      <p className="mt-0.5 text-[11px] text-stone-500">Gắn với sản phẩm trên</p>
-                    </div>
-                    <StatusBadge status={selectedBatch.status} />
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl border border-stone-100 bg-stone-50/50 px-4 py-3">
-                      <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-stone-500">
-                        <Scale className="size-3 text-amber-500" />
-                        SL ban đầu
-                      </div>
-                      <p className="text-lg font-bold text-stone-900">
-                        {selectedBatch.initialQuantity.toLocaleString('vi-VN')}
-                        {selectedBatch.unitName ? (
-                          <span className="ml-1 text-xs font-semibold text-stone-500">{selectedBatch.unitName}</span>
-                        ) : null}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-stone-100 bg-stone-50/50 px-4 py-3">
-                      <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-stone-500">
-                        <Scale className="size-3 text-amber-500" />
-                        SL hiện tại
-                      </div>
-                      <p
-                        className={cn(
-                          'text-lg font-bold',
-                          selectedBatch.currentQuantity === 0 ? 'text-rose-600' : 'text-stone-900'
-                        )}
-                      >
-                        {selectedBatch.currentQuantity.toLocaleString('vi-VN')}
-                        {selectedBatch.unitName ? (
-                          <span className="ml-1 text-xs font-semibold text-stone-500">{selectedBatch.unitName}</span>
-                        ) : null}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-amber-100 bg-amber-50/40 px-4 py-3 sm:col-span-2">
-                      <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-800/80">
-                        <CalendarClock className="size-3 text-amber-600" />
-                        Ngày sản xuất (NSX)
-                      </div>
-                      <p className="text-base font-semibold text-stone-900">{formatDate(nsxRaw)}</p>
-                      {!nsxRaw && (
-                        <p className="mt-1 text-[11px] text-stone-500">
-                          API chưa trả trường ngày sản xuất cho lô này — cần backend bổ sung (ví dụ{' '}
-                          <code className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[10px]">
-                            manufacturingDate
-                          </code>
-                          ).
-                        </p>
-                      )}
-                    </div>
-                    <div className="rounded-xl border border-amber-100 bg-amber-50/40 px-4 py-3 sm:col-span-2">
-                      <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-800/80">
-                        <CalendarClock className="size-3 text-amber-600" />
-                        Hạn sử dụng (HSD)
-                      </div>
-                      <p className="text-base font-semibold text-stone-900">{formatDate(selectedBatch.expiryDate)}</p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-          <DialogFooter className="border-t border-stone-100 bg-stone-50 px-6 py-3">
+          <DialogFooter className="shrink-0 border-t border-amber-200 bg-amber-50/80 px-5 py-3 sm:px-6">
             <Button
               type="button"
-              variant="outline"
-              className="border-amber-200 text-amber-900 hover:bg-amber-50"
+              className="bg-amber-500 font-semibold text-white hover:bg-amber-600"
               onClick={() => setIsDetailOpen(false)}
             >
               Đóng
