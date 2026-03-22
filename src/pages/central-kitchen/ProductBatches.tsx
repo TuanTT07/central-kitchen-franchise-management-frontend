@@ -21,6 +21,11 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { toast } from 'sonner';
 import StatusBadge from '@/components/ui/StatusBadge';
 
+/**
+ * Trang Lô sản phẩm (Central Kitchen): danh sách lô từ `GET /api/v1/product-batches`,
+ * popup chi tiết (ảnh sản phẩm qua `productId` + `GET /api/v1/products/{id}`).
+ * Các helper `getProductionDate` / `getProductIdFromBatch` map field từ DTO — xem comment tại chỗ.
+ */
 const FILTER_OPTIONS: (ProductBatchStatus | 'ALL')[] = [
   'ALL',
   'WAITING_FOR_STOCK',
@@ -38,45 +43,40 @@ const formatDate = (value: string | null) => {
   });
 };
 
-/** Các key JSON thường gặp cho ngày sản xuất (backend có thể đặt tên khác nhau) */
-const PRODUCTION_DATE_KEYS = [
-  'manufacturingDate',
-  'manufacturing_date',
-  'productionDate',
-  'production_date',
-  'manufactureDate',
-  'manufacture_date',
-  'mfgDate',
-  'mfg_date',
-  'dateOfManufacture',
-  'date_of_manufacture',
-  'producedAt',
-  'produced_at',
-  'nsx',
-  'NSX',
-] as const;
-
-/** Ép kiểu an toàn: TS không cho `ProductBatchesResponse` → Record trực tiếp (thiếu index signature) — phải qua `unknown`. */
-const batchAsRecord = (b: ProductBatchesResponse): Record<string, unknown> =>
-  b as unknown as Record<string, unknown>;
-
-/** Lấy ngày sản xuất từ payload API (quét thêm mọi key khả dĩ trên object) */
+/**
+ * NSX (ngày sản xuất) — đọc các field tùy chọn đã khai báo trong `ProductBatchesResponse` (`kitchenServices.ts`).
+ * BE chỉ cần trả **một** trong các tên đó; thứ tự dưới đây là ưu tiên (field đầu tiên có giá trị được dùng).
+ * Nếu BE đổi/ thêm tên field mới → cập nhật interface + thêm vào mảng `candidates` bên dưới.
+ */
 const getProductionDate = (b: ProductBatchesResponse): string | null => {
-  const o = batchAsRecord(b);
-  for (const k of PRODUCTION_DATE_KEYS) {
-    const v = o[k];
-    if (v != null && v !== '') {
-      const s = typeof v === 'string' ? v : String(v);
-      if (s.trim()) return s;
-    }
+  const candidates = [
+    b.manufacturingDate,
+    b.manufacturing_date,
+    b.productionDate,
+    b.production_date,
+    b.manufactureDate,
+    b.manufacture_date,
+    b.mfgDate,
+    b.dateOfManufacture,
+    b.producedAt,
+  ];
+  for (const v of candidates) {
+    if (v == null) continue;
+    const s = typeof v === 'string' ? v : String(v);
+    if (s.trim() !== '') return s;
   }
   return null;
 };
 
-/** Lấy productId từ lô (nhiều kiểu tên field có thể có) */
+/**
+ * ID sản phẩm gắn với lô — dùng gọi `GET /api/v1/products/{id}` (ảnh trong popup).
+ * Chỉ có `productId` trên type; JSON thường gặp thêm `product_id` (snake_case) nên đọc qua intersection.
+ */
+type BatchPayload = ProductBatchesResponse & { product_id?: unknown };
+
 const getProductIdFromBatch = (b: ProductBatchesResponse): number | null => {
-  const o = batchAsRecord(b);
-  const raw = b.productId ?? b.product_id ?? o.productId ?? o.product_id;
+  const row = b as BatchPayload;
+  const raw: unknown = row.productId ?? row.product_id;
   if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw;
   if (typeof raw === 'string' && /^\d+$/.test(raw.trim())) {
     const n = parseInt(raw, 10);

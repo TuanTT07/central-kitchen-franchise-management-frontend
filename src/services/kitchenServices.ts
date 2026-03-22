@@ -48,9 +48,11 @@ export type ProductBatchStatus = 'WAITING_FOR_STOCK' | 'AVAILABLE' | 'OUT_OF_STO
 export interface ProductBatchesResponse {
   batchId: number;
   batchCode: string;
-  /** ID sản phẩm — dùng để gọi API chi tiết sản phẩm (ảnh, mô tả, …) */
+  /**
+   * ID sản phẩm (camelCase) — gọi `GET /api/v1/products/{id}`.
+   * Nếu BE trả `product_id` (snake_case) trong JSON, UI vẫn đọc được (xử lý trong `getProductIdFromBatch` ở `ProductBatches.tsx`).
+   */
   productId?: number;
-  product_id?: number;
   productName: string;
   currentQuantity: number;
   initialQuantity: number;
