@@ -31,14 +31,14 @@ import {
   Store,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { type Role } from '@/Types';
+import { Role, type Role as RoleType } from '@/Types';
 import { adminService, type StoreResponse, type UserResponse } from '@/services/adminServices';
 import { useForm } from 'react-hook-form';
 import { Field, FieldLabel, FieldError, FieldContent } from '@/components/ui/field';
 import { toast } from 'sonner';
 
 // ================= CONSTANTS =================
-const ROLES: { roleId: number; roleName: Role; label: string }[] = [
+const ROLES: { roleId: number; roleName: RoleType; label: string }[] = [
   { roleId: 1, roleName: 'ADMIN', label: 'Quản trị viên' },
   { roleId: 2, roleName: 'FRANCHISE_STORE_STAFF', label: 'Nhân viên cửa hàng' },
   { roleId: 3, roleName: 'MANAGER', label: 'Quản lý' },
@@ -82,11 +82,27 @@ const UserManagementPage = () => {
     handleSubmit,
     reset,
     watch,
+    setValue,
+    getValues,
     formState: { errors },
   } = useForm<UserResponse>();
 
   // Theo dõi trạng thái active trong form để hiển thị UI động
   const isActive = Boolean(watch('status'));
+  const selectedRole = watch('role');
+
+  /** Chỉ nhân viên cửa hàng gán storeId; role khác luôn 0. */
+  useEffect(() => {
+    if (selectedRole === Role.FRANCHISE_STORE_STAFF) {
+      const current = Number(getValues('storeId'));
+      if (!Number.isFinite(current) || current <= 0) {
+        const first = stores[0]?.storeId;
+        if (first) setValue('storeId', first);
+      }
+    } else {
+      setValue('storeId', 0);
+    }
+  }, [selectedRole, stores, setValue, getValues]);
 
   // ================= API CALLS =================
   /**
@@ -167,7 +183,7 @@ const UserManagementPage = () => {
       fullName: '',
       email: '',
       role: 'ADMIN',
-      storeId: stores[0]?.storeId || 1,
+      storeId: 0,
       status: true as any,
     });
     setDialogOpen(true);
@@ -206,8 +222,10 @@ const UserManagementPage = () => {
   const handleSave = async (data: UserResponse) => {
     try {
       setLoading(true);
-      const selectedRole = data.role as Role;
-      
+      const selectedRole = data.role as RoleType;
+      const resolvedStoreId =
+        selectedRole === Role.FRANCHISE_STORE_STAFF ? Number(data.storeId) : 0;
+
       const statusValue = ((data.status as unknown as boolean) ? 'ACTIVE' : 'INACTIVE') as 'ACTIVE' | 'INACTIVE';
 
       if (userToProcess) {
@@ -216,7 +234,7 @@ const UserManagementPage = () => {
           fullName: data.fullName,
           email: data.email,
           role: selectedRole,
-          storeId: data.storeId,
+          storeId: resolvedStoreId,
           status: statusValue,
           password: data.password || undefined,
         };
@@ -232,8 +250,8 @@ const UserManagementPage = () => {
           password: data.password || '',
           fullName: data.fullName,
           email: data.email,
-          role: selectedRole as Role,
-          storeId: data.storeId,
+          role: selectedRole as RoleType,
+          storeId: resolvedStoreId,
         };
         const response = await adminService.registerAccount(payload);
 
@@ -373,7 +391,11 @@ const UserManagementPage = () => {
                       <td className="px-6 py-4">
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-600 font-bold text-[10px] uppercase border border-amber-200 shadow-sm">
                           <Store className="size-3" />
-                          {user.storeName ? user.storeName : 'Chưa có cửa hàng'}
+                          {user.role === Role.FRANCHISE_STORE_STAFF
+                            ? user.storeName
+                              ? user.storeName
+                              : 'Chưa gán cửa hàng'
+                            : '—'}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -399,20 +421,6 @@ const UserManagementPage = () => {
                         >
                           <Pencil className="size-4" />
                         </Button>
-
-                        {user.role === 'FRANCHISE_STORE_STAFF' && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-9 rounded-full text-amber-600 hover:bg-amber-100 hover:text-amber-700 transition-colors"
-                            onClick={() => {
-                              console.log('Chỉnh sửa cửa hàng cho user', user.userId, user.storeId);
-                            }}
-                            title="Chỉnh sửa cửa hàng"
-                          >
-                            <Store className="size-4" />
-                          </Button>
-                        )}
 
                         {user.status === 'ACTIVE' && (
                           <Button
@@ -588,31 +596,46 @@ const UserManagementPage = () => {
                     {errors.role && <FieldError errors={[errors.role]} className="mt-1" />}
                   </FieldContent>
                 </Field>
-                {/* Store selection */}
-                <Field>
-                  <FieldLabel htmlFor="storeId" className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2">
-                    <Shield className="size-4 text-amber-500" />
-                    Cửa hàng
-                  </FieldLabel>
-                  <FieldContent>
-                    <select
-                      id="storeId"
-                      className="h-12 w-full rounded-md border border-amber-200 bg-amber-50/30 px-4 text-[15px] transition-all focus:bg-white focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%23F59E0B%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:20px_20px] bg-[right_12px_center] bg-no-repeat"
-                      {...register('storeId', { 
-                        required: 'Vui lòng chọn cửa hàng',
-                        valueAsNumber: true 
-                      })}
-                    >
-                      <option value="">-- Chọn cửa hàng --</option>
-                      {stores.map((s) => (
-                        <option key={s.storeId} value={s.storeId}>
-                          {s.storeName}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.storeId && <FieldError errors={[errors.storeId]} className="mt-1" />}
-                  </FieldContent>
-                </Field>
+                {/* Store — chỉ áp dụng cho nhân viên cửa hàng */}
+                {selectedRole === Role.FRANCHISE_STORE_STAFF ? (
+                  <Field>
+                    <FieldLabel htmlFor="storeId" className="text-amber-900 font-semibold mb-1.5 flex items-center gap-2">
+                      <Store className="size-4 text-amber-500" />
+                      Cửa hàng
+                    </FieldLabel>
+                    <FieldContent>
+                      <select
+                        id="storeId"
+                        className="h-12 w-full rounded-md border border-amber-200 bg-amber-50/30 px-4 text-[15px] transition-all focus:bg-white focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%23F59E0B%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:20px_20px] bg-[right_12px_center] bg-no-repeat"
+                        {...register('storeId', {
+                          valueAsNumber: true,
+                          validate: (v, formValues) => {
+                            const r = (formValues as UserResponse).role;
+                            if (r !== Role.FRANCHISE_STORE_STAFF) return true;
+                            const n = Number(v);
+                            if (!Number.isFinite(n) || n <= 0) return 'Vui lòng chọn cửa hàng';
+                            return true;
+                          },
+                        })}
+                      >
+                        <option value="">-- Chọn cửa hàng --</option>
+                        {stores.map((s) => (
+                          <option key={s.storeId} value={s.storeId}>
+                            {s.storeName}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.storeId && <FieldError errors={[errors.storeId]} className="mt-1" />}
+                    </FieldContent>
+                  </Field>
+                ) : (
+                  <div className="flex flex-col justify-end pb-1">
+                    <p className="text-xs text-stone-500 leading-relaxed">
+                      Chỉ tài khoản <span className="font-semibold text-amber-800">Nhân viên cửa hàng</span> được gán
+                      cửa hàng. Các vai trò khác không dùng ngữ cảnh cửa hàng.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -70,6 +70,7 @@ export const adminService = {
     fullName: string;
     email: string;
     role: Role;
+    /** Chỉ role FRANCHISE_STORE_STAFF cần gán cửa hàng; các role khác gửi 0. */
     storeId: number;
   }) => {
     return await http.post('/admin/users', body);
@@ -89,6 +90,7 @@ export const adminService = {
       fullName: string;
       email: string;
       role: Role;
+      /** Chỉ role FRANCHISE_STORE_STAFF cần gán cửa hàng; các role khác gửi 0. */
       storeId: number;
       status: 'ACTIVE' | 'INACTIVE';
       password?: string;
