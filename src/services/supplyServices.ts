@@ -134,6 +134,37 @@ export interface DeliveryDetail {
   exportNotes: ExportNotesResponse[];
 }
 
+
+/**
+ * Phản hồi chi tiết về vấn đề giao hàng (Delivery Issue).
+ */
+export interface DeliveryIssueResponse {
+  issueId: number;
+  issueStatus: string;
+  issueReason: string;
+  issueNote: string;
+  originalOrderId: number;
+  originalOrderCode: string;
+  originalOrderStatus: string;
+  storeId: number;
+  storeName: string;
+  originalDeliveryDate: string;
+  reportedBy: {
+    userId: number;
+    username: string;
+    fullName: string;
+  };
+  reportedAt: string;
+  reviewedBy: {
+    userId: number;
+    username: string;
+    fullName: string;
+  } | null;
+  reviewedAt: string | null;
+  reviewDecision: string | null;
+  replacementOrderId: number | null;
+  replacementOrderCode: string | null;
+}
 /**
  * =========================================================
  * API: Supply Service (Quản lý Cung ứng)
@@ -155,6 +186,9 @@ export interface DeliveryDetail {
  * PATCH  /deliveries/{id}/start      -> cập nhật tình trạng chuyến hàng (xuất phát)
  * PATCH  /deliveries/{id}/complete   -> cập nhật tình trạng chuyến hàng (hoàn thành)
  * PATCH  /deliveries/{id}/cancel     -> cập nhật tình trạng chuyến hàng (hủy)
+ * 
+ * 
+ * GET    /delivery-issues            -> Lấy danh sách vấn đề
  *
  *
  *
@@ -357,6 +391,20 @@ export const supplyServices = {
    */
   updateDeliveryStatusCancel: async (id: number) => {
     const response = await http.patch<Response<DeliveryPlanResponse[]>>(`/deliveries/${id}/cancel`);
+    return response.data;
+  },
+
+  /**
+   * Lấy danh sách các vấn đề giao hàng (Delivery Issues)
+   *
+   * @param page Số trang hiện tại (bắt đầu từ 0)
+   * @param size Số lượng bản ghi trên mỗi trang (mặc định 10)
+   * @returns Promise<Response<PaginatedResponse<DeliveryIssueResponse[]>>>
+   */
+  getAllDeliveryIssues: async (page: number = 0, size: number = 10) => {
+    const response = await http.get<Response<PaginatedResponse<DeliveryIssueResponse[]>>>(
+      `/delivery-issues?page=${page}&size=${size}`
+    );
     return response.data;
   },
 };

@@ -1,304 +1,262 @@
-import { useMemo, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+/**
+ * File: IssueHandlingPage.tsx
+ * Description: Trang quản lý và xử lý các sự cố giao hàng từ các cửa hàng
+ * Author: Tuan Tran
+ * Created: 2026
+ */
+
+// ================= IMPORTS =================
+
+import { useState, useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { mockActivity } from '@/services/mockDashboardData';
-import { AlertTriangle, Search, Clock, CheckCircle, SlidersHorizontal, Filter, RefreshCw, Plus } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Search, ChevronLeft, ChevronRight, AlertCircle, Loader2 } from 'lucide-react';
+import { supplyServices, type DeliveryIssueResponse } from '@/services/supplyServices';
+import StatusBadge from '@/components/ui/StatusBadge';
+import { translateStatus } from '@/utils/labelMapping';
+import { cn } from '@/lib/utils';
 
-type IssueType = 'DELIVERY' | 'INVENTORY' | 'QUALITY';
-type IssueStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED';
-
-const ISSUE_TYPE_LABEL: Record<IssueType, string> = {
-  DELIVERY: 'Giao hàng',
-  INVENTORY: 'Tồn kho',
-  QUALITY: 'Chất lượng',
-};
-
-const ISSUE_STATUS_LABEL: Record<IssueStatus, string> = {
-  PENDING: 'Chờ xử lý',
-  IN_PROGRESS: 'Đang xử lý',
-  RESOLVED: 'Đã xử lý',
-};
-
-const ISSUE_STATUS_CLASS: Record<IssueStatus, string> = {
-  PENDING: 'bg-amber-100 text-amber-800 border-amber-200',
-  IN_PROGRESS: 'bg-sky-100 text-sky-800 border-sky-200',
-  RESOLVED: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-};
-
-// Mock sự cố từ bối cảnh Supply (sau map sang bảng issues/incidents nếu có trong DB)
-const MOCK_ISSUES = [
-  {
-    id: 'ISS-001',
-    type: 'DELIVERY' as IssueType,
-    status: 'PENDING' as IssueStatus,
-    title: 'Trễ giao đơn TRF-1026',
-    description: 'Chuyến giao Chi nhánh Q7 chậm 30 phút do kẹt xe.',
-    branch: 'Chi nhánh Q7',
-    reportedBy: mockActivity[0]?.userName ?? 'Nguyễn Văn A',
-    createdAt: '11:20',
-  },
-  {
-    id: 'ISS-002',
-    type: 'INVENTORY' as IssueType,
-    status: 'IN_PROGRESS' as IssueStatus,
-    title: 'Thiếu hàng so với đơn',
-    description: 'Đơn PO-1027 thiếu 5 đơn vị Dầu ăn 5L so với yêu cầu.',
-    branch: 'Chi nhánh Bình Thạnh',
-    reportedBy: mockActivity[1]?.userName ?? 'Trần Thị B',
-    createdAt: '10:45',
-  },
-  {
-    id: 'ISS-003',
-    type: 'QUALITY' as IssueType,
-    status: 'RESOLVED' as IssueStatus,
-    title: 'Bao bì bị ẩm',
-    description: 'Lô Hành tỏi khô giao Chi nhánh Phú Nhuận bị ẩm, đã đổi lô mới.',
-    branch: 'Chi nhánh Phú Nhuận',
-    reportedBy: mockActivity[2]?.userName ?? 'Lê Văn C',
-    createdAt: '09:30',
-  },
-];
+/**
+ * IssueHandlingPage Component
+ * - Hiển thị danh sách các sự cố giao hàng
+ * - Bộ lọc theo trạng thái (Tất cả, Chờ xử lý, Đã duyệt, Từ chối)
+ * - Tìm kiếm theo mã đơn hàng hoặc tên cửa hàng
+ * - Hỗ trợ phân trang dữ liệu từ API
+ */
 
 const IssueHandlingPage = () => {
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<IssueStatus | 'ALL'>('ALL');
 
-  const filteredIssues = useMemo(() => {
-    let data = MOCK_ISSUES;
+  // ================= STATE =================
 
-    if (statusFilter !== 'ALL') {
-      data = data.filter((i) => i.status === statusFilter);
+  // Danh sách sự cố từ API
+  const [issues, setIssues] = useState<DeliveryIssueResponse[]>([]);
+  
+  // Trạng thái loading
+  const [loading, setLoading] = useState(true);
+  
+  // Từ khóa tìm kiếm
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Bộ lọc trạng thái (ALL, PENDING_REVIEW, APPROVED, REJECTED)
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  
+  // Thông tin phân trang
+  const [pagination, setPagination] = useState({
+    page: 0,
+    size: 5,
+    totalElements: 0,
+    totalPages: 0,
+  });
+
+  // ================= EFFECT =================
+
+  // Tải dữ liệu khi component mount hoặc khi thay đổi trang/bộ lọc
+  useEffect(() => {
+    fetchIssues();
+  }, [pagination.page, statusFilter]);
+
+  // ================= API =================
+
+  // Gọi API lấy danh sách sự cố
+  const fetchIssues = async () => {
+    try {
+      setLoading(true);
+      const res = await supplyServices.getAllDeliveryIssues(pagination.page, pagination.size);
+      
+      if (res.success && res.data) {
+        setIssues(res.data.items);
+        setPagination(prev => ({
+          ...prev,
+          totalElements: res.data.totalElements,
+          totalPages: res.data.totalPages,
+        }));
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải danh sách sự cố:', error);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      data = data.filter(
-        (i) =>
-          i.id.toLowerCase().includes(q) ||
-          i.title.toLowerCase().includes(q) ||
-          i.branch.toLowerCase().includes(q) ||
-          i.reportedBy.toLowerCase().includes(q)
-      );
+  // ================= HANDLER =================
+
+  // Thay đổi trang
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 0 && newPage < pagination.totalPages) {
+      setPagination(prev => ({ ...prev, page: newPage }));
     }
+  };
 
-    return data;
-  }, [search, statusFilter]);
+  // Thay đổi bộ lọc trạng thái
+  const handleFilterChange = (status: string) => {
+    setStatusFilter(status);
+    setPagination(prev => ({ ...prev, page: 0 })); // Reset về trang đầu
+  };
 
-  const pendingCount = MOCK_ISSUES.filter((i) => i.status === 'PENDING').length;
-  const resolvedCount = MOCK_ISSUES.filter((i) => i.status === 'RESOLVED').length;
+  // ================= UTILS =================
 
-  const inProgressCount = MOCK_ISSUES.filter((i) => i.status === 'IN_PROGRESS').length;
+  // Lọc dữ liệu theo searchTerm và statusFilter (lọc ở client nếu API chỉ trả về danh sách thô)
+  const filteredIssues = issues.filter(issue => {
+    const matchesSearch = 
+      issue.originalOrderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      issue.storeName?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'ALL' || issue.issueStatus === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  // ================= RENDER =================
 
   return (
-    <div className="h-full w-full space-y-5">
-      {/* ── Header Card ── */}
-      <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
-          <div className="flex flex-col gap-1">
-            <CardTitle className="flex items-center gap-2 text-xl font-bold text-amber-900">
-              <AlertTriangle className="size-6 text-amber-500" />
-              Xử lý sự cố
-            </CardTitle>
-            <CardDescription className="text-xs font-medium text-amber-700/80">
-              Theo dõi và xử lý các sự cố trong quá trình giao nhận từ bếp trung tâm.
-            </CardDescription>
-          </div>
-          <div className="hidden items-center gap-4 md:flex">
-            <div className="flex flex-col items-center rounded-xl border border-amber-100 bg-white/70 px-5 py-2.5 shadow-sm">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">Tổng sự cố</span>
-              <span className="mt-0.5 text-2xl font-bold text-amber-900">{MOCK_ISSUES.length}</span>
-            </div>
-            <div className="flex flex-col items-center rounded-xl border border-yellow-100 bg-white/70 px-5 py-2.5 shadow-sm">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-yellow-600">Chờ xử lý</span>
-              <span className="mt-0.5 text-2xl font-bold text-yellow-700">{pendingCount}</span>
-            </div>
-            <div className="flex flex-col items-center rounded-xl border border-sky-100 bg-white/70 px-5 py-2.5 shadow-sm">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-sky-600">Đang xử lý</span>
-              <span className="mt-0.5 text-2xl font-bold text-sky-700">{inProgressCount}</span>
-            </div>
-            <div className="flex flex-col items-center rounded-xl border border-emerald-100 bg-white/70 px-5 py-2.5 shadow-sm">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Đã xử lý</span>
-              <span className="mt-0.5 text-2xl font-bold text-emerald-700">{resolvedCount}</span>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+    <div className="flex flex-col gap-6 p-2 md:p-4">
+      {/* ── Tiêu đề trang ── */}
+      <div className="space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 uppercase">Sự cố giao hàng</h1>
+        <p className="text-sm text-slate-500">Theo dõi các đơn bị store từ chối nhận</p>
+      </div>
 
-      {/* ── Toolbar ── */}
-      <div className="flex items-center gap-3 rounded-xl border border-amber-100 bg-white px-4 py-3 shadow-sm">
-        {/* Search */}
-        <div className="relative w-72 flex-none">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-400" />
-          <input
-            type="text"
-            placeholder="Tìm theo mã sự cố, chi nhánh hoặc người báo..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-9 w-full rounded-md border border-amber-200 bg-amber-50/40 pl-9 pr-3 text-xs text-stone-800 placeholder:text-stone-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60"
+      {/* ── Thanh công cụ (Tìm kiếm & Bộ lọc) ── */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        {/* Thanh tìm kiếm */}
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-3 top-1/4 h-4 w-4 -translate-y-1/4 text-slate-400" />
+          <Input
+            placeholder="Tìm theo mã đơn / store"
+            className="h-9 pl-9 text-xs border-slate-200 focus:ring-amber-500/20 focus:border-amber-400"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        {/* Status Filter */}
-        <div className="relative flex h-9 flex-none items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50/50 px-3">
-          <SlidersHorizontal className="size-3.5 shrink-0 text-amber-500" />
-          <span className="whitespace-nowrap text-[11px] font-medium text-amber-700">Bộ lọc:</span>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as IssueStatus | 'ALL')}
-            className="cursor-pointer appearance-none bg-transparent pr-4 text-xs font-semibold text-amber-900 outline-none"
-          >
-            <option value="ALL">Tất cả</option>
-            <option value="PENDING">Chờ xử lý</option>
-            <option value="IN_PROGRESS">Đang xử lý</option>
-            <option value="RESOLVED">Đã xử lý</option>
-          </select>
-          <Filter className="pointer-events-none absolute right-2 top-1/2 size-3 -translate-y-1/2 text-amber-400" />
+        {/* Bộ lọc trạng thái */}
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { label: 'Tất cả', value: 'ALL' },
+            { label: 'Chờ xử lý', value: 'PENDING_REVIEW' },
+            { label: 'Đã duyệt', value: 'APPROVED' },
+            { label: 'Đã từ chối', value: 'REJECTED' },
+          ].map((btn) => (
+            <Button
+              key={btn.value}
+              variant={statusFilter === btn.value ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleFilterChange(btn.value)}
+              className={cn(
+                "h-9 px-4 text-xs font-semibold rounded-md transition-all hover:cursor-pointer",
+                statusFilter === btn.value 
+                  ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm" 
+                  : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200"
+              )}
+            >
+              {btn.label}
+            </Button>
+          ))}
         </div>
-
-        {/* Refresh */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 flex-none gap-1.5 border-amber-200 text-xs text-amber-700 hover:bg-amber-50"
-        >
-          <RefreshCw className="size-3.5" />
-          Làm mới
-        </Button>
-
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Divider */}
-        <div className="h-6 w-px shrink-0 bg-amber-200" />
-
-        {/* Action */}
-        <Button
-          size="sm"
-          className="h-9 flex-none gap-1.5 rounded-lg bg-amber-500 px-4 text-xs text-white shadow-sm transition-all hover:bg-amber-600 active:scale-95"
-        >
-          <Plus className="size-3.5" />
-          Báo sự cố mới
-        </Button>
       </div>
 
-      {/* ── Content ── */}
-      <Card className="border-amber-200/60 bg-white shadow-md">
-        <CardContent className="p-6">
-          <div className="grid gap-5 lg:grid-cols-3">
-            <Card className="border-amber-100 bg-white shadow-sm lg:col-span-2">
-              <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-                <CardTitle className="text-sm font-bold text-amber-900">
-                  Danh sách sự cố (giả lập)
-                </CardTitle>
-                <CardDescription className="text-[11px] text-amber-700/80">
-                  Mapping sau sang bảng issues/incidents khi backend hỗ trợ
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
-                        <th className="px-4 py-2 font-semibold">Mã</th>
-                        <th className="px-4 py-2 font-semibold">Loại</th>
-                        <th className="px-4 py-2 font-semibold">Tiêu đề</th>
-                        <th className="px-4 py-2 font-semibold">Chi nhánh</th>
-                        <th className="px-4 py-2 font-semibold">Người báo</th>
-                        <th className="px-4 py-2 font-semibold text-right">Trạng thái</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-amber-50">
-                      {filteredIssues.map((i) => (
-                        <tr key={i.id} className="hover:bg-amber-50/40">
-                          <td className="px-4 py-2 font-semibold text-stone-900">{i.id}</td>
-                          <td className="px-4 py-2 text-stone-700">{ISSUE_TYPE_LABEL[i.type]}</td>
-                          <td className="px-4 py-2 text-stone-800">
-                            <span className="line-clamp-1" title={i.description}>
-                              {i.title}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2 text-stone-800">{i.branch}</td>
-                          <td className="px-4 py-2 text-stone-700">{i.reportedBy}</td>
-                          <td className="px-4 py-2 text-right">
-                            <span
-                              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${ISSUE_STATUS_CLASS[i.status]}`}
-                            >
-                              {i.status === 'RESOLVED' && <CheckCircle className="size-3" />}
-                              {i.status === 'PENDING' && <Clock className="size-3" />}
-                              {ISSUE_STATUS_LABEL[i.status]}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {filteredIssues.length === 0 && (
-                  <div className="py-14 text-center">
-                    <div className="flex flex-col items-center gap-2 text-stone-400">
-                      <AlertTriangle className="size-10 opacity-30" />
-                      <p className="text-sm font-medium">Không có sự cố nào</p>
-                      <p className="text-xs">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
-                    </div>
-                  </div>
+      {/* ── Bảng dữ liệu ── */}
+      <Card className="overflow-hidden border-slate-200 shadow-sm">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50/80 border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-4 font-semibold text-slate-700">Mã đơn</th>
+                  <th className="px-6 py-4 font-semibold text-slate-700">Store</th>
+                  <th className="px-6 py-4 font-semibold text-slate-700">Lý do</th>
+                  <th className="px-6 py-4 font-semibold text-slate-700">Trạng thái issue</th>
+                  <th className="px-6 py-4 font-semibold text-slate-700 text-center">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  Array.from({ length: 3 }).map((_, idx) => (
+                    <tr key={idx} className="animate-pulse">
+                      <td colSpan={5} className="px-6 py-6 text-center">
+                        <div className="flex items-center justify-center gap-2 text-slate-400">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          <span>Đang tải dữ liệu...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : filteredIssues.length > 0 ? (
+                  filteredIssues.map((issue) => (
+                    <tr key={issue.issueId} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4 font-medium text-slate-900">{issue.originalOrderCode}</td>
+                      <td className="px-6 py-4 text-slate-600">{issue.storeName}</td>
+                      <td className="px-6 py-4 text-slate-600">{translateStatus(issue.issueReason)}</td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={issue.issueStatus} />
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <Button 
+                          size="sm" 
+                          className="bg-amber-500 hover:bg-amber-600 text-white text-xs h-8 px-4 font-medium"
+                        >
+                          Xem chi tiết
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center gap-2 text-slate-400">
+                        <AlertCircle className="h-10 w-10 opacity-20" />
+                        <p className="font-medium text-slate-500">Không tìm thấy sự cố nào</p>
+                        <p className="text-xs">Vui lòng kiểm tra lại bộ lọc hoặc từ khóa tìm kiếm</p>
+                      </div>
+                    </td>
+                  </tr>
                 )}
-              </CardContent>
-            </Card>
-
-            <Card className="border-amber-100 bg-white shadow-sm">
-              <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
-                <CardTitle className="text-sm font-bold text-amber-900">Theo loại sự cố</CardTitle>
-                <CardDescription className="text-[11px] text-amber-700/80">
-                  Phân loại Giao hàng / Tồn kho / Chất lượng
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 p-4 text-xs">
-                {(['DELIVERY', 'INVENTORY', 'QUALITY'] as IssueType[]).map((type) => {
-                  const count = MOCK_ISSUES.filter((i) => i.type === type).length;
-                  const percent = Math.round((count / MOCK_ISSUES.length) * 100) || 0;
-                  return (
-                    <div key={type} className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-stone-700">{ISSUE_TYPE_LABEL[type]}</span>
-                        <span className="text-[11px] font-semibold text-amber-700">{count} sự cố · {percent}%</span>
-                      </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-amber-100">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-400 transition-all"
-                          style={{ width: `${percent}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="h-px bg-amber-100" />
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">Theo trạng thái</p>
-                {(['PENDING', 'IN_PROGRESS', 'RESOLVED'] as IssueStatus[]).map((status) => {
-                  const count = MOCK_ISSUES.filter((i) => i.status === status).length;
-                  return (
-                    <div
-                      key={status}
-                      className="flex items-center justify-between rounded-lg border border-amber-100 bg-amber-50/40 px-3 py-2"
-                    >
-                      <div className="flex items-center gap-2">
-                        {status === 'RESOLVED' && <CheckCircle className="size-3.5 text-emerald-500" />}
-                        {status === 'PENDING' && <Clock className="size-3.5 text-yellow-500" />}
-                        {status === 'IN_PROGRESS' && <AlertTriangle className="size-3.5 text-sky-500" />}
-                        <span className="font-medium text-stone-700">{ISSUE_STATUS_LABEL[status]}</span>
-                      </div>
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-medium ${ISSUE_STATUS_CLASS[status]}`}
-                      >
-                        {count}
-                      </span>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Phân trang ── */}
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-center gap-1 py-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-md border border-slate-200"
+            disabled={pagination.page === 0}
+            onClick={() => handlePageChange(pagination.page - 1)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          {Array.from({ length: pagination.totalPages }).map((_, i) => (
+            <Button
+              key={i}
+              variant={pagination.page === i ? 'default' : 'ghost'}
+              size="sm"
+              className={cn(
+                "h-8 w-8 text-xs font-medium rounded-md",
+                pagination.page === i ? "bg-amber-500 text-white translate-y-[-1px]" : "text-slate-600"
+              )}
+              onClick={() => handlePageChange(i)}
+            >
+              {i + 1}
+            </Button>
+          ))}
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-md border border-slate-200"
+            disabled={pagination.page >= pagination.totalPages - 1}
+            onClick={() => handlePageChange(pagination.page + 1)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

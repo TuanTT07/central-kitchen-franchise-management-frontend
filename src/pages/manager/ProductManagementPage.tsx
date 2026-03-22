@@ -403,15 +403,17 @@ const ProductManagementPage = () => {
 
   // Hợp nhất dữ liệu Products với Category Name, Unit Name và thực hiện lọc/tìm kiếm
   const displayProducts = useMemo(() => {
-    const rawList = products.map((p: ProductsResponse) => {
-      const category = categories.find((c) => c.categoryId === p.categoryId);
-      const unit = units.find((u: UnitResponse) => u.unitId === Number(p.unitId));
-      return {
-        ...p,
-        categoryName: category?.categoryName || p.categoryName || 'Chưa phân loại',
-        unitName: unit?.unitName || p.unitName || 'Không xác định',
-      };
-    }).sort((a, b) => (b.productId || 0) - (a.productId || 0));
+    const rawList = products
+      .map((p: ProductsResponse) => {
+        const category = categories.find((c) => c.categoryId === p.categoryId);
+        const unit = units.find((u: UnitResponse) => u.unitId === Number(p.unitId));
+        return {
+          ...p,
+          categoryName: category?.categoryName || p.categoryName || 'Chưa phân loại',
+          unitName: unit?.unitName || p.unitName || 'Không xác định',
+        };
+      })
+      .sort((a, b) => (b.productId || 0) - (a.productId || 0));
 
     if (!search.trim()) return rawList;
     const keyword = search.toLowerCase();
@@ -649,7 +651,11 @@ const ProductManagementPage = () => {
             <div className="flex items-center justify-between border-b border-amber-100 bg-amber-50 px-6 py-4">
               <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-amber-900">
                 <div className="flex size-7 items-center justify-center rounded-lg bg-amber-100">
-                  {editingProduct ? <Pencil className="size-3.5 text-amber-600" /> : <Plus className="size-3.5 text-amber-600" />}
+                  {editingProduct ? (
+                    <Pencil className="size-3.5 text-amber-600" />
+                  ) : (
+                    <Plus className="size-3.5 text-amber-600" />
+                  )}
                 </div>
                 {editingProduct ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
               </DialogTitle>
@@ -683,7 +689,14 @@ const ProductManagementPage = () => {
                 >
                   <Upload className="size-3.5" />
                   {selectedFile ? 'Đổi ảnh' : 'Chọn ảnh'}
-                  <input id="image_upload" type="file" accept="image/*" multiple={false} className="hidden" onChange={handleFileChange} />
+                  <input
+                    id="image_upload"
+                    type="file"
+                    accept="image/*"
+                    multiple={false}
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
                 </label>
                 {previewUrl && (
                   <button
@@ -732,7 +745,9 @@ const ProductManagementPage = () => {
                         >
                           <option value="">Chọn danh mục</option>
                           {categories.map((c) => (
-                            <option key={c.categoryId} value={c.categoryId}>{c.categoryName}</option>
+                            <option key={c.categoryId} value={c.categoryId}>
+                              {c.categoryName}
+                            </option>
                           ))}
                         </select>
                       </FieldContent>
@@ -749,7 +764,9 @@ const ProductManagementPage = () => {
                         >
                           <option value="">Chọn đơn vị</option>
                           {units.map((u) => (
-                            <option key={u.unitId} value={u.unitId}>{u.unitName}</option>
+                            <option key={u.unitId} value={u.unitId}>
+                              {u.unitName}
+                            </option>
                           ))}
                         </select>
                         {errors.unitId && <FieldError errors={[errors.unitId]} />}
@@ -903,7 +920,11 @@ const ProductManagementPage = () => {
               <div className="flex w-44 shrink-0 flex-col items-center gap-3 border-r border-amber-100 bg-amber-50/40 p-5">
                 <div className="aspect-square w-full overflow-hidden rounded-xl border border-amber-100 bg-white">
                   {editingProduct?.imageUrl ? (
-                    <img src={editingProduct.imageUrl} alt={editingProduct.productName} className="size-full object-cover" />
+                    <img
+                      src={editingProduct.imageUrl}
+                      alt={editingProduct.productName}
+                      className="size-full object-cover"
+                    />
                   ) : (
                     <div className="flex size-full flex-col items-center justify-center gap-2 text-amber-200">
                       <ImageIcon className="size-10" />
@@ -912,15 +933,23 @@ const ProductManagementPage = () => {
                   )}
                 </div>
                 {/* Status badge dưới ảnh */}
-                <span className={cn(
-                  'inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-medium',
-                  editingProduct?.status === 'ACTIVE'
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                    : 'border-stone-200 bg-stone-100 text-stone-500'
-                )}>
-                  {editingProduct?.status === 'ACTIVE'
-                    ? <><CheckCircle2 className="size-3" /> Đang bán</>
-                    : <><XCircle className="size-3" /> Ngừng bán</>}
+                <span
+                  className={cn(
+                    'inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-medium',
+                    editingProduct?.status === 'ACTIVE'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : 'border-stone-200 bg-stone-100 text-stone-500'
+                  )}
+                >
+                  {editingProduct?.status === 'ACTIVE' ? (
+                    <>
+                      <CheckCircle2 className="size-3" /> Đang bán
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="size-3" /> Ngừng bán
+                    </>
+                  )}
                 </span>
               </div>
 
@@ -931,10 +960,12 @@ const ProductManagementPage = () => {
 
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
-                    <Tag className="size-3" />{editingProduct?.categoryName}
+                    <Tag className="size-3" />
+                    {editingProduct?.categoryName}
                   </span>
                   <span className="inline-flex items-center gap-1 rounded-md border border-stone-200 bg-stone-50 px-2 py-0.5 text-xs text-stone-600">
-                    <Scale className="size-3" />{editingProduct?.unitName}
+                    <Scale className="size-3" />
+                    {editingProduct?.unitName}
                   </span>
                 </div>
 
@@ -956,9 +987,7 @@ const ProductManagementPage = () => {
                   </div>
                   <div className="px-3 py-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Bội số</p>
-                    <p className="mt-1 text-sm font-bold text-stone-700">
-                      x{editingProduct?.orderMultiplier}
-                    </p>
+                    <p className="mt-1 text-sm font-bold text-stone-700">x{editingProduct?.orderMultiplier}</p>
                   </div>
                 </div>
 
@@ -982,7 +1011,10 @@ const ProductManagementPage = () => {
                 Đóng
               </Button>
               <Button
-                onClick={() => { setDetailDialogOpen(false); if (editingProduct) openEdit(editingProduct); }}
+                onClick={() => {
+                  setDetailDialogOpen(false);
+                  if (editingProduct) openEdit(editingProduct);
+                }}
                 className="h-8 bg-amber-500 px-4 text-xs font-medium text-white hover:bg-amber-600"
               >
                 <Pencil className="mr-1.5 size-3" />
