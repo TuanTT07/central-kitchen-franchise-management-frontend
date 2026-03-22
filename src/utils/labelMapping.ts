@@ -33,6 +33,8 @@ export const STATUS_LABEL_MAP: Record<string, string> = {
   MISSING_ITEMS: 'Thiếu hàng',
   WRONG_ITEMS: 'Sai hàng',
   REFUSED_DELIVERY: 'Từ chối nhận',
+  CREATE_REPLACEMENT_ORDER: 'Tạo đơn mới',
+  REFUND: 'Hoàn tiền',
 
   // Trạng thái chung bật/tắt
   ACTIVE: 'Hoạt động',
