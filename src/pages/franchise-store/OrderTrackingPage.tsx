@@ -19,21 +19,22 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  Receipt,
-  Search,
-  Loader2,
-  XCircle,
-  Check,
-  RefreshCw,
-  Package,
-  LayoutGrid,
-  SlidersHorizontal,
-  Filter,
-  Plus,
-} from 'lucide-react';
+   ChevronLeft,
+   ChevronRight,
+   Receipt,
+   Search,
+   Loader2,
+   XCircle,
+   Check,
+   RefreshCw,
+   Package,
+   LayoutGrid,
+   SlidersHorizontal,
+   Filter,
+   Plus,
+   AlertTriangle,
+   Upload,
+ } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { translateStatus } from '@/utils/labelMapping';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -47,7 +48,7 @@ import { toast } from 'sonner';
  * - Trạng thái hiển thị qua translateStatus() – không hardcode text.
  */
 
-const FILTER_OPTIONS = ['ALL', 'PENDING', 'APPROVED', 'IN_TRANSIT', 'CONSOLIDATED', 'CANCELLED'] as const;
+const FILTER_OPTIONS = ['ALL', 'PENDING', 'APPROVED', 'IN_TRANSIT', 'DONE', 'CONSOLIDATED', 'CANCELLED'] as const;
 type FilterStatus = (typeof FILTER_OPTIONS)[number];
 
 const normalizeOrderStatus = (status: unknown): string => {
@@ -74,6 +75,15 @@ const OrderTrackingPage = () => {
   const [openDetailDialog, setOpenDetailDialog] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [orderDetail, setOrderDetail] = useState<OrderResponse<OrderDetailResponse[]> | null>(null);
+
+  // Report issue state
+  const [openReportDialog, setOpenReportDialog] = useState(false);
+  const [selectedReportOrderId, setSelectedReportOrderId] = useState<number | null>(null);
+  const [reportReason, setReportReason] = useState<string>('DAMAGED');
+  const [reportNote, setReportNote] = useState('');
+  const [isReporting, setIsReporting] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
 
   // ================= EFFECT =================
 
@@ -172,6 +182,62 @@ const OrderTrackingPage = () => {
       toast.error('Không thể xác nhận đơn hàng');
     } finally {
       setIsReceiving(false);
+    }
+  };
+
+  const handleReportOrder = (orderId: number) => {
+    setSelectedReportOrderId(orderId);
+    setOpenReportDialog(true);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      setSelectedImages((prev) => [...prev, ...files]);
+
+      const previews = files.map((file) => URL.createObjectURL(file));
+      setImagePreviews((prev) => [...prev, ...previews]);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
+    URL.revokeObjectURL(imagePreviews[index]);
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleConfirmReport = async () => {
+    if (!selectedReportOrderId) return;
+    if (!reportReason) {
+      toast.error('Vui lòng chọn lý do báo cáo');
+      return;
+    }
+
+    try {
+      setIsReporting(true);
+      const formData = new FormData();
+      formData.append('issueReason', reportReason);
+      formData.append('issueNote', reportNote);
+      selectedImages.forEach((image) => {
+        formData.append('images', image);
+      });
+
+      const response = await franchiseServices.createDeliveryIssue(selectedReportOrderId, formData);
+      if (response.success) {
+        setOpenReportDialog(false);
+        setReportReason('DAMAGED');
+        setReportNote('');
+        setSelectedImages([]);
+        setImagePreviews([]);
+        toast.success('Đã gửi báo cáo đơn hàng thành công!');
+        await fetchData();
+      } else {
+        toast.error(response.message || 'Không thể gửi báo cáo');
+      }
+    } catch {
+      toast.error('Không thể gửi báo cáo');
+    } finally {
+      setIsReporting(false);
     }
   };
 
@@ -389,15 +455,6 @@ const OrderTrackingPage = () => {
                               </td>
                               <td className="px-4 py-3.5">
                                 <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                                  {/* Eye button */}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenOrderDetail(o.orderId)}
-                                    title="Xem chi tiết"
-                                    className="flex size-8 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-600 shadow-sm transition hover:bg-amber-500 hover:text-white hover:border-amber-500"
-                                  >
-                                    <Eye className="size-3.5" />
-                                  </button>
 
                                   {/* Confirm receive — only IN_TRANSIT */}
                                   {isInTransit && (
@@ -416,6 +473,20 @@ const OrderTrackingPage = () => {
                                     </button>
                                   )}
 
+                                  
+
+                                  {/* Report button — only DONE */}
+                                  {normStatus === 'DONE' && (
+                                    <button
+                                      type="button"
+                                      title="Báo cáo đơn hàng"
+                                      onClick={() => handleReportOrder(o.orderId)}
+                                      className="flex h-8 items-center gap-1.5 rounded-lg border border-orange-200 bg-white px-2.5 text-[11px] font-bold text-orange-600 shadow-sm transition hover:bg-orange-50 hover:border-orange-300"
+                                    >
+                                      <AlertTriangle className="size-3.5" />
+                                      Báo cáo
+                                    </button>
+                                  )}
                                   {/* Cancel — only PENDING */}
                                   <button
                                     type="button"
@@ -733,6 +804,125 @@ const OrderTrackingPage = () => {
               Đóng
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+      {/* Modal báo cáo đơn hàng */}
+      <Dialog
+        open={openReportDialog}
+        onOpenChange={(open) => {
+          setOpenReportDialog(open);
+          if (!open) {
+            setReportReason('DAMAGED');
+            setReportNote('');
+            setSelectedImages([]);
+            setImagePreviews([]);
+          }
+        }}
+      >
+        <DialogContent className="w-[min(95vw,500px)] max-w-none overflow-hidden rounded-2xl border-0 p-0 shadow-2xl">
+          <div className="bg-gradient-to-r from-orange-500 to-amber-600 px-6 py-5 text-white">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base font-bold text-white">
+                <AlertTriangle className="size-5" />
+                Từ chối nhận hàng / Báo cáo sự cố
+              </DialogTitle>
+            </DialogHeader>
+            <p className="mt-1 text-xs text-orange-100 font-medium">
+              Vui lòng cung cấp chi tiết sự cố để chúng tôi hỗ trợ bạn tốt nhất.
+            </p>
+          </div>
+
+          <div className="space-y-4 p-6 overflow-y-auto max-h-[70dvh]">
+            <div className="space-y-3">
+              <Label className="text-xs font-bold text-stone-700">Lý do <span className="text-red-500">*</span></Label>
+              <div className="grid gap-2">
+                {[
+                  { key: 'DAMAGED', label: 'Hàng vỡ / hỏng' },
+                  { key: 'MISSING_ITEMS', label: 'Thiếu hàng' },
+                  { key: 'WRONG_ITEMS', label: 'Sai hàng' },
+                  { key: 'REFUSED_DELIVERY', label: 'Không nhận nữa' },
+                ].map((item) => (
+                  <label
+                    key={item.key}
+                    className={cn(
+                      'flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-all',
+                      reportReason === item.key
+                        ? 'border-orange-500 bg-orange-50 shadow-sm ring-1 ring-orange-500'
+                        : 'border-stone-100 bg-stone-50/50 hover:bg-stone-50'
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      className="size-4 accent-orange-500"
+                      name="reportReason"
+                      value={item.key}
+                      checked={reportReason === item.key}
+                      onChange={(e) => setReportReason(e.target.value)}
+                    />
+                    <span className={cn('text-xs font-medium', reportReason === item.key ? 'text-orange-900' : 'text-stone-600')}>
+                      {item.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-stone-700">Ghi chú</Label>
+              <textarea
+                placeholder="Nhập thêm thông tin chi tiết..."
+                value={reportNote}
+                onChange={(e) => setReportNote(e.target.value)}
+                rows={3}
+                className="flex w-full rounded-xl border border-stone-200 bg-stone-50/50 px-3 py-2.5 text-xs text-stone-800 placeholder:text-stone-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-1 resize-none"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-xs font-bold text-stone-700">Ảnh minh chứng (nếu có)</Label>
+              <div className="flex flex-wrap gap-3">
+                {imagePreviews.map((url, idx) => (
+                  <div key={idx} className="relative group size-20 rounded-lg overflow-hidden border border-stone-200 shadow-sm">
+                    <img src={url} alt="Evidence" className="size-full object-cover" />
+                    <button
+                      onClick={() => removeImage(idx)}
+                      className="absolute top-1 right-1 size-5 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <XCircle className="size-3" />
+                    </button>
+                  </div>
+                ))}
+                <label className="flex flex-col items-center justify-center size-20 rounded-lg border-2 border-dashed border-stone-200 bg-stone-50 cursor-pointer hover:bg-stone-100 hover:border-orange-300 transition-colors">
+                  <Upload className="size-5 text-stone-400" />
+                  <span className="mt-1 text-[10px] text-stone-500 font-medium text-center px-1">Tải lên ảnh</span>
+                  <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageChange} />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2 border-t border-stone-100 bg-stone-50 px-6 py-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpenReportDialog(false)}
+              className="flex-1 text-xs font-bold border-stone-200 text-stone-600 hover:bg-stone-100"
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmReport}
+              disabled={isReporting}
+              className="flex-1 bg-orange-600 text-xs font-bold text-white hover:bg-orange-700 shadow-sm transition-all"
+            >
+              {isReporting ? (
+                <><Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> Đang xử lý...</>
+              ) : (
+                <><Check className="mr-1.5 size-3.5 stroke-[3]" /> Gửi báo cáo</>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
