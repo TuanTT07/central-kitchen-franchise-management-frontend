@@ -12,6 +12,7 @@ const STATUS_COLOR_MAP: Record<string, string> = {
   PLANNED:           'bg-amber-100 text-amber-800 border-amber-200',
   DRAFT:             'bg-amber-100 text-amber-800 border-amber-200',
   AWAITING_DELIVERY: 'bg-amber-100 text-amber-800 border-amber-200',
+  PENDING_REVIEW:    'bg-amber-100 text-amber-800 border-amber-200',
 
   // ── Đang xử lý ─────────────────────────── xanh dương nhạt
   COOKING:    'bg-blue-100 text-blue-800 border-blue-200',

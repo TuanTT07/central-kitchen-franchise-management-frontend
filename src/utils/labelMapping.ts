@@ -26,6 +26,16 @@ export const STATUS_LABEL_MAP: Record<string, string> = {
   EXPIRED: 'Hết hạn',
   WAITING_FOR_STOCK: 'Chờ nhập kho',
 
+  // Vấn đề giao nhận (Delivery Issue)
+  PENDING_REVIEW: 'Chờ xử lý',
+  REJECTED: 'Đã từ chối',
+  DAMAGED: 'Hàng vỡ / hỏng',
+  MISSING_ITEMS: 'Thiếu hàng',
+  WRONG_ITEMS: 'Sai hàng',
+  REFUSED_DELIVERY: 'Từ chối nhận',
+  CREATE_REPLACEMENT_ORDER: 'Tạo đơn mới',
+  REFUND: 'Hoàn tiền',
+
   // Trạng thái chung bật/tắt
   ACTIVE: 'Hoạt động',
   INACTIVE: 'Ngừng hoạt động',

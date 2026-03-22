@@ -134,6 +134,44 @@ export interface DeliveryDetail {
   exportNotes: ExportNotesResponse[];
 }
 
+
+/**
+ * Phản hồi chi tiết về vấn đề giao hàng (Delivery Issue).
+ */
+export interface DeliveryIssueResponse {
+  issueId: number;
+  issueStatus: string;
+  issueReason: string;
+  issueNote: string;
+  originalOrderId: number;
+  originalOrderCode: string;
+  originalOrderStatus: string;
+  storeId: number;
+  storeName: string;
+  originalDeliveryDate: string;
+  reportedBy: {
+    userId: number;
+    username: string;
+    fullName: string;
+  };
+  reportedAt: string;
+  reviewedBy: {
+    userId: number;
+    username: string;
+    fullName: string;
+  } | null;
+  reviewedAt: string | null;
+  reviewDecision: string | null;
+  replacementOrderId: number | null;
+  replacementOrderCode: string | null;
+  images?: string[];
+  issueItems?: {
+    productId: number;
+    productName: string;
+    quantity: number;
+    imageUrl?: string;
+  }[];
+}
 /**
  * =========================================================
  * API: Supply Service (Quản lý Cung ứng)
@@ -155,6 +193,11 @@ export interface DeliveryDetail {
  * PATCH  /deliveries/{id}/start      -> cập nhật tình trạng chuyến hàng (xuất phát)
  * PATCH  /deliveries/{id}/complete   -> cập nhật tình trạng chuyến hàng (hoàn thành)
  * PATCH  /deliveries/{id}/cancel     -> cập nhật tình trạng chuyến hàng (hủy)
+ * 
+ * 
+ * GET    /delivery-issues            -> Lấy danh sách vấn đề
+ * GET    /delivery-issues/{id}       -> Lấy chi tiết vấn đề
+ * POST   /delivery-issues/{id}/review -> Phê duyệt/Từ chối vấn đề
  *
  *
  *
@@ -357,6 +400,48 @@ export const supplyServices = {
    */
   updateDeliveryStatusCancel: async (id: number) => {
     const response = await http.patch<Response<DeliveryPlanResponse[]>>(`/deliveries/${id}/cancel`);
+    return response.data;
+  },
+
+  /**
+   * Lấy danh sách các vấn đề giao hàng (Delivery Issues)
+   *
+   * @param page Số trang hiện tại (bắt đầu từ 0)
+   * @param size Số lượng bản ghi trên mỗi trang (mặc định 10)
+   * @returns Promise<Response<PaginatedResponse<DeliveryIssueResponse[]>>>
+   */
+  getAllDeliveryIssues: async (page: number = 0, size: number = 10) => {
+    const response = await http.get<Response<PaginatedResponse<DeliveryIssueResponse[]>>>(
+      `/delivery-issues?page=${page}&size=${size}`
+    );
+    return response.data;
+  },
+
+
+  /**
+   * Lấy chi tiết vấn đề giao hàng (Delivery Issue)
+   *
+   * @param id ID của vấn đề giao hàng
+   * @returns Promise<Response<DeliveryIssueResponse>>
+   */
+  getDeliveryIssueById: async (id: number) => {
+    const response = await http.get<Response<DeliveryIssueResponse>>(`/delivery-issues/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Phê duyệt/Từ chối vấn đề giao hàng (Delivery Issue)
+   *
+   * @param id ID của vấn đề giao hàng
+   * @param decision Quyết định phê duyệt/từ chối (CREATE_REPLACEMENT_ORDER, RESCHEDULE_CURRENT_ORDER)
+   * @param newDeliveryDate Ngày giao hàng mới (chỉ áp dụng khi RESCHEDULE_CURRENT_ORDER)
+   * @returns Promise<Response<DeliveryIssueResponse>>
+   */
+  reviewDeliveryIssue: async (id: number, decision: string, newDeliveryDate: string) => {
+    const response = await http.post<Response<DeliveryIssueResponse>>(`/delivery-issues/${id}/review`, {
+      decision,
+      newDeliveryDate,
+    });
     return response.data;
   },
 };
