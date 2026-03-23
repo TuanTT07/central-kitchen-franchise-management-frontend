@@ -20,6 +20,7 @@ import {
 } from '@/services/managerServices';
 import { kitchenServices, type InventoryTransactionResponse } from '@/services/kitchenServices';
 import { cn } from '@/lib/utils';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const NEAR_EXPIRY_DAYS = 3;
 
@@ -121,6 +122,30 @@ function ReportsPage() {
 
   return (
     <div className="min-h-full space-y-6 p-1">
+      {/* ── Page Header ── */}
+      <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
+          <div className="flex flex-col gap-1">
+            <CardTitle className="flex items-center gap-2 text-xl font-bold text-amber-900">
+              <Boxes className="size-6 text-amber-500" />
+              Báo cáo kho trung tâm
+            </CardTitle>
+            <CardDescription className="text-xs font-medium text-amber-700/80">
+              Tổng quan tồn kho, lô sắp hết hạn và giao dịch gần nhất.
+            </CardDescription>
+          </div>
+          <div className="hidden items-center gap-4 md:flex">
+            <div className="flex flex-col items-center rounded-xl border border-amber-100 bg-white/70 px-5 py-2.5 shadow-sm">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">Tổng tồn kho</span>
+              <span className="mt-0.5 text-2xl font-bold text-amber-900">{totalStockUnits.toLocaleString('vi-VN')}</span>
+            </div>
+            <div className="flex flex-col items-center rounded-xl border border-yellow-100 bg-white/70 px-5 py-2.5 shadow-sm">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-yellow-600">Sắp hết hạn</span>
+              <span className="mt-0.5 text-2xl font-bold text-yellow-700">{nearExpiryTotal}</span>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
 
       {/* ── KPI CARDS ── */}
       <div className="grid gap-4 sm:grid-cols-2">

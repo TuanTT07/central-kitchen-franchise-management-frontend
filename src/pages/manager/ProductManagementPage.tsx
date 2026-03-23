@@ -432,9 +432,9 @@ const ProductManagementPage = () => {
   // ================= RENDER =================
 
   return (
-    <div className="h-full w-full">
-      <Card className="border-amber-200/60 bg-white shadow-md">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-amber-50 px-6 py-5">
+    <div className="h-full w-full space-y-5">
+      <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
+        <CardHeader className="flex flex-row items-center justify-start border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
           <div className="flex flex-col gap-1">
             <CardTitle className="flex items-center gap-2 text-xl font-bold text-amber-900">
               <Package className="size-6 text-amber-500" />
@@ -444,44 +444,40 @@ const ProductManagementPage = () => {
               Danh sách món ăn/nguyên liệu trong kho trung tâm.
             </CardDescription>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="relative hidden w-64 items-center md:flex">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/12 -mt-2 text-amber-600" />
-              <Input
-                placeholder="Tìm theo tên sản phẩm, danh mục..."
-                value={search}
-                onChange={handleSearch}
-                className="border-amber-200 bg-amber-50/50 pl-9 focus:border-amber-400 focus:ring-amber-200"
-              />
-            </div>
-            <Button onClick={openAdd} className="h-10 gap-2 bg-amber-600 px-5 text-white shadow-md hover:bg-amber-700">
-              <Plus className="size-4" />
-              Thêm sản phẩm
-            </Button>
-            <Button
-              onClick={openSettingUnit}
-              className="h-10 gap-2 bg-amber-600 px-5 text-white shadow-md hover:bg-amber-700"
-            >
-              <Scale className="size-4" />
-              Thiết lập đơn vị
-            </Button>
-          </div>
         </CardHeader>
+      </Card>
 
-        <CardContent className="space-y-4 p-6">
-          <div className="flex items-center gap-2 md:hidden">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-600" />
-              <Input
-                placeholder="Tìm theo tên sản phẩm, danh mục..."
-                value={search}
-                onChange={handleSearch}
-                className="border-amber-200 bg-amber-50/50 pl-9 focus:border-amber-400 focus:ring-amber-200"
-              />
-            </div>
-          </div>
+      {/* ── Toolbar ── */}
+      <div className="flex flex-col gap-3 rounded-xl border border-amber-100 bg-white px-4 py-3 shadow-sm md:flex-row md:items-center md:justify-between">
+        <div className="relative w-full max-w-md flex-none">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-400" />
+          <Input
+            placeholder="Tìm theo tên sản phẩm, danh mục..."
+            value={search}
+            onChange={handleSearch}
+            className="h-9 w-full rounded-md border border-amber-200 bg-amber-50/40 pl-9 pr-3 text-xs text-stone-800 placeholder:text-stone-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60"
+          />
+        </div>
 
-          <div className="relative overflow-x-auto rounded-xl border border-amber-200/60 bg-white shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto md:justify-end">
+          <Button onClick={openAdd} className="h-10 gap-2 bg-amber-500 px-5 text-white shadow-md hover:bg-amber-600">
+            <Plus className="size-4" />
+            Thêm sản phẩm
+          </Button>
+          <Button
+            onClick={openSettingUnit}
+            className="h-10 gap-2 bg-amber-500 px-5 text-white shadow-md hover:bg-amber-600"
+          >
+            <Scale className="size-4" />
+            Thiết lập đơn vị
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Table ── */}
+      <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-amber-200 bg-amber-50/60 text-left text-xs font-bold uppercase tracking-wider text-amber-900">
