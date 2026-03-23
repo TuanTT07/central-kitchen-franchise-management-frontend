@@ -84,6 +84,9 @@ const OrderTrackingPage = () => {
   const [isReporting, setIsReporting] = useState(false);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [reportItems, setReportItems] = useState<{ productId: number; productName: string; orderedQuantity: number; actualQuantity: number; unitName: string }[]>([]);
+  const [selectedWrongProductIds, setSelectedWrongProductIds] = useState<number[]>([]);
+  const [isFetchingReportData, setIsFetchingReportData] = useState(false);
 
   // ================= EFFECT =================
 
@@ -185,9 +188,44 @@ const OrderTrackingPage = () => {
     }
   };
 
-  const handleReportOrder = (orderId: number) => {
+  const handleReportOrder = async (orderId: number) => {
     setSelectedReportOrderId(orderId);
     setOpenReportDialog(true);
+    setIsFetchingReportData(true);
+    try {
+      // Tải chi tiết đơn hàng để lấy danh sách sản phẩm
+      const res = await franchiseServices.getOrderById(orderId);
+      if (res.success && res.data) {
+        const items = (res.data.details || []).map((d) => ({
+          productId: d.productId,
+          productName: d.productName,
+          orderedQuantity: d.quantity,
+          actualQuantity: d.quantity, // Mặc định khớp với số lượng đặt
+          unitName: d.unitName || d.unit || '—'
+        }));
+        setReportItems(items);
+        // Lưu lại để có thông tin khác (ngày giao...)
+        setOrderDetail(res.data);
+      }
+    } catch {
+      toast.error('Không thể tải chi tiết sản phẩm cho báo cáo');
+    } finally {
+      setIsFetchingReportData(false);
+    }
+  };
+
+  const handleReportItemChange = (productId: number, actualQty: number) => {
+    setReportItems((prev) =>
+      prev.map((item) =>
+        item.productId === productId ? { ...item, actualQuantity: actualQty } : item
+      )
+    );
+  };
+
+  const toggleWrongProduct = (productId: number) => {
+    setSelectedWrongProductIds((prev) =>
+      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
+    );
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -215,27 +253,90 @@ const OrderTrackingPage = () => {
 
     try {
       setIsReporting(true);
-      const formData = new FormData();
-      formData.append('issueReason', reportReason);
-      formData.append('issueNote', reportNote);
-      selectedImages.forEach((image) => {
-        formData.append('images', image);
-      });
 
-      const response = await franchiseServices.createDeliveryIssue(selectedReportOrderId, formData);
-      if (response.success) {
-        setOpenReportDialog(false);
-        setReportReason('DAMAGED');
-        setReportNote('');
-        setSelectedImages([]);
-        setImagePreviews([]);
-        toast.success('Đã gửi báo cáo đơn hàng thành công!');
-        await fetchData();
-      } else {
-        toast.error(response.message || 'Không thể gửi báo cáo');
+      // Chuẩn bị dữ liệu chung (Ảnh, Ghi chú, Lý do)
+      // Những thông tin này thường lý do nào cũng có
+      const commonPayload = {
+        orderId: selectedReportOrderId,
+        reason: reportReason,
+        note: reportNote,
+        images: selectedImages, // Danh sách File để upload
+      };
+
+      console.group(`>>> [BÁO CÁO SỰ CỐ] Đơn hàng: #${selectedReportOrderId} <<<`);
+      console.log("Lý do chọn:", reportReason);
+      console.log("Ghi chú:", reportNote);
+      console.log("Số lượng ảnh minh chứng:", selectedImages.length);
+
+      //  Xử lý logic riêng biệt cho từng loại sự cố
+      // Sau này khi Backend làm xong, mỗi case này bạn có thể gọi một API khác nhau
+      switch (reportReason) {
+        case 'DAMAGED':
+        case 'MISSING_ITEMS':
+        case 'QUALITY_FAILED':
+          // Đối với hàng hỏng/thiếu/kém chất lượng: Cần gửi kèm danh sách sản phẩm và số lượng thực nhận
+          const itemIssues = reportItems.map(item => ({
+            productId: item.productId,
+            productName: item.productName,
+            orderedQty: item.orderedQuantity,
+            actualQty: item.actualQuantity,
+            isDiscrepancy: item.orderedQuantity !== item.actualQuantity
+          }));
+
+          console.log("==> Cấu trúc dữ liệu [Sản phẩm & Số lượng]:", {
+            ...commonPayload,
+            items: itemIssues
+          });
+
+          // TODO: Gọi API xử lý hàng hỏng/thiếu/chất lượng
+          // const res = await franchiseServices.reportItemIssues(selectedReportOrderId, { ...commonPayload, items: itemIssues });
+          break;
+
+        case 'WRONG_ITEMS':
+          // Đối với sai hàng: Cần gửi danh sách các ID sản phẩm bị báo sai
+          console.log("==> Cấu trúc dữ liệu [Sai sản phẩm]:", {
+            ...commonPayload,
+            wrongProductIds: selectedWrongProductIds
+          });
+
+          // TODO: Gọi API xử lý sai hàng
+          // const res = await franchiseServices.reportWrongProducts(selectedReportOrderId, { ...commonPayload, wrongProductIds: selectedWrongProductIds });
+          break;
+
+        case 'LATE_DELIVERY':
+        case 'REFUSED_DELIVERY':
+          // Đối với giao muộn hoặc từ chối nhận: Thường chỉ cần note và ảnh bằng chứng
+          console.log("==> Cấu trúc dữ liệu [Vận chuyển/Từ chối]:", commonPayload);
+
+          // TODO: Gọi API xử lý vận chuyển
+          // const res = await franchiseServices.reportDeliveryIssue(selectedReportOrderId, commonPayload);
+          break;
+
+        default:
+          console.warn("⚠️ Lý do báo cáo chưa được định nghĩa logic xử lý:", reportReason);
+          break;
       }
-    } catch {
-      toast.error('Không thể gửi báo cáo');
+      console.groupEnd();
+
+      //  Giả lập xử lý thành công (Do Backend chưa có API riêng lẻ)
+      // Khi nào có API thật, hãy thay thế logic bên dưới bằng phản hồi từ Server
+      toast.success('Đã ghi nhận báo cáo thành công! (Vui lòng kiểm tra Console Log)');
+
+      // Reset Form và đóng Modal
+      setOpenReportDialog(false);
+      setReportReason('DAMAGED');
+      setReportNote('');
+      setSelectedImages([]);
+      setImagePreviews([]);
+      setReportItems([]);
+      setSelectedWrongProductIds([]);
+
+      // Cập nhật lại danh sách nếu cần
+      // await fetchData();
+
+    } catch (error) {
+      console.error("Lỗi khi gửi báo cáo:", error);
+      toast.error('Có lỗi xảy ra, vui lòng thử lại sau');
     } finally {
       setIsReporting(false);
     }
@@ -475,16 +576,16 @@ const OrderTrackingPage = () => {
 
                                   
 
-                                  {/* Report button — only DONE */}
-                                  {normStatus === 'DONE' && (
+                                  {/* Report button — */}
+                                  {(normStatus === 'DONE') && (
                                     <button
                                       type="button"
-                                      title="Báo cáo đơn hàng"
+                                      title="Báo cáo sự cố"
                                       onClick={() => handleReportOrder(o.orderId)}
                                       className="flex h-8 items-center gap-1.5 rounded-lg border border-orange-200 bg-white px-2.5 text-[11px] font-bold text-orange-600 shadow-sm transition hover:bg-orange-50 hover:border-orange-300"
                                     >
                                       <AlertTriangle className="size-3.5" />
-                                      Báo cáo
+                                      Báo sự cố
                                     </button>
                                   )}
                                   {/* Cancel — only PENDING */}
@@ -781,6 +882,20 @@ const OrderTrackingPage = () => {
 
           {/* Footer */}
           <div className="border-t border-amber-100 bg-amber-50/30 px-6 py-4 flex justify-end gap-2">
+            {orderDetail && (normalizeOrderStatus(orderDetail.status) === 'IN_TRANSIT' || normalizeOrderStatus(orderDetail.status) === 'DONE') && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setOpenDetailDialog(false);
+                  handleReportOrder(orderDetail.orderId);
+                }}
+                className="h-9 border-orange-200 text-sm font-semibold text-orange-600 hover:bg-orange-50"
+              >
+                <AlertTriangle className="mr-1.5 size-4" />
+                Báo sự cố / Từ chối nhận
+              </Button>
+            )}
             {orderDetail && normalizeOrderStatus(orderDetail.status) === 'IN_TRANSIT' && (
               <Button
                 type="button"
@@ -816,10 +931,13 @@ const OrderTrackingPage = () => {
             setReportNote('');
             setSelectedImages([]);
             setImagePreviews([]);
+            setReportItems([]);
+            setSelectedWrongProductIds([]);
+            setIsFetchingReportData(false);
           }
         }}
       >
-        <DialogContent className="w-[min(95vw,500px)] max-w-none overflow-hidden rounded-2xl border-0 p-0 shadow-2xl">
+        <DialogContent className="min-w-[50vw] max-w-none overflow-hidden rounded-2xl border-0 p-0 shadow-2xl">
           <div className="bg-gradient-to-r from-orange-500 to-amber-600 px-6 py-5 text-white">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-base font-bold text-white">
@@ -835,17 +953,19 @@ const OrderTrackingPage = () => {
           <div className="space-y-4 p-6 overflow-y-auto max-h-[70dvh]">
             <div className="space-y-3">
               <Label className="text-xs font-bold text-stone-700">Lý do <span className="text-red-500">*</span></Label>
-              <div className="grid gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {[
                   { key: 'DAMAGED', label: 'Hàng vỡ / hỏng' },
                   { key: 'MISSING_ITEMS', label: 'Thiếu hàng' },
                   { key: 'WRONG_ITEMS', label: 'Sai hàng' },
-                  { key: 'REFUSED_DELIVERY', label: 'Không nhận nữa' },
+                  { key: "QUALITY_FAILED", label: "Chất lượng kém" },
+                  { key: "LATE_DELIVERY", label: "Giao hàng muộn" },
+                  { key: 'REFUSED_DELIVERY', label: 'Từ chối nhận' },
                 ].map((item) => (
                   <label
                     key={item.key}
                     className={cn(
-                      'flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-all',
+                      'flex items-center gap-2 rounded-xl border p-2.5 cursor-pointer transition-all',
                       reportReason === item.key
                         ? 'border-orange-500 bg-orange-50 shadow-sm ring-1 ring-orange-500'
                         : 'border-stone-100 bg-stone-50/50 hover:bg-stone-50'
@@ -853,13 +973,13 @@ const OrderTrackingPage = () => {
                   >
                     <input
                       type="radio"
-                      className="size-4 accent-orange-500"
+                      className="size-3.5 accent-orange-500"
                       name="reportReason"
                       value={item.key}
                       checked={reportReason === item.key}
                       onChange={(e) => setReportReason(e.target.value)}
                     />
-                    <span className={cn('text-xs font-medium', reportReason === item.key ? 'text-orange-900' : 'text-stone-600')}>
+                    <span className={cn('text-[11px] font-bold', reportReason === item.key ? 'text-orange-900' : 'text-stone-600')}>
                       {item.label}
                     </span>
                   </label>
@@ -867,38 +987,143 @@ const OrderTrackingPage = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-stone-700">Ghi chú</Label>
-              <textarea
-                placeholder="Nhập thêm thông tin chi tiết..."
-                value={reportNote}
-                onChange={(e) => setReportNote(e.target.value)}
-                rows={3}
-                className="flex w-full rounded-xl border border-stone-200 bg-stone-50/50 px-3 py-2.5 text-xs text-stone-800 placeholder:text-stone-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-1 resize-none"
-              />
-            </div>
-
-            <div className="space-y-3">
-              <Label className="text-xs font-bold text-stone-700">Ảnh minh chứng (nếu có)</Label>
-              <div className="flex flex-wrap gap-3">
-                {imagePreviews.map((url, idx) => (
-                  <div key={idx} className="relative group size-20 rounded-lg overflow-hidden border border-stone-200 shadow-sm">
-                    <img src={url} alt="Evidence" className="size-full object-cover" />
-                    <button
-                      onClick={() => removeImage(idx)}
-                      className="absolute top-1 right-1 size-5 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <XCircle className="size-3" />
-                    </button>
-                  </div>
-                ))}
-                <label className="flex flex-col items-center justify-center size-20 rounded-lg border-2 border-dashed border-stone-200 bg-stone-50 cursor-pointer hover:bg-stone-100 hover:border-orange-300 transition-colors">
-                  <Upload className="size-5 text-stone-400" />
-                  <span className="mt-1 text-[10px] text-stone-500 font-medium text-center px-1">Tải lên ảnh</span>
-                  <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageChange} />
-                </label>
+            {/* Dynamic Form Content */}
+            {isFetchingReportData ? (
+              <div className="flex flex-col items-center justify-center py-6 gap-2">
+                <Loader2 className="size-6 animate-spin text-orange-500" />
+                <span className="text-[11px] text-stone-500 line-clamp-1">Đang tải thông tin sản phẩm...</span>
               </div>
-            </div>
+            ) : (
+              <>
+                {/* Product Select for WRONG_ITEMS */}
+                {reportReason === 'WRONG_ITEMS' && (
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-stone-700">Chọn các sản phẩm bị sai</Label>
+                    <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+                      {reportItems.map((item) => {
+                        const isSelected = selectedWrongProductIds.includes(item.productId);
+                        return (
+                          <div
+                            key={item.productId}
+                            onClick={() => toggleWrongProduct(item.productId)}
+                            className={cn(
+                              'flex items-center justify-between rounded-xl border p-3 cursor-pointer transition-all',
+                              isSelected
+                                ? 'border-orange-500 bg-orange-50/50 shadow-sm'
+                                : 'border-stone-100 bg-stone-50/30 hover:bg-stone-50 hover:border-stone-200'
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={cn(
+                                "flex size-5 items-center justify-center rounded-sm border transition-colors",
+                                isSelected ? "border-orange-500 bg-orange-500 text-white" : "border-stone-300 bg-white"
+                              )}>
+                                {isSelected && <Check className="size-3.5 stroke-[3]" />}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className={cn('text-[11px] font-bold', isSelected ? 'text-orange-900' : 'text-stone-700')}>{item.productName}</span>
+                                <span className="text-[10px] text-stone-500">Đặt: {item.orderedQuantity} {item.unitName}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {reportItems.length === 0 && (
+                        <p className="text-[11px] text-stone-400 text-center py-4">Không có sản phẩm nào để chọn.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Product List for other item-related issues */}
+                {['DAMAGED', 'MISSING_ITEMS', 'QUALITY_FAILED'].includes(reportReason) && (
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-stone-700">Thông tin hàng hóa thực tế</Label>
+                    <div className="overflow-hidden rounded-xl border border-stone-100">
+                      <table className="w-full text-[11px]">
+                        <thead>
+                          <tr className="bg-stone-50 text-left text-stone-500 font-bold uppercase tracking-wider">
+                            <th className="px-3 py-2">Sản phẩm</th>
+                            <th className="px-3 py-2 text-center">Đặt</th>
+                            <th className="px-3 py-2 text-center w-20">Nhận</th>
+                            <th className="px-3 py-2 text-center">ĐVT</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-50">
+                          {reportItems.map((item) => (
+                            <tr key={item.productId} className="bg-white">
+                              <td className="px-3 py-2 font-medium text-stone-900 line-clamp-1">{item.productName}</td>
+                              <td className="px-3 py-2 text-center text-stone-500">{item.orderedQuantity}</td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={item.orderedQuantity}
+                                  value={item.actualQuantity}
+                                  onChange={(e) => handleReportItemChange(item.productId, parseInt(e.target.value) || 0)}
+                                  className="w-full h-7 rounded-md border border-stone-200 bg-stone-50/50 text-center font-bold text-orange-600 focus:outline-none focus:ring-1 focus:ring-orange-400"
+                                />
+                              </td>
+                              <td className="px-3 py-2 text-center text-stone-400">{item.unitName}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-[10px] text-stone-400 italic font-medium">
+                      * Nhập số lượng thực nhận để hệ thống xác định mức độ hư hại/thiếu hụt.
+                    </p>
+                  </div>
+                )}
+
+                {/* Delivery Info for Late Delivery */}
+                {reportReason === 'LATE_DELIVERY' && orderDetail && (
+                  <div className="rounded-xl border border-blue-100 bg-blue-50/30 p-3 space-y-1">
+                    <p className="text-[11px] font-bold text-blue-900 flex items-center gap-1.5">
+                      <Package className="size-3.5" /> Thông tin giao hàng
+                    </p>
+                    <div className="grid grid-cols-2 text-[10px] text-blue-700 font-medium">
+                      <span>Ngày giao dự kiến:</span>
+                      <span className="text-right font-bold">{orderDetail.deliveryDate ? new Date(orderDetail.deliveryDate).toLocaleDateString('vi-VN') : '—'}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-stone-700">Mô tả chi tiết</Label>
+                  <textarea
+                    placeholder="Vui lòng mô tả cụ thể tình trạng (ví dụ: Thùng bị móp hỏng 2 chai nước tương...)"
+                    value={reportNote}
+                    onChange={(e) => setReportNote(e.target.value)}
+                    rows={3}
+                    className="flex w-full rounded-xl border border-stone-200 bg-stone-50/50 px-3 py-2.5 text-xs text-stone-800 placeholder:text-stone-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-1 resize-none font-medium"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-xs font-bold text-stone-700">Ảnh minh chứng <span className="text-stone-400 font-normal">(Bắt buộc để đối chứng)</span></Label>
+                  <div className="flex flex-wrap gap-3">
+                    {imagePreviews.map((url, idx) => (
+                      <div key={idx} className="relative group size-16 rounded-lg overflow-hidden border border-stone-200 shadow-sm">
+                        <img src={url} alt="Evidence" className="size-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(idx)}
+                          className="absolute top-1 right-1 size-4 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <XCircle className="size-2.5" />
+                        </button>
+                      </div>
+                    ))}
+                    <label className="flex flex-col items-center justify-center size-16 rounded-lg border-2 border-dashed border-stone-200 bg-stone-50 cursor-pointer hover:bg-stone-100 hover:border-orange-300 transition-colors">
+                      <Upload className="size-4 text-stone-400" />
+                      <span className="mt-1 text-[8px] text-stone-500 font-bold text-center px-1">Thêm ảnh</span>
+                      <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageChange} />
+                    </label>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           <DialogFooter className="flex gap-2 border-t border-stone-100 bg-stone-50 px-6 py-4">
