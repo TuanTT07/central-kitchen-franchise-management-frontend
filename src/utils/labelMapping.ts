@@ -5,6 +5,8 @@ export const STATUS_LABEL_MAP: Record<string, string> = {
   CONSOLIDATED: 'Đã gộp',
   CANCELLED: 'Đã hủy',
   AWAITING_DELIVERY: 'Chờ giao hàng',
+  DELIVERY_ISSUE_PENDING: 'Chờ xử lí sự cố',
+  DELIVERY_FAILED: 'Giao hàng thất bại',
 
   // Phiếu xuất / giao nhận (theo yêu cầu mapping chuẩn)
   READY: 'Sẵn sàng',
@@ -32,6 +34,8 @@ export const STATUS_LABEL_MAP: Record<string, string> = {
   DAMAGED: 'Hàng vỡ / hỏng',
   MISSING_ITEMS: 'Thiếu hàng',
   WRONG_ITEMS: 'Sai hàng',
+  QUALITY_FAILED: 'Chất lượng kém',
+  LATE_DELIVERY: 'Giao hàng trễ',
   REFUSED_DELIVERY: 'Từ chối nhận',
   CREATE_REPLACEMENT_ORDER: 'Tạo đơn mới',
   REFUND: 'Hoàn tiền',
@@ -51,7 +55,10 @@ export const ROLE_LABEL_MAP: Record<string, string> = {
 
 export const normalizeStatusKey = (status?: string | null): string => {
   if (!status) return '';
-  return status.trim().toUpperCase().replace(/[\s-]+/g, '_');
+  return status
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_');
 };
 
 export const translateStatus = (status?: string | null) => {
@@ -64,4 +71,3 @@ export const translateRole = (role?: string | null) => {
   if (!role) return '';
   return ROLE_LABEL_MAP[role] ?? role;
 };
-
