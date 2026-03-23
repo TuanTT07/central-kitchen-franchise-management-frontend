@@ -175,8 +175,8 @@ const InventoryOverviewPage = () => {
      ======================================================================== */
 
   return (
-    <div className="h-full w-full">
-      <Card className="border-amber-200/60 bg-white shadow-md">
+    <div className="h-full w-full space-y-5">
+      <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
         {/* Header Section */}
         <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
           <div className="flex flex-col gap-1">
@@ -189,72 +189,82 @@ const InventoryOverviewPage = () => {
             </CardDescription>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="hidden items-center gap-4 md:flex">
-              <div className="flex flex-col text-right">
-                <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                  Tổng đơn vị tồn
-                </span>
-                <span className="text-lg font-semibold text-amber-900">{totalItems.toLocaleString('vi-VN')}</span>
-              </div>
-              <div className="h-10 w-px bg-amber-200/70" />
-              <div className="flex flex-col text-right">
-                <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                  Sản phẩm đang quản lý
-                </span>
-                <span className="text-lg font-semibold text-amber-900">{totalProducts}</span>
-              </div>
-              <div className="h-10 w-px bg-amber-200/70" />
-              <div className="flex flex-col text-right">
-                <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                  Có lô sắp hết hạn
-                </span>
-                <span className="text-lg font-semibold text-amber-900">{criticalCount}</span>
-              </div>
+          <div className="hidden items-center gap-4 md:flex">
+            <div className="flex flex-col items-center rounded-xl border border-amber-100 bg-white/70 px-5 py-2.5 shadow-sm">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">Tổng đơn vị</span>
+              <span className="mt-0.5 text-2xl font-bold text-amber-900">{totalItems.toLocaleString('vi-VN')}</span>
+            </div>
+            <div className="flex flex-col items-center rounded-xl border border-sky-100 bg-white/70 px-5 py-2.5 shadow-sm">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-sky-600">Sản phẩm</span>
+              <span className="mt-0.5 text-2xl font-bold text-sky-700">{totalProducts}</span>
+            </div>
+            <div className="flex flex-col items-center rounded-xl border border-yellow-100 bg-white/70 px-5 py-2.5 shadow-sm">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-yellow-600">Sắp hết hạn</span>
+              <span className="mt-0.5 text-2xl font-bold text-yellow-700">{criticalCount}</span>
             </div>
           </div>
         </CardHeader>
+      </Card>
 
-        {/* Search & Action Section */}
-        <CardContent className="space-y-4 p-6">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 -mt-2 text-amber-600" />
-              <Input
-                placeholder="Tìm theo tên sản phẩm..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="border-amber-200 bg-amber-50/50 pl-9 focus:border-amber-400 focus:ring-amber-200"
-              />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={getInventoryData}
-              className="border-amber-200 text-amber-700 hover:bg-amber-50"
-            >
-              Làm mới
-            </Button>
-          </div>
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 rounded-xl border border-amber-100 bg-white px-4 py-3 shadow-sm">
+        <div className="relative w-full max-w-md flex-none">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-400" />
+          <Input
+            placeholder="Tìm theo tên sản phẩm..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9 w-full rounded-md border border-amber-200 bg-amber-50/40 pl-9 pr-3 text-xs text-stone-800 placeholder:text-stone-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60"
+          />
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={getInventoryData}
+          className="h-9 flex-none gap-1.5 border-amber-200 text-xs text-amber-700 hover:bg-amber-50"
+        >
+          Làm mới
+        </Button>
+        <div className="flex-1" />
+        <div className="flex items-center gap-1.5 text-[11px] text-amber-700/70">
+          <Info className="size-3.5 text-amber-400" />
+          <span>Dữ liệu từ hệ thống quản lý kho trung tâm</span>
+        </div>
+      </div>
 
-          {/* Main Table */}
-          <div className="relative overflow-x-auto rounded-xl border border-amber-200/60 bg-white shadow-sm">
+      {/* Main Content */}
+      <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-amber-200 bg-amber-50/60 text-left text-xs font-bold uppercase tracking-wider text-amber-900">
-                  <th className="px-6 py-4">Sản phẩm</th>
-                  <th className="px-6 py-4">Tổng tồn</th>
-                  <th className="px-6 py-4">Số lô</th>
-                  <th className="px-6 py-4">Hạn sử dụng gần nhất</th>
-                  <th className="px-6 py-4">Cảnh báo</th>
-                  <th className="px-6 py-4 text-right">Chi tiết</th>
+                <tr className="border-b border-amber-100 bg-amber-50/60 text-left text-[11px] font-semibold uppercase tracking-wider text-amber-900">
+                  <th className="px-6 py-3">Sản phẩm</th>
+                  <th className="px-6 py-3">Tổng tồn</th>
+                  <th className="px-6 py-3 text-center">Số lô</th>
+                  <th className="px-6 py-3">Hạn sử dụng gần nhất</th>
+                  <th className="px-6 py-3">Cảnh báo</th>
+                  <th className="px-6 py-3 text-right">Chi tiết</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-amber-100/60">
+              <tbody className="divide-y divide-amber-50/70">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-amber-700">
-                      Đang tải dữ liệu...
+                    <td colSpan={6} className="py-14 text-center">
+                      <div className="flex flex-col items-center gap-2 text-amber-500">
+                        <Info className="size-8 opacity-30" />
+                        <p className="text-xs text-stone-500">Đang tải dữ liệu tồn kho...</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-14 text-center">
+                      <div className="flex flex-col items-center gap-2 text-stone-400">
+                        <Boxes className="size-10 opacity-30" />
+                        <p className="text-sm font-medium">Không tìm thấy sản phẩm phù hợp</p>
+                        <p className="text-xs">Thử thay đổi từ khóa tìm kiếm</p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -266,60 +276,58 @@ const InventoryOverviewPage = () => {
                       : '—';
 
                     return (
-                      <tr key={row.product.productId} className="group transition hover:bg-amber-50/40">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex size-9 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                      <tr key={row.product.productId} className="group transition-colors hover:bg-amber-50/50">
+                        <td className="px-6 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
                               <Package className="size-4" />
                             </div>
-                            <div className="flex flex-col">
-                              <span className="text-sm font-semibold text-stone-900">{row.product.productName}</span>
-                              <span className="text-[11px] font-mono text-stone-400">ID #{row.product.productId}</span>
+                            <div>
+                              <p className="text-xs font-semibold text-stone-900">{row.product.productName}</p>
+                              <p className="font-mono text-[10px] text-stone-400">ID #{row.product.productId}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-3">
                           <div className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-700">
                             <Scale className="size-3 text-amber-500" />
-                            <span>
-                              {row.total_quantity.toLocaleString('vi-VN')} {row.unit}
-                            </span>
+                            {row.total_quantity.toLocaleString('vi-VN')} {row.unit}
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-stone-700">{row.batch_count}</td>
-                        <td className="px-6 py-4 text-sm text-stone-700">
+                        <td className="px-6 py-3 text-center text-xs font-semibold text-stone-700">
+                          {row.batch_count}
+                        </td>
+                        <td className="px-6 py-3">
                           <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">
                             <CalendarClock className="size-3" />
                             {nearestLabel}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col gap-1 text-[11px]">
-                            {isLowStock && (
-                              <span className="inline-flex items-center gap-1 rounded-full border border-stone-300 bg-stone-50 px-3 py-1 text-stone-700">
-                                <XCircle className="size-3 text-stone-500" />
-                                Hết hàng
-                              </span>
-                            )}
-                            {hasCritical && (
-                              <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-amber-800">
-                                <AlertTriangle className="size-3" />
-                                {row.critical_batches} lô sắp hết hạn
-                              </span>
-                            )}
-                            {!isLowStock && !hasCritical && (
-                              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
-                                <CheckCircle2 className="size-3" />
-                                An toàn
-                              </span>
-                            )}
-                          </div>
+                        <td className="px-6 py-3">
+                          {isLowStock && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-stone-300 bg-stone-50 px-2.5 py-0.5 text-[11px] text-stone-700">
+                              <XCircle className="size-3 text-stone-500" />
+                              Hết hàng
+                            </span>
+                          )}
+                          {!isLowStock && hasCritical && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] text-amber-800">
+                              <AlertTriangle className="size-3" />
+                              {row.critical_batches} lô sắp hết hạn
+                            </span>
+                          )}
+                          {!isLowStock && !hasCritical && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] text-emerald-700">
+                              <CheckCircle2 className="size-3" />
+                              An toàn
+                            </span>
+                          )}
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-3 text-right">
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            className="rounded-full border border-amber-200 px-4 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50"
+                            className="h-7 rounded-lg border-amber-200 bg-amber-50 px-3 text-[11px] text-amber-700 hover:bg-amber-100"
                             onClick={() => openDetail(row.product)}
                           >
                             Xem lô hàng
@@ -331,18 +339,6 @@ const InventoryOverviewPage = () => {
                 )}
               </tbody>
             </table>
-
-            {!isLoading && filteredRows.length === 0 && (
-              <div className="flex flex-col items-center justify-center gap-2 py-16 text-amber-700/70">
-                <Search className="mb-1 size-10 opacity-30" />
-                <p className="text-sm font-medium">Không tìm thấy sản phẩm tồn kho phù hợp</p>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-amber-700/80">
-            <Info className="size-4 text-amber-500" />
-            <span>Dữ liệu được cập nhật từ hệ thống quản lý kho trung tâm theo thời gian thực.</span>
           </div>
         </CardContent>
       </Card>

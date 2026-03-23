@@ -177,9 +177,9 @@ function CategoryManager() {
   };
 
   return (
-    <div className="h-full w-full">
-      <Card className="border-amber-200/60 bg-white shadow-md">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
+    <div className="h-full w-full space-y-5">
+      <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
+        <CardHeader className="flex flex-row items-center justify-start gap-4 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
           <div className="flex flex-col gap-1">
             <CardTitle className="flex items-center gap-2 text-xl font-bold text-amber-900">
               <Tag className="size-6 text-amber-500" />
@@ -189,92 +189,84 @@ function CategoryManager() {
               Định nghĩa các nhóm món ăn/nguyên liệu để cửa hàng và bếp sử dụng thống nhất.
             </CardDescription>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="relative hidden w-64 items-center md:flex">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 -mt-2 text-amber-600" />
-              <Input
-                placeholder="Tìm theo tên danh mục..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="border-amber-200 bg-amber-50/50 pl-9 focus:border-amber-400 focus:ring-amber-200"
-              />
-            </div>
+        </CardHeader>
+      </Card>
+
+      {/* ── Toolbar ── */}
+      <div className="flex flex-col gap-3 rounded-xl border border-amber-100 bg-white px-4 py-3 shadow-sm md:flex-row md:items-center md:justify-between">
+        <div className="relative w-full max-w-md flex-none">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-400" />
+          <Input
+            placeholder="Tìm theo tên danh mục..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9 w-full rounded-md border border-amber-200 bg-amber-50/40 pl-9 pr-3 text-xs text-stone-800 placeholder:text-stone-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
+            Bộ lọc trạng thái
+          </span>
+          <div className="flex gap-1.5">
             <Button
-              onClick={openAdd}
-              className="h-10 gap-2 bg-gradient-to-r from-amber-500 to-orange-500 px-5 text-white shadow-md hover:from-amber-600 hover:to-orange-600"
+              type="button"
+              size="sm"
+              variant={statusFilter === 'ALL' ? 'default' : 'outline'}
+              className={cn(
+                'h-8 rounded-full border-amber-200 px-3 text-xs',
+                statusFilter === 'ALL'
+                  ? 'bg-amber-500 text-white hover:bg-amber-600'
+                  : 'bg-white text-amber-800 hover:bg-amber-50'
+              )}
+              onClick={() => setStatusFilter('ALL')}
             >
-              <Plus className="size-4" />
-              Thêm danh mục
+              Tất cả
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={statusFilter === 'ACTIVE' ? 'default' : 'outline'}
+              className={cn(
+                'h-8 rounded-full border-emerald-200 px-3 text-xs',
+                statusFilter === 'ACTIVE'
+                  ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                  : 'bg-white text-emerald-700 hover:bg-emerald-50'
+              )}
+              onClick={() => setStatusFilter('ACTIVE')}
+            >
+              Đang sử dụng
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={statusFilter === 'INACTIVE' ? 'default' : 'outline'}
+              className={cn(
+                'h-8 rounded-full border-stone-300 px-3 text-xs',
+                statusFilter === 'INACTIVE'
+                  ? 'bg-stone-700 text-white hover:bg-stone-800'
+                  : 'bg-white text-stone-700 hover:bg-stone-50'
+              )}
+              onClick={() => setStatusFilter('INACTIVE')}
+            >
+              Ngưng dùng
             </Button>
           </div>
-        </CardHeader>
+        </div>
 
-        <CardContent className="space-y-4 p-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-2 md:hidden">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 -mt-2 text-amber-600" />
-                <Input
-                  placeholder="Tìm theo tên danh mục..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="border-amber-200 bg-amber-50/50 pl-9 focus:border-amber-400 focus:ring-amber-200"
-                />
-              </div>
-            </div>
+        <Button
+          onClick={openAdd}
+          className="h-10 gap-2 w-full sm:w-auto bg-gradient-to-r from-amber-500 to-orange-500 px-5 text-white shadow-md hover:from-amber-600 hover:to-orange-600"
+        >
+          <Plus className="size-4" />
+          Thêm danh mục
+        </Button>
+      </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700/80">
-                Bộ lọc trạng thái
-              </span>
-              <div className="flex gap-1.5">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={statusFilter === 'ALL' ? 'default' : 'outline'}
-                  className={cn(
-                    'h-8 rounded-full border-amber-200 px-3 text-xs',
-                    statusFilter === 'ALL'
-                      ? 'bg-amber-500 text-white hover:bg-amber-600'
-                      : 'bg-white text-amber-800 hover:bg-amber-50'
-                  )}
-                  onClick={() => setStatusFilter('ALL')}
-                >
-                  Tất cả
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={statusFilter === 'ACTIVE' ? 'default' : 'outline'}
-                  className={cn(
-                    'h-8 rounded-full border-emerald-200 px-3 text-xs',
-                    statusFilter === 'ACTIVE'
-                      ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                      : 'bg-white text-emerald-700 hover:bg-emerald-50'
-                  )}
-                  onClick={() => setStatusFilter('ACTIVE')}
-                >
-                  Đang sử dụng
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={statusFilter === 'INACTIVE' ? 'default' : 'outline'}
-                  className={cn(
-                    'h-8 rounded-full border-stone-300 px-3 text-xs',
-                    statusFilter === 'INACTIVE'
-                      ? 'bg-stone-700 text-white hover:bg-stone-800'
-                      : 'bg-white text-stone-700 hover:bg-stone-50'
-                  )}
-                  onClick={() => setStatusFilter('INACTIVE')}
-                >
-                  Ngưng dùng
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative overflow-x-auto rounded-xl border border-amber-200/60 bg-white shadow-sm">
+      {/* ── Table ── */}
+      <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-amber-200 bg-amber-50/60 text-left text-xs font-bold uppercase tracking-wider text-amber-900">
@@ -302,21 +294,19 @@ function CategoryManager() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        {
-                          <div
-                            className={cn(
-                              'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold border shadow-sm',
-                              statusColor[(category.status ?? 'INACTIVE') as CategoryStatus]
-                            )}
-                          >
-                            {(category.status ?? 'INACTIVE') === 'ACTIVE' ? (
-                              <CheckCircle2 className="size-3" />
-                            ) : (
-                              <XCircle className="size-3" />
-                            )}
-                            {statusLabel[(category.status ?? 'INACTIVE') as CategoryStatus]}
-                          </div>
-                        }
+                        <div
+                          className={cn(
+                            'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold border shadow-sm',
+                            statusColor[(category.status ?? 'INACTIVE') as CategoryStatus]
+                          )}
+                        >
+                          {(category.status ?? 'INACTIVE') === 'ACTIVE' ? (
+                            <CheckCircle2 className="size-3" />
+                          ) : (
+                            <XCircle className="size-3" />
+                          )}
+                          {statusLabel[(category.status ?? 'INACTIVE') as CategoryStatus]}
+                        </div>
                       </td>
 
                       {/* 2 nút bấm */}
@@ -351,14 +341,15 @@ function CategoryManager() {
                 })}
               </tbody>
             </table>
-            {filteredCategories.length === 0 && (
-              <div className="flex flex-col items-center justify-center gap-2 py-16 text-amber-700/70">
-                <Search className="mb-1 size-10 opacity-30" />
-                <p className="text-sm font-medium">Không tìm thấy danh mục nào phù hợp</p>
-                <p className="text-xs text-amber-700/70">Hãy thử lại với từ khóa khác hoặc thêm danh mục mới.</p>
-              </div>
-            )}
           </div>
+
+          {filteredCategories.length === 0 && (
+            <div className="flex flex-col items-center justify-center gap-2 py-16 text-amber-700/70">
+              <Search className="mb-1 size-10 opacity-30" />
+              <p className="text-sm font-medium">Không tìm thấy danh mục nào phù hợp</p>
+              <p className="text-xs text-amber-700/70">Hãy thử lại với từ khóa khác hoặc thêm danh mục mới.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

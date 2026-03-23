@@ -238,11 +238,11 @@ const ManagerReceiptsPage = () => {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="h-full w-full space-y-4">
+    <div className="h-full w-full space-y-5">
 
       {/* ── Page Header ─────────────────────────────────────────────────── */}
       <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-amber-50 px-6 py-5">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
           {/* Title + Description + Tabs (LEFT) */}
           <div className="flex flex-col gap-2">
             <CardTitle className="flex items-center gap-2 text-xl font-bold text-amber-900">
