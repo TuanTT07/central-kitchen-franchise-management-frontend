@@ -242,10 +242,10 @@ function CategoryManager() {
               size="sm"
               variant={statusFilter === 'INACTIVE' ? 'default' : 'outline'}
               className={cn(
-                'h-8 rounded-full border-stone-300 px-3 text-xs',
+                'h-8 rounded-full border-rose-200 px-3 text-xs',
                 statusFilter === 'INACTIVE'
-                  ? 'bg-stone-700 text-white hover:bg-stone-800'
-                  : 'bg-white text-stone-700 hover:bg-stone-50'
+                  ? 'bg-rose-500 text-white hover:bg-rose-600'
+                  : 'bg-white text-rose-700 hover:bg-rose-50'
               )}
               onClick={() => setStatusFilter('INACTIVE')}
             >
