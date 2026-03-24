@@ -77,7 +77,10 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
   // ================= RENDER =================
 
   return (
-    <div className={cn('mx-auto w-full max-w-md rounded-2xl bg-white px-6 py-8 shadow-xl sm:px-8', className)} {...props}>
+    <div
+      className={cn('mx-auto w-full max-w-md rounded-2xl bg-white px-6 py-8 shadow-xl sm:px-8', className)}
+      {...props}
+    >
       {/* Header */}
       <div className="flex flex-col items-center text-center">
         <div className="flex items-center justify-center gap-2">

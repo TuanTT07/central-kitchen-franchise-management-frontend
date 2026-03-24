@@ -1,3 +1,12 @@
+/**
+ * File: ReportsPage.tsx
+ * Description: Trang báo cáo quản lý kho trung tâm, hiển thị tồn kho, lô sắp hết hạn và giao dịch.
+ * Author: Tuan Tran
+ * Created: 2026
+ */
+
+// ================= IMPORTS =================
+
 import { useEffect, useState } from 'react';
 import {
   Boxes,
@@ -24,15 +33,17 @@ import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/ca
 
 const NEAR_EXPIRY_DAYS = 3;
 
-function getItems<T>(res: { data?: { items?: T[]; data?: { items?: T[] } } }): T[] {
-  const d = res?.data;
-  if (!d) return [];
-  if (Array.isArray((d as { items?: T[] }).items)) return (d as { items: T[] }).items;
-  const inner = (d as { data?: { items?: T[] } }).data;
-  return inner?.items && Array.isArray(inner.items) ? inner.items : [];
-}
+/**
+ * ReportsPage Component
+ * - Hiển thị tổng tồn kho và lô sắp hết hạn
+ * - Liệt kê Top cửa hàng nhập kho
+ * - Hiển thị các giao dịch kho gần nhất
+ */
 
 function ReportsPage() {
+
+  // ================= STATE =================
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,61 +53,78 @@ function ReportsPage() {
   const [topStores, setTopStores] = useState<TopStoreReportItem[]>([]);
   const [inventoryTransactions, setInventoryTransactions] = useState<InventoryTransactionResponse[]>([]);
 
+  // ================= EFFECT =================
+
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const [stockRes, nearExpiryRes, topStoresRes, inventoryTxRes] = await Promise.all([
-          managerServices.getInventoryStock(),
-          managerServices.getNearExpiryBatches(NEAR_EXPIRY_DAYS),
-          managerServices.getTopImportingStores(10),
-          kitchenServices.getInventoryTransaction(),
-        ]);
-        if (cancelled) return;
-
-        const stockPayload = (stockRes as { data?: unknown }).data;
-        const stockItems =
-          getItems<InventoryReportResponse>({ data: stockPayload as never }) ??
-          (stockPayload as { data?: { items?: InventoryReportResponse[] } })?.data?.items ?? [];
-        setTotalStockUnits(
-          Array.isArray(stockItems)
-            ? stockItems.reduce((sum, i) => sum + (Number(i?.totalStock) || 0), 0)
-            : 0
-        );
-
-        const nearPayload = (
-          nearExpiryRes as unknown as { data?: { items?: NearExpiryItem[]; totalElements?: number } }
-        )?.data;
-        const nearItems = nearPayload?.items ?? [];
-        setNearExpiryBatches(Array.isArray(nearItems) ? nearItems : []);
-        setNearExpiryTotal(nearPayload?.totalElements ?? (Array.isArray(nearItems) ? nearItems.length : 0));
-
-        const storesList =
-          (topStoresRes as unknown as { data?: { items?: TopStoreReportItem[] } })?.data?.items ?? [];
-        setTopStores(Array.isArray(storesList) ? storesList : []);
-
-        const txPayload = inventoryTxRes as unknown as {
-          success?: boolean;
-          data?: { items?: InventoryTransactionResponse[] };
-        };
-        if (txPayload?.success && Array.isArray(txPayload.data?.items)) {
-          setInventoryTransactions(txPayload.data.items);
-        } else if (Array.isArray((txPayload as { data?: InventoryTransactionResponse[] }).data)) {
-          setInventoryTransactions((txPayload as { data: InventoryTransactionResponse[] }).data);
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Không tải được báo cáo');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
+    fetchData(cancelled);
     return () => { cancelled = true; };
   }, []);
 
+  // ================= API =================
+
+  const fetchData = async (cancelled: boolean) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [stockRes, nearExpiryRes, topStoresRes, inventoryTxRes] = await Promise.all([
+        managerServices.getInventoryStock(),
+        managerServices.getNearExpiryBatches(NEAR_EXPIRY_DAYS),
+        managerServices.getTopImportingStores(10),
+        kitchenServices.getInventoryTransaction(),
+      ]);
+      if (cancelled) return;
+
+      // Xử lý dữ liệu tồn kho
+      const stockPayload = (stockRes as { data?: unknown }).data;
+      const stockItems =
+        getItems<InventoryReportResponse>({ data: stockPayload as never }) ??
+        (stockPayload as { data?: { items?: InventoryReportResponse[] } })?.data?.items ?? [];
+      setTotalStockUnits(
+        Array.isArray(stockItems)
+          ? stockItems.reduce((sum, i) => sum + (Number(i?.totalStock) || 0), 0)
+          : 0
+      );
+
+      // Xử lý dữ liệu lô sắp hết hạn
+      const nearPayload = (
+        nearExpiryRes as unknown as { data?: { items?: NearExpiryItem[]; totalElements?: number } }
+      )?.data;
+      const nearItems = nearPayload?.items ?? [];
+      setNearExpiryBatches(Array.isArray(nearItems) ? nearItems : []);
+      setNearExpiryTotal(nearPayload?.totalElements ?? (Array.isArray(nearItems) ? nearItems.length : 0));
+
+      // Xử lý dữ liệu top cửa hàng
+      const storesList =
+        (topStoresRes as unknown as { data?: { items?: TopStoreReportItem[] } })?.data?.items ?? [];
+      setTopStores(Array.isArray(storesList) ? storesList : []);
+
+      // Xử lý dữ liệu giao dịch
+      const txPayload = inventoryTxRes as unknown as {
+        success?: boolean;
+        data?: { items?: InventoryTransactionResponse[] };
+      };
+      if (txPayload?.success && Array.isArray(txPayload.data?.items)) {
+        setInventoryTransactions(txPayload.data.items);
+      } else if (Array.isArray((txPayload as { data?: InventoryTransactionResponse[] }).data)) {
+        setInventoryTransactions((txPayload as { data: InventoryTransactionResponse[] }).data);
+      }
+    } catch (e) {
+      if (!cancelled) setError(e instanceof Error ? e.message : 'Không tải được báo cáo');
+    } finally {
+      if (!cancelled) setLoading(false);
+    }
+  };
+
+  // ================= UTILS =================
+
+  const sortedTx = [...inventoryTransactions]
+    .sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime())
+    .slice(0, 10);
+
   const today = new Date();
+
+  // ================= RENDER =================
 
   if (loading) {
     return (
@@ -116,13 +144,9 @@ function ReportsPage() {
     );
   }
 
-  const sortedTx = [...inventoryTransactions]
-    .sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime())
-    .slice(0, 10);
-
   return (
     <div className="min-h-full space-y-6 p-1">
-      {/* ── Page Header ── */}
+      {/* Header báo cáo */}
       <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
         <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
           <div className="flex flex-col gap-1">
@@ -147,7 +171,7 @@ function ReportsPage() {
         </CardHeader>
       </Card>
 
-      {/* ── KPI CARDS ── */}
+      {/* Thẻ chỉ số KPI */}
       <div className="grid gap-4 sm:grid-cols-2">
         <KpiCard
           icon={Boxes}
@@ -166,7 +190,7 @@ function ReportsPage() {
         />
       </div>
 
-      {/* ── 2 TABLES ── */}
+      {/* Bảng dữ liệu chi tiết */}
       <div className="grid gap-5 lg:grid-cols-2">
         {/* Lô sắp hết hạn */}
         <SectionCard
@@ -230,9 +254,9 @@ function ReportsPage() {
                     <span className={cn(
                       'inline-flex size-6 items-center justify-center rounded-full text-[11px] font-bold',
                       i === 0 ? 'bg-amber-400 text-white' :
-                      i === 1 ? 'bg-stone-300 text-stone-700' :
-                      i === 2 ? 'bg-amber-200 text-amber-800' :
-                      'bg-stone-100 text-stone-500'
+                        i === 1 ? 'bg-stone-300 text-stone-700' :
+                          i === 2 ? 'bg-amber-200 text-amber-800' :
+                            'bg-stone-100 text-stone-500'
                     )}>
                       {i + 1}
                     </span>
@@ -259,24 +283,8 @@ function ReportsPage() {
           </table>
         </SectionCard>
       </div>
-      {badge && (
-        <div className={cn(
-          'mt-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium',
-          isRose ? 'border-rose-100 bg-rose-50 text-rose-700' : 'border-amber-100 bg-amber-50 text-amber-700'
-        )}>
-          <CalendarClock className="size-3" />
-          {badge}
-        </div>
-      )}
-      <div className={cn(
-        'pointer-events-none absolute -bottom-4 -right-4 size-20 rounded-full opacity-[0.07]',
-        isRose ? 'bg-rose-500' : 'bg-amber-500'
-      )} />
-    </div>
-  );
-}
 
-      {/* ── TRANSACTION TABLE ── */}
+      {/* Giao dịch tồn kho */}
       <SectionCard
         icon={UtensilsCrossed}
         title="Giao dịch tồn kho mới nhất"
@@ -306,9 +314,9 @@ function ReportsPage() {
                 <td className="px-4 py-2.5 text-stone-500">
                   {row.transactionDate
                     ? new Date(row.transactionDate).toLocaleString('vi-VN', {
-                        day: '2-digit', month: '2-digit', year: 'numeric',
-                        hour: '2-digit', minute: '2-digit', hour12: false,
-                      })
+                      day: '2-digit', month: '2-digit', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit', hour12: false,
+                    })
                     : '—'}
                 </td>
               </tr>
@@ -327,7 +335,22 @@ function ReportsPage() {
   );
 }
 
-/* ── KPI Card ── */
+// ================= UTILS =================
+
+/**
+ * Helper: Trích xuất danh sách items từ response API
+ */
+function getItems<T>(res: { data?: { items?: T[]; data?: { items?: T[] } } }): T[] {
+  const d = res?.data;
+  if (!d) return [];
+  if (Array.isArray((d as { items?: T[] }).items)) return (d as { items: T[] }).items;
+  const inner = (d as { data?: { items?: T[] } } ).data;
+  return inner?.items && Array.isArray(inner.items) ? inner.items : [];
+}
+
+/**
+ * KpiCard Component: Hiển thị thẻ chỉ số tóm tắt
+ */
 function KpiCard({
   icon: Icon, label, value, sub, accent, badge,
 }: {
@@ -376,7 +399,9 @@ function KpiCard({
   );
 }
 
-/* ── Section Card wrapper ── */
+/**
+ * SectionCard Component: Wrapper cho các bảng dữ liệu
+ */
 function SectionCard({
   icon: Icon, title, desc, children,
 }: {
@@ -401,7 +426,9 @@ function SectionCard({
   );
 }
 
-/* ── Transaction type badge ── */
+/**
+ * TxBadge Component: Hiển thị loại giao dịch với icon và màu sắc
+ */
 function TxBadge({ type }: { type: string }) {
   if (type === 'IMPORT') return (
     <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-[10px] font-semibold text-green-700 border border-green-100">
