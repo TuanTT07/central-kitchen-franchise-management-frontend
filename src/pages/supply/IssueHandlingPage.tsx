@@ -29,6 +29,7 @@ import { toast } from 'sonner';
  */
 
 const IssueHandlingPage = () => {
+  const API_PAGE_SIZE = 10;
 
   // ================= STATE =================
 
@@ -47,7 +48,7 @@ const IssueHandlingPage = () => {
   // Thông tin phân trang
   const [pagination, setPagination] = useState({
     page: 0,
-    size: 5,
+    size: API_PAGE_SIZE,
     totalElements: 0,
     totalPages: 0,
   });

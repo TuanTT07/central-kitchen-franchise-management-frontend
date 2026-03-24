@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import type { OrderDetailResponse, OrderResponse } from '@/services/franchiseServices';
 import type { ConsolidationProduct, ConsolidationResponse } from '@/services/supplyServices';
 import { supplyServices } from '@/services/supplyServices';
-import { translateStatus } from '@/utils/labelMapping';
+import { normalizeStatusKey, translateStatus } from '@/utils/labelMapping';
 import { toast } from 'sonner';
 
 // ================= COMPONENT =================
@@ -61,10 +61,36 @@ function SummaryOrdersPage() {
    */
   const getAllOrders = async () => {
     try {
-      const response = await supplyServices.getAllOrders();
-      if (response.success && response.data.items) {
-        setOrders(response.data.items);
+      const pageSize = 100;
+      const first = await supplyServices.getAllOrders(0, pageSize);
+      if (!first.success || !first.data) return;
+
+      const firstPayload = first.data as any;
+      const firstItems: OrderResponse<OrderDetailResponse[]>[] =
+        (Array.isArray(firstPayload.items) && firstPayload.items) ||
+        (Array.isArray(firstPayload.content) && firstPayload.content) ||
+        [];
+
+      const totalPages = Number(firstPayload.totalPages ?? 1);
+      if (!Number.isFinite(totalPages) || totalPages <= 1) {
+        setOrders(firstItems);
+        return;
       }
+
+      const rest = await Promise.all(
+        Array.from({ length: totalPages - 1 }, (_, i) => supplyServices.getAllOrders(i + 1, pageSize))
+      );
+
+      const restItems = rest.flatMap((res) => {
+        const payload = res?.data as any;
+        return (
+          (Array.isArray(payload?.items) && payload.items) ||
+          (Array.isArray(payload?.content) && payload.content) ||
+          []
+        );
+      });
+
+      setOrders([...firstItems, ...restItems]);
     } catch (error) {
       toast.error('Không thể tải danh sách đơn hàng');
     }
@@ -209,7 +235,7 @@ function SummaryOrdersPage() {
   // Tính toán thống kê từ danh sách orders hiện tại
   const stats = useMemo(() => {
     const total = orders.length;
-    const pending = orders.filter((o) => o.status === 'PENDING').length;
+    const pending = orders.filter((o) => normalizeStatusKey(o.status) === 'PENDING').length;
     const totalProducts = orders.reduce((acc, current) => {
       return acc + current.details.reduce((sum, item) => sum + item.quantity, 0);
     }, 0);
@@ -220,7 +246,7 @@ function SummaryOrdersPage() {
     let data = [...orders];
 
     if (statusFilter !== 'ALL') {
-      data = data.filter((o) => o.status === statusFilter);
+      data = data.filter((o) => normalizeStatusKey(o.status) === statusFilter);
     }
 
     if (search.trim()) {
@@ -477,7 +503,7 @@ function SummaryOrdersPage() {
                             </td>
                             <td className="px-2 py-3 text-center">
                               <div className="flex items-center justify-center gap-1.5">
-                                {o.status === 'PENDING' && (
+                                {normalizeStatusKey(o.status) === 'PENDING' && (
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -649,7 +675,7 @@ function SummaryOrdersPage() {
                 </thead>
                 <tbody className="divide-y divide-amber-50">
                   {orders
-                    .filter((o) => o.status === 'APPROVED')
+                    .filter((o) => normalizeStatusKey(o.status) === 'APPROVED')
                     .map((o) => (
                       <tr
                         key={o.orderId}
@@ -672,7 +698,7 @@ function SummaryOrdersPage() {
                         </td>
                       </tr>
                     ))}
-                  {orders.filter((o) => o.status === 'APPROVED').length === 0 && (
+                  {orders.filter((o) => normalizeStatusKey(o.status) === 'APPROVED').length === 0 && (
                     <tr>
                       <td colSpan={5} className="py-10 text-center text-stone-500">
                         Không có đơn hàng nào đã duyệt để tổng hợp.

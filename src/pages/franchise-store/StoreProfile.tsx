@@ -12,6 +12,19 @@ interface StoreBasicInfo {
   phone?: string;
 }
 
+function parseTotalPages(data: unknown): number {
+  if (!data || typeof data !== 'object') return 1;
+  const value = Number((data as Record<string, unknown>).totalPages ?? 1);
+  return Number.isFinite(value) && value > 0 ? value : 1;
+}
+
+function parsePaginatedItems<T>(data: unknown): T[] {
+  if (!data || typeof data !== 'object') return [];
+  const o = data as Record<string, unknown>;
+  const arr = (o.items ?? o.content) as T[] | undefined;
+  return Array.isArray(arr) ? arr : [];
+}
+
 function StoreProfile() {
   const { user, userName } = useAuth();
 
@@ -33,38 +46,51 @@ function StoreProfile() {
   };
 
   useEffect(() => {
-    franchiseServices
-      .getOrders(0, 200)
-      .then(async (res) => {
-        if (res.success && res.data) {
-          const items = res.data.items ?? [];
-          setOrders(items);
-          if (items.length > 0 && items[0].storeId && items[0].storeName) {
-            const baseStoreInfo: StoreBasicInfo = {
-              storeId: items[0].storeId,
-              storeName: items[0].storeName,
-            };
+    const loadStoreProfile = async () => {
+      try {
+        const pageSize = 100;
+        const first = await franchiseServices.getOrders(0, pageSize);
+        if (!first.success || !first.data) return;
 
-            try {
-              const storeRes = await adminService.getStoreById(items[0].storeId);
-              if (storeRes.data.success && storeRes.data.data) {
-                const storeData = storeRes.data.data;
-                setStoreInfo({
-                  ...baseStoreInfo,
-                  address: storeData.address,
-                  phone: storeData.phone,
-                });
-                return;
-              }
-            } catch {
-              // Keep base info if store detail endpoint is unavailable for this role.
+        const firstItems = parsePaginatedItems<OrderResponse<OrderDetailResponse[]>>(first.data);
+        const totalPages = parseTotalPages(first.data);
+        const rest =
+          totalPages > 1
+            ? await Promise.all(Array.from({ length: totalPages - 1 }, (_, i) => franchiseServices.getOrders(i + 1, pageSize)))
+            : [];
+        const restItems = rest.flatMap((res) => parsePaginatedItems<OrderResponse<OrderDetailResponse[]>>(res?.data));
+        const items = [...firstItems, ...restItems];
+
+        setOrders(items);
+        if (items.length > 0 && items[0].storeId && items[0].storeName) {
+          const baseStoreInfo: StoreBasicInfo = {
+            storeId: items[0].storeId,
+            storeName: items[0].storeName,
+          };
+
+          try {
+            const storeRes = await adminService.getStoreById(items[0].storeId);
+            if (storeRes.data.success && storeRes.data.data) {
+              const storeData = storeRes.data.data;
+              setStoreInfo({
+                ...baseStoreInfo,
+                address: storeData.address,
+                phone: storeData.phone,
+              });
+              return;
             }
-
-            setStoreInfo(baseStoreInfo);
+          } catch {
+            // Keep base info if store detail endpoint is unavailable for this role.
           }
+
+          setStoreInfo(baseStoreInfo);
         }
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadStoreProfile();
   }, []);
 
   const currentUser = resolveUserAndStore();

@@ -37,6 +37,12 @@ function parsePaginatedItems<T>(data: unknown): T[] {
   return Array.isArray(arr) ? arr : [];
 }
 
+function parseTotalPages(data: unknown): number {
+  if (!data || typeof data !== 'object') return 1;
+  const value = Number((data as Record<string, unknown>).totalPages ?? 1);
+  return Number.isFinite(value) && value > 0 ? value : 1;
+}
+
 const STATUS_ORDER_COLOR: Record<string, string> = {
   PENDING: 'bg-amber-100 text-amber-700 border-amber-200',
   APPROVED: 'bg-green-100 text-green-700 border-green-200',
@@ -69,10 +75,11 @@ const ManagerDashboard = () => {
       setLoading(true);
       setError(null);
       try {
+        const apiPageSize = 100;
         const [catRes, prodRes, ordersRes, nearRes, batchesRes] = await Promise.allSettled([
           managerServices.getAllCategories(),
           managerServices.getAllProducts(),
-          managerServices.getOrders(0, 50),
+          managerServices.getOrders(0, apiPageSize),
           managerServices.getNearExpiryBatches(14),
           kitchenServices.getAllProductBatches(),
         ]);
@@ -86,7 +93,18 @@ const ManagerDashboard = () => {
           setProducts(Array.isArray(raw) ? raw : []);
         }
         if (ordersRes.status === 'fulfilled' && ordersRes.value?.data) {
-          setOrders(parsePaginatedItems<ManagerOrderItem>((ordersRes.value as { data?: unknown }).data));
+          const firstPayload = (ordersRes.value as { data?: unknown }).data;
+          const totalPages = parseTotalPages(firstPayload);
+          const firstItems = parsePaginatedItems<ManagerOrderItem>(firstPayload);
+          if (totalPages <= 1) {
+            setOrders(firstItems);
+          } else {
+            const remaining = await Promise.all(
+              Array.from({ length: totalPages - 1 }, (_, i) => managerServices.getOrders(i + 1, apiPageSize))
+            );
+            const remainingItems = remaining.flatMap((res) => parsePaginatedItems<ManagerOrderItem>(res?.data));
+            setOrders([...firstItems, ...remainingItems]);
+          }
         }
         if (nearRes.status === 'fulfilled' && nearRes.value?.data) {
           setNearExpiry(parsePaginatedItems<NearExpiryItem>((nearRes.value as { data?: unknown }).data));

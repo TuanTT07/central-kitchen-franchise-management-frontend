@@ -18,13 +18,14 @@ import {
 } from 'lucide-react';
 
 type LoadState = 'idle' | 'loading' | 'error';
+const ADMIN_DASHBOARD_PAGE_SIZE = 100;
+const ADMIN_DASHBOARD_PAGE_CAP = 50;
 
 async function fetchAllPages<T>(fetchPage: (page: number) => Promise<{ items: T[]; totalPages?: number }>) {
   const items: T[] = [];
   let page = 0;
   let totalPages = 1;
-  const HARD_PAGE_CAP = 50;
-  while (page < totalPages && page < HARD_PAGE_CAP) {
+  while (page < totalPages && page < ADMIN_DASHBOARD_PAGE_CAP) {
     const res = await fetchPage(page);
     items.push(...res.items);
     totalPages = Math.max(1, Number(res.totalPages ?? totalPages));
@@ -43,12 +44,12 @@ const AdminDashboard = () => {
     try {
       const [allUsers, allStores] = await Promise.all([
         fetchAllPages<UserResponse>(async (page) => {
-          const resp = await adminService.getAllUsers(page, 100);
+          const resp = await adminService.getAllUsers(page, ADMIN_DASHBOARD_PAGE_SIZE);
           const data = resp.data?.data;
           return { items: data?.items ?? [], totalPages: data?.totalPages ?? 1 };
         }),
         fetchAllPages<StoreResponse>(async (page) => {
-          const resp = await adminService.getAllStores(page, 100);
+          const resp = await adminService.getAllStores(page, ADMIN_DASHBOARD_PAGE_SIZE);
           const data = resp.data?.data;
           return { items: data?.items ?? [], totalPages: data?.totalPages ?? 1 };
         }),
