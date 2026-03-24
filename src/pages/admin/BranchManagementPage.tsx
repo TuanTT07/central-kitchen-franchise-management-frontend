@@ -315,12 +315,12 @@ const BranchManagementPage = () => {
           <CardContent className="p-6">
             <div className="mb-4 flex items-center gap-2">
               <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 -mt-2 text-amber-600" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-400" />
                 <Input
                   placeholder="Tìm theo tên, địa chỉ..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="border-amber-200 bg-amber-50/50 pl-9 focus:border-amber-400 focus:ring-amber-200"
+                  className="h-9 w-full rounded-md border border-amber-200 bg-amber-50/40 pl-9 pr-3 text-xs text-stone-800 placeholder:text-stone-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60"
                 />
               </div>
             </div>
@@ -362,10 +362,10 @@ const BranchManagementPage = () => {
                   size="sm"
                   variant={statusFilter === 'INACTIVE' ? 'default' : 'outline'}
                   className={cn(
-                    'h-8 rounded-full border-stone-300 px-3 text-xs',
+                    'h-8 rounded-full border-rose-200 px-3 text-xs',
                     statusFilter === 'INACTIVE'
-                      ? 'bg-stone-700 text-white hover:bg-stone-800'
-                      : 'bg-white text-stone-700 hover:bg-stone-50'
+                      ? 'bg-rose-500 text-white hover:bg-rose-600'
+                      : 'bg-white text-rose-700 hover:bg-rose-50'
                   )}
                   onClick={() => setStatusFilter('INACTIVE')}
                 >
