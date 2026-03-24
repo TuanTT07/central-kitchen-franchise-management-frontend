@@ -212,8 +212,10 @@ export const supplyServices = {
    *
    * @returns Promise<PaginatedResponse<OrderResponse<OrderDetailResponse[]>[]>>
    */
-  getAllOrders: async () => {
-    const response = await http.get<Response<PaginatedResponse<OrderResponse<OrderDetailResponse[]>[]>>>('/orders');
+  getAllOrders: async (page: number = 0, size: number = 50) => {
+    const response = await http.get<Response<PaginatedResponse<OrderResponse<OrderDetailResponse[]>[]>>>('/orders', {
+      params: { page, size },
+    });
     return response.data;
   },
 

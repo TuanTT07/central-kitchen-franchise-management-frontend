@@ -52,6 +52,12 @@ function parsePaginatedItems<T>(data: unknown): T[] {
   return Array.isArray(arr) ? arr : [];
 }
 
+function parseTotalPages(data: unknown): number {
+  if (!data || typeof data !== 'object') return 1;
+  const value = Number((data as Record<string, unknown>).totalPages ?? 1);
+  return Number.isFinite(value) && value > 0 ? value : 1;
+}
+
 const FranchiseStoreDashboard = () => {
   const { user } = useAuth();
   const storeId = user?.storeId ?? user?.store_id ?? null;
@@ -67,21 +73,29 @@ const FranchiseStoreDashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      const [ordersRes, exportRes] = await Promise.allSettled([
-        franchiseServices.getOrders(0, 50),
-        supplyServices.getAllExportNote(),
-      ]);
+      const pageSize = 100;
 
-      if (ordersRes.status === 'fulfilled' && ordersRes.value?.data) {
-        const paginated = (ordersRes.value as { data?: unknown }).data;
-        const list = parsePaginatedItems<OrderResponse<unknown>>(paginated);
-        setOrders(Array.isArray(list) ? list : []);
-      }
-      if (exportRes.status === 'fulfilled' && exportRes.value?.data) {
-        const paginated = (exportRes.value as { data?: unknown }).data;
-        const list = parsePaginatedItems<ExportNotesResponse>(paginated);
-        setExportNotes(Array.isArray(list) ? list : []);
-      }
+      const firstOrdersRes = await franchiseServices.getOrders(0, pageSize);
+      const firstOrdersPayload = firstOrdersRes?.data;
+      const orderTotalPages = parseTotalPages(firstOrdersPayload);
+      const firstOrders = parsePaginatedItems<OrderResponse<unknown>>(firstOrdersPayload);
+      const remainingOrdersRes =
+        orderTotalPages > 1
+          ? await Promise.all(Array.from({ length: orderTotalPages - 1 }, (_, i) => franchiseServices.getOrders(i + 1, pageSize)))
+          : [];
+      const remainingOrders = remainingOrdersRes.flatMap((res) => parsePaginatedItems<OrderResponse<unknown>>(res?.data));
+      setOrders([...firstOrders, ...remainingOrders]);
+
+      const firstExportRes = await supplyServices.getAllExportNote(0, pageSize);
+      const firstExportPayload = firstExportRes?.data?.data;
+      const exportTotalPages = parseTotalPages(firstExportPayload);
+      const firstExports = parsePaginatedItems<ExportNotesResponse>(firstExportPayload);
+      const remainingExportRes =
+        exportTotalPages > 1
+          ? await Promise.all(Array.from({ length: exportTotalPages - 1 }, (_, i) => supplyServices.getAllExportNote(i + 1, pageSize)))
+          : [];
+      const remainingExports = remainingExportRes.flatMap((res) => parsePaginatedItems<ExportNotesResponse>(res?.data?.data));
+      setExportNotes([...firstExports, ...remainingExports]);
     } catch {
       setError('Không tải được dữ liệu. Vui lòng thử lại.');
     } finally {

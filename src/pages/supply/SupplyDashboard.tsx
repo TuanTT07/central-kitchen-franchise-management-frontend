@@ -33,6 +33,12 @@ function parsePaginatedItems<T>(data: unknown): T[] {
   return Array.isArray(arr) ? arr : [];
 }
 
+function parseTotalPages(data: unknown): number {
+  if (!data || typeof data !== 'object') return 1;
+  const value = Number((data as Record<string, unknown>).totalPages ?? 1);
+  return Number.isFinite(value) && value > 0 ? value : 1;
+}
+
 const SupplyDashboard = () => {
   const [exportNotes, setExportNotes] = useState<ExportNotesResponse[]>([]);
   const [deliveryPlans, setDeliveryPlans] = useState<DeliveryPlanResponse[]>([]);
@@ -44,18 +50,33 @@ const SupplyDashboard = () => {
       setLoading(true);
       setError(null);
       try {
-        const [exportRes, deliveryRes] = await Promise.allSettled([
-          supplyServices.getAllExportNote(),
-          supplyServices.getDeliveryPlan(),
-        ]);
-        if (exportRes.status === 'fulfilled' && exportRes.value?.data) {
-          const list = parsePaginatedItems<ExportNotesResponse>((exportRes.value as { data?: unknown }).data);
-          setExportNotes(Array.isArray(list) ? list : []);
-        }
-        if (deliveryRes.status === 'fulfilled' && deliveryRes.value?.data) {
-          const list = parsePaginatedItems<DeliveryPlanResponse>((deliveryRes.value as { data?: unknown }).data);
-          setDeliveryPlans(Array.isArray(list) ? list : []);
-        }
+        const pageSize = 100;
+
+        const firstExportRes = await supplyServices.getAllExportNote(0, pageSize);
+        const firstExportPayload = firstExportRes?.data?.data;
+        const exportTotalPages = parseTotalPages(firstExportPayload);
+        const firstExportItems = parsePaginatedItems<ExportNotesResponse>(firstExportPayload);
+        const remainingExportRes =
+          exportTotalPages > 1
+            ? await Promise.all(
+                Array.from({ length: exportTotalPages - 1 }, (_, i) => supplyServices.getAllExportNote(i + 1, pageSize))
+              )
+            : [];
+        const remainingExportItems = remainingExportRes.flatMap((res) => parsePaginatedItems<ExportNotesResponse>(res?.data?.data));
+        setExportNotes([...firstExportItems, ...remainingExportItems]);
+
+        const firstDeliveryRes = await supplyServices.getDeliveryPlan(0, pageSize);
+        const firstDeliveryPayload = firstDeliveryRes?.data;
+        const deliveryTotalPages = parseTotalPages(firstDeliveryPayload);
+        const firstDeliveryItems = parsePaginatedItems<DeliveryPlanResponse>(firstDeliveryPayload);
+        const remainingDeliveryRes =
+          deliveryTotalPages > 1
+            ? await Promise.all(
+                Array.from({ length: deliveryTotalPages - 1 }, (_, i) => supplyServices.getDeliveryPlan(i + 1, pageSize))
+              )
+            : [];
+        const remainingDeliveryItems = remainingDeliveryRes.flatMap((res) => parsePaginatedItems<DeliveryPlanResponse>(res?.data));
+        setDeliveryPlans([...firstDeliveryItems, ...remainingDeliveryItems]);
       } catch {
         setError('Không tải được dữ liệu. Vui lòng thử lại.');
       } finally {
