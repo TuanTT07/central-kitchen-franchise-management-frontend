@@ -259,6 +259,22 @@ function ReportsPage() {
           </table>
         </SectionCard>
       </div>
+      {badge && (
+        <div className={cn(
+          'mt-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium',
+          isRose ? 'border-rose-100 bg-rose-50 text-rose-700' : 'border-amber-100 bg-amber-50 text-amber-700'
+        )}>
+          <CalendarClock className="size-3" />
+          {badge}
+        </div>
+      )}
+      <div className={cn(
+        'pointer-events-none absolute -bottom-4 -right-4 size-20 rounded-full opacity-[0.07]',
+        isRose ? 'bg-rose-500' : 'bg-amber-500'
+      )} />
+    </div>
+  );
+}
 
       {/* ── TRANSACTION TABLE ── */}
       <SectionCard

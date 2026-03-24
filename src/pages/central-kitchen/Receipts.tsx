@@ -282,6 +282,16 @@ function Receipts() {
                 + Tạo phiếu nhập kho
               </Button>
             </div>
+
+            {/* Nút phải */}
+            <Button
+              type="button"
+              size="sm"
+              className="h-full shrink-0 rounded-full bg-amber-600 px-5 text-[11px] font-semibold text-white hover:bg-amber-700"
+              onClick={handleOpenStockIn}
+            >
+              + Tạo phiếu nhập kho
+            </Button>
           </div>
 
           {/* ── Table Card ── */}

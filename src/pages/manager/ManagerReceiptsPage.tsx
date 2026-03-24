@@ -124,6 +124,7 @@ const ManagerReceiptsPage = () => {
   const [selectedExport, setSelectedExport] = useState<ExportNotesResponse | null>(null);
   const [isExportDetailOpen, setIsExportDetailOpen] = useState(false);
   const [isLoadingExportDetail, setIsLoadingExportDetail] = useState(false);
+
   const [selectedReceipt, setSelectedReceipt] = useState<InventoryReceiptApi | null>(null);
   const [isReceiptDetailOpen, setIsReceiptDetailOpen] = useState(false);
   const [isLoadingReceiptDetail, setIsLoadingReceiptDetail] = useState(false);
@@ -171,6 +172,7 @@ const ManagerReceiptsPage = () => {
     }
   };
 
+  // Lấy chi tiết phiếu xuất
   const handleOpenExportDetail = async (note: ExportNotesResponse) => {
     setIsLoadingExportDetail(true);
     try {
@@ -181,6 +183,7 @@ const ManagerReceiptsPage = () => {
     }
   };
 
+  // Lấy chi tiết phiếu nhập
   const handleOpenReceiptDetail = async (receipt: InventoryReceiptApi) => {
     setSelectedReceipt(receipt);
     setIsReceiptDetailOpen(true);
