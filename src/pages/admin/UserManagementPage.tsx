@@ -329,12 +329,12 @@ const UserManagementPage = () => {
           <CardContent className="p-6">
             <div className="mb-4 flex items-center gap-2">
               <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 -mt-2 text-amber-600" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-400" />
                 <Input
                   placeholder="Tìm theo username, họ tên, email..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="border-amber-200 bg-amber-50/50 pl-9 focus:border-amber-400 focus:ring-amber-200"
+                  className="h-9 w-full rounded-md border border-amber-200 bg-amber-50/40 pl-9 pr-3 text-xs text-stone-800 placeholder:text-stone-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60"
                 />
               </div>
             </div>
