@@ -164,7 +164,12 @@ export interface DeliveryIssueResponse {
   reviewDecision: string | null;
   replacementOrderId: number | null;
   replacementOrderCode: string | null;
-  images?: string[];
+  reportedOrderStatus: string;
+  totalQuantity: number;
+  affectedQuantity: number;
+  recommendedResolution: string;
+  selectedResolution: string;
+  imageUrls: string[];
   issueItems?: {
     productId: number;
     productName: string;
@@ -446,11 +451,12 @@ export const supplyServices = {
    * @param newDeliveryDate Ngày giao hàng mới (chỉ áp dụng khi RESCHEDULE_CURRENT_ORDER)
    * @returns Promise<Response<DeliveryIssueResponse>>
    */
-  reviewDeliveryIssue: async (id: number, decision: string, newDeliveryDate: string) => {
-    const response = await http.post<Response<DeliveryIssueResponse>>(`/delivery-issues/${id}/review`, {
-      decision,
-      newDeliveryDate,
-    });
+  reviewDeliveryIssue: async (id: number, decision: string, newDeliveryDate?: string) => {
+    const payload: any = { decision };
+    if (newDeliveryDate) {
+      payload.newDeliveryDate = newDeliveryDate;
+    }
+    const response = await http.post<Response<DeliveryIssueResponse>>(`/delivery-issues/${id}/review`, payload);
     return response.data;
   },
 };
