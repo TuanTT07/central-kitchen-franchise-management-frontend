@@ -18,7 +18,6 @@ import type { OrderDetailResponse, OrderResponse } from '@/services/franchiseSer
 import type { ConsolidationProduct, ConsolidationResponse } from '@/services/supplyServices';
 import { supplyServices } from '@/services/supplyServices';
 import { normalizeStatusKey, translateStatus } from '@/utils/labelMapping';
-import { DEFAULT_API_PAGE_SIZE, fetchAllPages, getPaginatedItems } from '@/utils/pagination';
 import { toast } from 'sonner';
 
 // ================= COMPONENT =================
