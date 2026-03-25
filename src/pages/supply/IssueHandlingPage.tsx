@@ -127,11 +127,10 @@ const IssueHandlingPage = () => {
     try {
       setIsReviewing(true);
       
-      // Sử dụng ngày giao mới do người dùng chọn
       const res = await supplyServices.reviewDeliveryIssue(
         selectedIssue.issueId, 
         decision, 
-        newDeliveryDate
+        decision === 'RESCHEDULE_CURRENT_ORDER' ? undefined : newDeliveryDate
       );
 
       if (res.success) {
@@ -397,7 +396,16 @@ const IssueHandlingPage = () => {
                       <span className="font-semibold text-slate-900">{selectedIssue.storeName}</span>
                     </div>
 
-                    {/* Trạng thái đơn */}
+                    {/* Trạng thái đơn lúc báo cáo */}
+                    <div className="flex items-center">
+                      <span className="w-40 text-slate-600">Trạng thái lúc báo:</span>
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 rounded-full border border-amber-100 text-[11px] font-bold uppercase">
+                        <Clock className="h-3 w-3" />
+                        {translateStatus(selectedIssue.reportedOrderStatus || selectedIssue.originalOrderStatus)}
+                      </div>
+                    </div>
+
+                    {/* Trạng thái đơn hiện tại */}
                     <div className="flex items-center">
                       <span className="w-40 text-slate-600">Trạng thái đơn hiện tại:</span>
                       <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 rounded-full border border-amber-100 text-[11px] font-bold uppercase">
@@ -412,6 +420,22 @@ const IssueHandlingPage = () => {
                       <span className="font-semibold text-slate-900">{translateStatus(selectedIssue.issueReason)}</span>
                     </div>
 
+                    {/* Số lượng */}
+                    {(selectedIssue.totalQuantity !== undefined && selectedIssue.affectedQuantity !== undefined) && (
+                      <div className="flex items-start">
+                        <span className="w-40 text-slate-600">Số lượng ảnh hưởng:</span>
+                        <span className="font-semibold text-red-600">{selectedIssue.affectedQuantity} / {selectedIssue.totalQuantity}</span>
+                      </div>
+                    )}
+
+                    {/* Đề xuất giải quyết */}
+                    {selectedIssue.recommendedResolution && (
+                      <div className="flex items-start">
+                        <span className="w-40 text-slate-600">Đề xuất xử lý:</span>
+                        <span className="font-semibold text-amber-600">{translateStatus(selectedIssue.recommendedResolution)}</span>
+                      </div>
+                    )}
+
                     {/* Ghi chú */}
                     <div className="flex flex-col gap-2">
                       <span className="text-slate-600">Ghi chú:</span>
@@ -424,8 +448,8 @@ const IssueHandlingPage = () => {
                     <div className="flex flex-col gap-3">
                       <span className="text-slate-600">Ảnh minh chứng:</span>
                       <div className="flex flex-wrap gap-2">
-                         {selectedIssue.images && selectedIssue.images.length > 0 ? (
-                            selectedIssue.images.map((img, idx) => (
+                         {selectedIssue.imageUrls && selectedIssue.imageUrls.length > 0 ? (
+                            selectedIssue.imageUrls.map((img, idx) => (
                               <div key={idx} className="h-20 w-20 rounded-lg overflow-hidden border border-slate-200 shadow-sm transition-transform hover:scale-105 cursor-pointer">
                                 <img src={img} alt={`Proof ${idx}`} className="h-full w-full object-cover" />
                               </div>
@@ -458,6 +482,30 @@ const IssueHandlingPage = () => {
                         Thời gian báo: <span className="text-slate-600 font-medium">{new Date(selectedIssue.reportedAt).toLocaleString('vi-VN')}</span>
                       </span>
                     </div>
+
+                    {/* Thay thế thông tin đơn xử lý nếu trạng thái khác PENDING_REVIEW */}
+                    {selectedIssue.issueStatus !== 'PENDING_REVIEW' && (
+                      <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-2 text-sm">
+                        <div className="flex items-start">
+                          <span className="w-36 text-slate-600">Quyết định:</span>
+                          <span className="font-bold text-slate-900 flex-[1]">{translateStatus(selectedIssue.reviewDecision || '')}</span>
+                        </div>
+                        {selectedIssue.replacementOrderCode && (
+                          <div className="flex items-start">
+                            <span className="w-36 text-slate-600">Đơn thay thế:</span>
+                            <span className="font-bold text-blue-600 flex-[1]">{selectedIssue.replacementOrderCode}</span>
+                          </div>
+                        )}
+                        <div className="flex items-start">
+                          <span className="w-36 text-slate-600">Người xử lý:</span>
+                          <span className="font-semibold text-slate-700 flex-[1]">{selectedIssue.reviewedBy?.username || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-start">
+                          <span className="w-36 text-slate-600">Thời gian xử lý:</span>
+                          <span className="font-semibold text-slate-700 flex-[1]">{selectedIssue.reviewedAt ? new Date(selectedIssue.reviewedAt).toLocaleString('vi-VN') : 'N/A'}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -547,14 +595,14 @@ const IssueHandlingPage = () => {
                         variant="outline"
                         className="flex-1 bg-white hover:bg-slate-50 text-slate-700 border-slate-200 h-11 text-xs font-bold rounded-lg shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                         onClick={() => handleReview('RESCHEDULE_CURRENT_ORDER')}
-                        disabled={isReviewing || !newDeliveryDate}
+                        disabled={isReviewing}
                       >
                         {isReviewing ? (
                           <Loader2 className="h-4 w-4 animate-spin text-red-500" />
                         ) : (
                           <RotateCcw className="h-4 w-4 text-red-500" />
                         )}
-                        {isReviewing ? 'Đang xử lý...' : 'Từ chối & giao lại đơn cũ'}
+                        {isReviewing ? 'Đang xử lý...' : 'Từ chối'}
                       </Button>
                     </div>
                   </>
