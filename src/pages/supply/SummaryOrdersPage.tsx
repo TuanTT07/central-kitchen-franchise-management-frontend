@@ -23,56 +23,73 @@ import { toast } from 'sonner';
 // ================= COMPONENT =================
 function SummaryOrdersPage() {
   // ================= STATE =================
-  // State lưu trữ danh sách đơn hàng lấy từ API
+  // Danh sách đơn hàng từ API (đã được phân trang)
   const [orders, setOrders] = useState<OrderResponse<OrderDetailResponse[]>[]>([]);
-  // State phục vụ việc tìm kiếm
+
+  // Tìm kiếm và lọc
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
-  // Pagination (UI)
+  // Phân trang Server-side
   const [page, setPage] = useState(0);
-  const PAGE_SIZE = 8;
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const PAGE_SIZE = 10;
 
-  // Order detail (UI)
+  // Chi tiết đơn hàng (UI)
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<OrderResponse<OrderDetailResponse[]> | null>(null);
 
-  // State quản lý Dialog thông báo kết quả gom đơn
+  // Gom đơn
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [consolidationResult, setConsolidationResult] = useState<ConsolidationResponse | null>(null);
   const [editedProducts, setEditedProducts] = useState<ConsolidationProduct[]>([]);
-
-  // State quản lý Gom đơn thủ công
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
 
-  // State quản lý trạng thái đang gửi API
+  // Trạng thái xử lý
   const [isFinalizing, setIsFinalizing] = useState(false);
 
   // ================= EFFECT =================
+
+  // Gọi lại API khi chuyển trang hoặc thay đổi bộ lọc
   useEffect(() => {
     getAllOrders();
-  }, []);
+  }, [page, statusFilter]);
+
+  // Xử lý tìm kiếm với delay (debounce)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Khi tìm kiếm thì reset về trang 0
+      if (page !== 0) {
+        setPage(0);
+      } else {
+        getAllOrders();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // ================= API =================
+
   /**
-   * Gọi API lấy danh sách đơn hàng từ chi nhánh
-   * Kiểm tra và cập nhật state orders dựa trên phân trang
+   * Gọi API lấy danh sách đơn hàng đã phân trang từ Server
    */
   const getAllOrders = async () => {
     try {
-      const response = await supplyServices.getAllOrders();
-      if (response.success && response.data.items) {
+      const response = await supplyServices.getAllOrders(page, PAGE_SIZE, search, statusFilter);
+      if (response.success && response.data) {
         setOrders(response.data.items);
+        setTotalPages(response.data.totalPages);
+        setTotalElements(response.data.totalElements);
       }
     } catch (error) {
       toast.error('Không thể tải danh sách đơn hàng');
     }
   };
 
-
-
   // ================= HANDLER =================
+
   /**
    * Nghiệp vụ: Gom đơn tự động (Auto Consolidate)
    * Gọi API để tự động gộp các đơn hàng đã APPROVED
@@ -80,7 +97,6 @@ function SummaryOrdersPage() {
   async function autoConsolidate() {
     try {
       const response = await supplyServices.consolidateAuto();
-
       if (response.success) {
         setConsolidationResult(response.data);
         setEditedProducts(response.data.products);
@@ -99,11 +115,13 @@ function SummaryOrdersPage() {
    * @param newQuantity Số lượng mới
    */
   const handleQuantityChange = (productId: number, newQuantity: number) => {
-    setEditedProducts((prev) => prev.map((p) => (p.productId === productId ? { ...p, quantity: newQuantity } : p)));
+    setEditedProducts((prev) => 
+      prev.map((p) => (p.productId === productId ? { ...p, quantity: newQuantity } : p))
+    );
   };
 
   /**
-   * Mở Dialog để người dùng tự chọn các đơn hàng muốn gom thủ công
+   * Mở modal gom đơn thủ công
    */
   function manuConsolidate() {
     setSelectedOrderIds([]);
@@ -116,11 +134,13 @@ function SummaryOrdersPage() {
    * @param orderId ID của đơn hàng
    */
   const toggleOrderSelection = (orderId: number) => {
-    setSelectedOrderIds((prev) => (prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]));
+    setSelectedOrderIds((prev) => 
+      prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
+    );
   };
 
   /**
-   * Nghiệp vụ: Thực hiện gom các đơn đã chọn thủ công qua API
+   * Thực hiện gom đơn thủ công với các ID đã chọn
    */
   const handleManualConsolidate = async () => {
     if (selectedOrderIds.length === 0) return;
@@ -165,10 +185,8 @@ function SummaryOrdersPage() {
       const response = await supplyServices.cancelConsolidate(orderIds);
       if (response.success) {
         toast.success('Hủy gom đơn thành công');
-        // Đóng các modal liên quan
         setDetailOpen(false);
         setIsModalOpen(false);
-        // Tải lại danh sách đơn hàng
         getAllOrders();
       }
     } catch (error) {
@@ -182,18 +200,17 @@ function SummaryOrdersPage() {
    */
   const handleFinalize = async () => {
     const requestBody = {
-      products: editedProducts.map((product) => ({
-        productId: product.productId,
-        quantityPlanned: product.quantity,
+      products: editedProducts.map((p) => ({
+        productId: p.productId,
+        quantityPlanned: p.quantity,
       })),
     };
 
     setIsFinalizing(true);
-
     try {
       const response = await supplyServices.createManufacturingOrder(requestBody);
-
       if (response.success) {
+        toast.success('Tạo lệnh sản xuất thành công');
         setIsModalOpen(false);
         setConsolidationResult(null);
         setEditedProducts([]);
@@ -206,42 +223,18 @@ function SummaryOrdersPage() {
     }
   };
 
-  // Tính toán thống kê từ danh sách orders hiện tại
+  // Tính toán thống kê từ danh sách orders hiện tại (Lưu ý: Chỉ là thống kê cho trang hiện tại nếu backend không trả về global stats)
   const stats = useMemo(() => {
-    const total = orders.length;
-    const pending = orders.filter((o) => o.status === 'PENDING').length;
-    const totalProducts = orders.reduce((acc, current) => {
-      return acc + current.details.reduce((sum, item) => sum + item.quantity, 0);
-    }, 0);
-    return { total, pending, totalProducts };
-  }, [orders]);
+    return { 
+      total: totalElements, 
+      pending: statusFilter === 'PENDING' ? totalElements : '—', // Nếu đang lọc Pending thì dùng totalElements
+      totalProducts: orders.reduce((acc: number, curr: OrderResponse<OrderDetailResponse[]>) => 
+        acc + curr.details.reduce((sum: number, item: OrderDetailResponse) => sum + item.quantity, 0), 0)
+    };
+  }, [totalElements, orders, statusFilter]);
 
-  const filteredOrders = useMemo(() => {
-    let data = [...orders];
-
-    if (statusFilter !== 'ALL') {
-      data = data.filter((o) => o.status === statusFilter);
-    }
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      data = data.filter((o) => {
-        const inOrder = o.orderCode?.toLowerCase().includes(q);
-        const inStore = o.storeName?.toLowerCase().includes(q);
-        const inDetails = Array.isArray(o.details) && o.details.some((d) => d.productName?.toLowerCase().includes(q));
-        return Boolean(inOrder || inStore || inDetails);
-      });
-    }
-
-    return data;
-  }, [orders, search, statusFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
-  const paginatedOrders = filteredOrders.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-
-  useEffect(() => {
-    setPage(0);
-  }, [search, statusFilter]);
+  // Các đơn hàng hiện tại hiển thị trên trang
+  const paginatedOrders = orders;
 
   const openDetail = (order: OrderResponse<OrderDetailResponse[]>) => {
     setSelectedOrder(order);
@@ -410,10 +403,14 @@ function SummaryOrdersPage() {
         <CardContent className="space-y-5 p-6">
           <div className="flex items-center justify-between">
             <p className="text-xs text-stone-500">
-              Hiển thị <span className="font-semibold text-stone-700">{filteredOrders.length}</span> đơn hàng
+              Hiển thị <span className="font-semibold text-stone-700">{orders.length}</span> trên tổng số{' '}
+              <span className="font-semibold text-amber-700">{totalElements}</span> đơn hàng
               {statusFilter !== 'ALL' && (
                 <span className="ml-1">
-                  — lọc theo <span className="font-semibold text-amber-700">{statusFilter === 'AWAITING_DELIVERY' ? 'Đợi giao hàng' : translateStatus(statusFilter)}</span>
+                  — lọc theo{' '}
+                  <span className="font-semibold text-amber-700">
+                    {statusFilter === 'AWAITING_DELIVERY' ? 'Đợi giao hàng' : translateStatus(statusFilter)}
+                  </span>
                 </span>
               )}
             </p>
@@ -452,7 +449,7 @@ function SummaryOrdersPage() {
                           </td>
                         </tr>
                       ) : (
-                        paginatedOrders.map((o) => (
+                        paginatedOrders.map((o: OrderResponse<OrderDetailResponse[]>) => (
                           <tr
                             key={o.orderId}
                             className="cursor-pointer transition-colors hover:bg-amber-50/60 group"
@@ -470,7 +467,7 @@ function SummaryOrdersPage() {
                               )}
                             </td>
                             <td className="px-2 py-3 text-center font-semibold text-stone-700">
-                              {o.details?.reduce((acc, curr) => acc + curr.quantity, 0) || 0}
+                              {o.details?.reduce((acc: number, curr: OrderDetailResponse) => acc + curr.quantity, 0) || 0}
                             </td>
                             <td className="px-4 py-3">
                               <OrderStatusBadge status={o.status} />
@@ -515,7 +512,7 @@ function SummaryOrdersPage() {
                   <span className="text-stone-500">
                     Trang <span className="font-bold text-stone-700">{page + 1}</span> /{' '}
                     <span className="font-bold text-stone-700">{totalPages}</span>
-                    <span className="ml-2 text-stone-400">({filteredOrders.length} kết quả)</span>
+                    <span className="ml-2 text-stone-400">({totalElements} kết quả)</span>
                   </span>
                   <div className="flex items-center gap-1">
                     <Button

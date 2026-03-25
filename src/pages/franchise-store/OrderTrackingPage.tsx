@@ -254,89 +254,63 @@ const OrderTrackingPage = () => {
     try {
       setIsReporting(true);
 
-      // Chuẩn bị dữ liệu chung (Ảnh, Ghi chú, Lý do)
-      // Những thông tin này thường lý do nào cũng có
-      const commonPayload = {
-        orderId: selectedReportOrderId,
+      // ================= DATA PREPARATION =================
+
+      // Mảng items theo cấu trúc yêu cầu của Backend
+      // { productId: number, quantity: number, receivedQuantity: number }
+      const itemsPayload = reportItems.map((item) => ({
+        productId: item.productId,
+        quantity: item.orderedQuantity,
+        receivedQuantity: item.actualQuantity,
+      }));
+
+      // Tạo FormData để truyền dữ liệu (bao gồm cả File)
+      const formData = new FormData();
+
+      // Backend yêu cầu part 'payload' chứa thông tin JSON
+      const payload = {
         reason: reportReason,
-        note: reportNote,
-        images: selectedImages, // Danh sách File để upload
+        note: reportNote || '',
+        items: itemsPayload,
       };
 
-      console.group(`>>> [BÁO CÁO SỰ CỐ] Đơn hàng: #${selectedReportOrderId} <<<`);
-      console.log("Lý do chọn:", reportReason);
-      console.log("Ghi chú:", reportNote);
-      console.log("Số lượng ảnh minh chứng:", selectedImages.length);
+      // Đưa payload vào FormData dưới dạng Blob với type application/json
+      formData.append(
+        'payload',
+        new Blob([JSON.stringify(payload)], { type: 'application/json' })
+      );
 
-      //  Xử lý logic riêng biệt cho từng loại sự cố
-      // Sau này khi Backend làm xong, mỗi case này bạn có thể gọi một API khác nhau
-      switch (reportReason) {
-        case 'DAMAGED':
-        case 'MISSING_ITEMS':
-        case 'QUALITY_FAILED':
-          // Đối với hàng hỏng/thiếu/kém chất lượng: Cần gửi kèm danh sách sản phẩm và số lượng thực nhận
-          const itemIssues = reportItems.map(item => ({
-            productId: item.productId,
-            productName: item.productName,
-            orderedQty: item.orderedQuantity,
-            actualQty: item.actualQuantity,
-            isDiscrepancy: item.orderedQuantity !== item.actualQuantity
-          }));
+      // Thêm các file ảnh minh chứng
+      selectedImages.forEach((file) => {
+        formData.append('images', file);
+      });
 
-          console.log("==> Cấu trúc dữ liệu [Sản phẩm & Số lượng]:", {
-            ...commonPayload,
-            items: itemIssues
-          });
+      // ================= API CALL =================
 
-          // TODO: Gọi API xử lý hàng hỏng/thiếu/chất lượng
-          // const res = await franchiseServices.reportItemIssues(selectedReportOrderId, { ...commonPayload, items: itemIssues });
-          break;
+      const response = await franchiseServices.createDeliveryIssue(selectedReportOrderId, formData);
 
-        case 'WRONG_ITEMS':
-          // Đối với sai hàng: Cần gửi danh sách các ID sản phẩm bị báo sai
-          console.log("==> Cấu trúc dữ liệu [Sai sản phẩm]:", {
-            ...commonPayload,
-            wrongProductIds: selectedWrongProductIds
-          });
-
-          // TODO: Gọi API xử lý sai hàng
-          // const res = await franchiseServices.reportWrongProducts(selectedReportOrderId, { ...commonPayload, wrongProductIds: selectedWrongProductIds });
-          break;
-
-        case 'LATE_DELIVERY':
-        case 'REFUSED_DELIVERY':
-          // Đối với giao muộn hoặc từ chối nhận: Thường chỉ cần note và ảnh bằng chứng
-          console.log("==> Cấu trúc dữ liệu [Vận chuyển/Từ chối]:", commonPayload);
-
-          // TODO: Gọi API xử lý vận chuyển
-          // const res = await franchiseServices.reportDeliveryIssue(selectedReportOrderId, commonPayload);
-          break;
-
-        default:
-          console.warn("⚠️ Lý do báo cáo chưa được định nghĩa logic xử lý:", reportReason);
-          break;
+      if (response.success) {
+        toast.success(response.message || 'Gửi báo cáo sự cố thành công!');
+        
+        // ================= RESET STATE =================
+        
+        setOpenReportDialog(false);
+        setReportReason('DAMAGED');
+        setReportNote('');
+        setSelectedImages([]);
+        setImagePreviews([]);
+        setReportItems([]);
+        setSelectedWrongProductIds([]);
+        
+        // Cập nhật lại danh sách đơn hàng
+        await fetchData();
+      } else {
+        toast.error(response.message || 'Gửi báo cáo thất bại');
       }
-      console.groupEnd();
-
-      //  Giả lập xử lý thành công (Do Backend chưa có API riêng lẻ)
-      // Khi nào có API thật, hãy thay thế logic bên dưới bằng phản hồi từ Server
-      toast.success('Đã ghi nhận báo cáo thành công! (Vui lòng kiểm tra Console Log)');
-
-      // Reset Form và đóng Modal
-      setOpenReportDialog(false);
-      setReportReason('DAMAGED');
-      setReportNote('');
-      setSelectedImages([]);
-      setImagePreviews([]);
-      setReportItems([]);
-      setSelectedWrongProductIds([]);
-
-      // Cập nhật lại danh sách nếu cần
-      // await fetchData();
 
     } catch (error) {
       console.error("Lỗi khi gửi báo cáo:", error);
-      toast.error('Có lỗi xảy ra, vui lòng thử lại sau');
+      toast.error('Có lỗi xảy ra khi gửi báo cáo, vui lòng kiểm tra kết nối mạng');
     } finally {
       setIsReporting(false);
     }
