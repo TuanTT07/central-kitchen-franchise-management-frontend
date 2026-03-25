@@ -30,12 +30,15 @@ export interface ConsolidationResponse {
 export interface ItemsResponse {
   manuOrderId: number;
   orderCode: string;
+  productId: number;
   productName: string;
-  quantity: number;
+  quantityPlanned: number;
   unitName: string;
   status: string;
   startDate: string;
-  createdBy: string;
+  endDate: string;
+  createdBy: number;
+  createdByName: string;
 }
 
 /**
@@ -134,7 +137,6 @@ export interface DeliveryDetail {
   exportNotes: ExportNotesResponse[];
 }
 
-
 /**
  * Phản hồi chi tiết về vấn đề giao hàng (Delivery Issue).
  */
@@ -198,13 +200,13 @@ export interface DeliveryIssueResponse {
  * PATCH  /deliveries/{id}/start      -> cập nhật tình trạng chuyến hàng (xuất phát)
  * PATCH  /deliveries/{id}/complete   -> cập nhật tình trạng chuyến hàng (hoàn thành)
  * PATCH  /deliveries/{id}/cancel     -> cập nhật tình trạng chuyến hàng (hủy)
- * 
- * 
+ *
+ *
  * GET    /delivery-issues            -> Lấy danh sách vấn đề
  * GET    /delivery-issues/{id}       -> Lấy chi tiết vấn đề
  * POST   /delivery-issues/{id}/review -> Phê duyệt/Từ chối vấn đề
  *
- *
+ * POST   /api/v1/manufacturing-orders/manual -> Tạo lệnh sản xuất thủ công
  *
  * Authorization:
  * Bearer Token
@@ -279,6 +281,11 @@ export const supplyServices = {
     }[];
   }) => {
     const response = await http.post<Response<ItemsResponse[]>>('/api/v1/manufacturing-orders', body);
+    return response.data;
+  },
+
+  createManuProduction: async (body: { productId: number; quantityPlanned: number }) => {
+    const response = await http.post<Response<ItemsResponse>>('/api/v1/manufacturing-orders/manual', body);
     return response.data;
   },
 
@@ -395,8 +402,6 @@ export const supplyServices = {
     return response.data;
   },
 
-
-
   /**
    * cập nhật tình trang chuyến hàng (hoàn thành)
    * @param id ID của lịch giao hàng cần hủy
@@ -430,7 +435,6 @@ export const supplyServices = {
     );
     return response.data;
   },
-
 
   /**
    * Lấy chi tiết vấn đề giao hàng (Delivery Issue)
