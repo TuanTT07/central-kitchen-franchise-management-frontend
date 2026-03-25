@@ -4,6 +4,7 @@ import { SUPPLY_COORDINATOR_SIDEBAR_ITEMS } from '@/components/layout/sidebarCon
 import { Role } from '@/Types';
 import { supplyServices, type DeliveryPlanResponse, type ExportNotesResponse } from '@/services/supplyServices';
 import { translateStatus } from '@/utils/labelMapping';
+import { DEFAULT_API_PAGE_SIZE, fetchAllPages, getPaginatedItems } from '@/utils/pagination';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -26,13 +27,6 @@ const formatDate = (d: string | null | undefined) => {
   return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-function parsePaginatedItems<T>(data: unknown): T[] {
-  if (!data || typeof data !== 'object') return [];
-  const o = data as Record<string, unknown>;
-  const arr = (o.items ?? o.content) as T[] | undefined;
-  return Array.isArray(arr) ? arr : [];
-}
-
 const SupplyDashboard = () => {
   const [exportNotes, setExportNotes] = useState<ExportNotesResponse[]>([]);
   const [deliveryPlans, setDeliveryPlans] = useState<DeliveryPlanResponse[]>([]);
@@ -44,18 +38,30 @@ const SupplyDashboard = () => {
       setLoading(true);
       setError(null);
       try {
-        const [exportRes, deliveryRes] = await Promise.allSettled([
-          supplyServices.getAllExportNote(),
-          supplyServices.getDeliveryPlan(),
+        const [allExportNotes, allDeliveryPlans] = await Promise.all([
+          fetchAllPages<ExportNotesResponse>({
+            fetchPage: async (page, size) => {
+              const res = await supplyServices.getAllExportNote(page, size);
+              return {
+                items: getPaginatedItems<ExportNotesResponse>(res?.data?.data),
+                totalPages: Number(res?.data?.data?.totalPages ?? 1),
+              };
+            },
+            pageSize: DEFAULT_API_PAGE_SIZE,
+          }),
+          fetchAllPages<DeliveryPlanResponse>({
+            fetchPage: async (page, size) => {
+              const res = await supplyServices.getDeliveryPlan(page, size);
+              return {
+                items: getPaginatedItems<DeliveryPlanResponse>(res?.data),
+                totalPages: Number(res?.data?.totalPages ?? 1),
+              };
+            },
+            pageSize: DEFAULT_API_PAGE_SIZE,
+          }),
         ]);
-        if (exportRes.status === 'fulfilled' && exportRes.value?.data) {
-          const list = parsePaginatedItems<ExportNotesResponse>((exportRes.value as { data?: unknown }).data);
-          setExportNotes(Array.isArray(list) ? list : []);
-        }
-        if (deliveryRes.status === 'fulfilled' && deliveryRes.value?.data) {
-          const list = parsePaginatedItems<DeliveryPlanResponse>((deliveryRes.value as { data?: unknown }).data);
-          setDeliveryPlans(Array.isArray(list) ? list : []);
-        }
+        setExportNotes(allExportNotes);
+        setDeliveryPlans(allDeliveryPlans);
       } catch {
         setError('Không tải được dữ liệu. Vui lòng thử lại.');
       } finally {

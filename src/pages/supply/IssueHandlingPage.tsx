@@ -15,6 +15,7 @@ import { Search, ChevronLeft, ChevronRight, AlertCircle, Loader2, Package, User,
 import { supplyServices, type DeliveryIssueResponse } from '@/services/supplyServices';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { translateStatus } from '@/utils/labelMapping';
+import { ISSUE_LIST_PAGE_SIZE } from '@/utils/pagination';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
@@ -29,7 +30,6 @@ import { toast } from 'sonner';
  */
 
 const IssueHandlingPage = () => {
-
   // ================= STATE =================
 
   // Danh sách sự cố từ API
@@ -47,7 +47,7 @@ const IssueHandlingPage = () => {
   // Thông tin phân trang
   const [pagination, setPagination] = useState({
     page: 0,
-    size: 5,
+    size: ISSUE_LIST_PAGE_SIZE,
     totalElements: 0,
     totalPages: 0,
   });

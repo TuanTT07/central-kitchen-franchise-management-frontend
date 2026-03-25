@@ -10,6 +10,7 @@ import { kitchenServices, type ProductBatchesResponse } from '@/services/kitchen
 import { managerServices, type ManagerOrderItem } from '@/services/managerServices';
 import { supplyServices, type ExportNotesResponse } from '@/services/supplyServices';
 import { translateStatus } from '@/utils/labelMapping';
+import { DEFAULT_API_PAGE_SIZE, fetchAllPages, getPaginatedItems } from '@/utils/pagination';
 
 type ProductBatchStatus = 'WAITING_FOR_STOCK' | 'AVAILABLE' | 'OUT_OF_STOCK' | 'EXPIRED';
 
@@ -21,36 +22,41 @@ const CentralKitchenDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  function parsePaginatedItems<T>(data: unknown): T[] {
-    if (!data || typeof data !== 'object') return [];
-    const o = data as Record<string, unknown>;
-    const arr = (o.items ?? o.content) as T[] | undefined;
-    return Array.isArray(arr) ? arr : [];
-  }
-
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
-        const [batchesRes, ordersRes, exportsRes] = await Promise.allSettled([
+        const [batchesRes, allOrders, allExportNotes] = await Promise.all([
           kitchenServices.getAllProductBatches(),
-          managerServices.getOrders(0, 50),
-          supplyServices.getAllExportNote(),
+          fetchAllPages<ManagerOrderItem>({
+            fetchPage: async (page, size) => {
+              const res = await managerServices.getOrders(page, size);
+              return {
+                items: getPaginatedItems<ManagerOrderItem>(res?.data),
+                totalPages: Number(res?.data?.totalPages ?? 1),
+              };
+            },
+            pageSize: DEFAULT_API_PAGE_SIZE,
+          }),
+          fetchAllPages<ExportNotesResponse>({
+            fetchPage: async (page, size) => {
+              const res = await supplyServices.getAllExportNote(page, size);
+              return {
+                items: getPaginatedItems<ExportNotesResponse>(res?.data?.data),
+                totalPages: Number(res?.data?.data?.totalPages ?? 1),
+              };
+            },
+            pageSize: DEFAULT_API_PAGE_SIZE,
+          }),
         ]);
 
-        if (batchesRes.status === 'fulfilled' && batchesRes.value?.data) {
-          const raw = batchesRes.value.data as ProductBatchesResponse[] | unknown;
+        if (batchesRes?.data) {
+          const raw = batchesRes.data as ProductBatchesResponse[] | unknown;
           setBatches(Array.isArray(raw) ? raw : []);
         }
-        if (ordersRes.status === 'fulfilled' && ordersRes.value?.data) {
-          const data = (ordersRes.value as { data?: unknown }).data;
-          setOrders(parsePaginatedItems<ManagerOrderItem>(data));
-        }
-        if (exportsRes.status === 'fulfilled' && exportsRes.value?.data) {
-          const data = (exportsRes.value as { data?: unknown }).data;
-          setExportNotes(parsePaginatedItems<ExportNotesResponse>(data));
-        }
+        setOrders(allOrders);
+        setExportNotes(allExportNotes);
       } catch {
         setError('Không tải được dữ liệu. Vui lòng thử lại.');
       } finally {

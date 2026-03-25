@@ -19,6 +19,7 @@ import { translateStatus } from '@/utils/labelMapping';
 import { franchiseServices, type OrderResponse } from '@/services/franchiseServices';
 import { supplyServices, type ExportNotesResponse } from '@/services/supplyServices';
 import { useAuth } from '@/contexts/AuthContext';
+import { DEFAULT_API_PAGE_SIZE, fetchAllPages, getPaginatedItems } from '@/utils/pagination';
 
 /**
  * Dashboard Franchise Store: Chỉ dữ liệu từ API (orders, export-notes).
@@ -45,13 +46,6 @@ const EXPORT_STATUS_CLASS: Record<string, string> = {
 const PAGE_SIZE_ORDERS = 5;
 const PAGE_SIZE_EXPORTS = 5;
 
-function parsePaginatedItems<T>(data: unknown): T[] {
-  if (!data || typeof data !== 'object') return [];
-  const o = data as Record<string, unknown>;
-  const arr = (o.items ?? o.content) as T[] | undefined;
-  return Array.isArray(arr) ? arr : [];
-}
-
 const FranchiseStoreDashboard = () => {
   const { user } = useAuth();
   const storeId = user?.storeId ?? user?.store_id ?? null;
@@ -67,21 +61,30 @@ const FranchiseStoreDashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      const [ordersRes, exportRes] = await Promise.allSettled([
-        franchiseServices.getOrders(0, 50),
-        supplyServices.getAllExportNote(),
+      const [allOrders, allExportNotes] = await Promise.all([
+        fetchAllPages<OrderResponse<unknown>>({
+          fetchPage: async (page, size) => {
+            const res = await franchiseServices.getOrders(page, size);
+            return {
+              items: getPaginatedItems<OrderResponse<unknown>>(res?.data),
+              totalPages: Number(res?.data?.totalPages ?? 1),
+            };
+          },
+          pageSize: DEFAULT_API_PAGE_SIZE,
+        }),
+        fetchAllPages<ExportNotesResponse>({
+          fetchPage: async (page, size) => {
+            const res = await supplyServices.getAllExportNote(page, size);
+            return {
+              items: getPaginatedItems<ExportNotesResponse>(res?.data?.data),
+              totalPages: Number(res?.data?.data?.totalPages ?? 1),
+            };
+          },
+          pageSize: DEFAULT_API_PAGE_SIZE,
+        }),
       ]);
-
-      if (ordersRes.status === 'fulfilled' && ordersRes.value?.data) {
-        const paginated = (ordersRes.value as { data?: unknown }).data;
-        const list = parsePaginatedItems<OrderResponse<unknown>>(paginated);
-        setOrders(Array.isArray(list) ? list : []);
-      }
-      if (exportRes.status === 'fulfilled' && exportRes.value?.data) {
-        const paginated = (exportRes.value as { data?: unknown }).data;
-        const list = parsePaginatedItems<ExportNotesResponse>(paginated);
-        setExportNotes(Array.isArray(list) ? list : []);
-      }
+      setOrders(allOrders);
+      setExportNotes(allExportNotes);
     } catch {
       setError('Không tải được dữ liệu. Vui lòng thử lại.');
     } finally {

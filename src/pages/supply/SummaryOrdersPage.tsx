@@ -17,7 +17,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import type { OrderDetailResponse, OrderResponse } from '@/services/franchiseServices';
 import type { ConsolidationProduct, ConsolidationResponse } from '@/services/supplyServices';
 import { supplyServices } from '@/services/supplyServices';
-import { translateStatus } from '@/utils/labelMapping';
+import { normalizeStatusKey, translateStatus } from '@/utils/labelMapping';
+import { DEFAULT_API_PAGE_SIZE, fetchAllPages, getPaginatedItems } from '@/utils/pagination';
 import { toast } from 'sonner';
 
 // ================= COMPONENT =================
@@ -474,7 +475,7 @@ function SummaryOrdersPage() {
                             </td>
                             <td className="px-2 py-3 text-center">
                               <div className="flex items-center justify-center gap-1.5">
-                                {o.status === 'PENDING' && (
+                                {normalizeStatusKey(o.status) === 'PENDING' && (
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -646,7 +647,7 @@ function SummaryOrdersPage() {
                 </thead>
                 <tbody className="divide-y divide-amber-50">
                   {orders
-                    .filter((o) => o.status === 'APPROVED')
+                    .filter((o) => normalizeStatusKey(o.status) === 'APPROVED')
                     .map((o) => (
                       <tr
                         key={o.orderId}
@@ -669,7 +670,7 @@ function SummaryOrdersPage() {
                         </td>
                       </tr>
                     ))}
-                  {orders.filter((o) => o.status === 'APPROVED').length === 0 && (
+                  {orders.filter((o) => normalizeStatusKey(o.status) === 'APPROVED').length === 0 && (
                     <tr>
                       <td colSpan={5} className="py-10 text-center text-stone-500">
                         Không có đơn hàng nào đã duyệt để tổng hợp.

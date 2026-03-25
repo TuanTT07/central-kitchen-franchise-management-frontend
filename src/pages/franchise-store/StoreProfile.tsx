@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { franchiseServices, type OrderResponse, type OrderDetailResponse } from '@/services/franchiseServices';
 import { adminService } from '@/services/adminServices';
 import { cn } from '@/lib/utils';
+import { DEFAULT_API_PAGE_SIZE, fetchAllPages, getPaginatedItems } from '@/utils/pagination';
 
 interface StoreBasicInfo {
   storeId: number;
@@ -33,38 +34,48 @@ function StoreProfile() {
   };
 
   useEffect(() => {
-    franchiseServices
-      .getOrders(0, 200)
-      .then(async (res) => {
-        if (res.success && res.data) {
-          const items = res.data.items ?? [];
-          setOrders(items);
-          if (items.length > 0 && items[0].storeId && items[0].storeName) {
-            const baseStoreInfo: StoreBasicInfo = {
-              storeId: items[0].storeId,
-              storeName: items[0].storeName,
+    const loadStoreProfile = async () => {
+      try {
+        const items = await fetchAllPages<OrderResponse<OrderDetailResponse[]>>({
+          fetchPage: async (page, size) => {
+            const res = await franchiseServices.getOrders(page, size);
+            return {
+              items: getPaginatedItems<OrderResponse<OrderDetailResponse[]>>(res?.data),
+              totalPages: Number(res?.data?.totalPages ?? 1),
             };
+          },
+          pageSize: DEFAULT_API_PAGE_SIZE,
+        });
+        setOrders(items);
+        if (items.length > 0 && items[0].storeId && items[0].storeName) {
+          const baseStoreInfo: StoreBasicInfo = {
+            storeId: items[0].storeId,
+            storeName: items[0].storeName,
+          };
 
-            try {
-              const storeRes = await adminService.getStoreById(items[0].storeId);
-              if (storeRes.data.success && storeRes.data.data) {
-                const storeData = storeRes.data.data;
-                setStoreInfo({
-                  ...baseStoreInfo,
-                  address: storeData.address,
-                  phone: storeData.phone,
-                });
-                return;
-              }
-            } catch {
-              // Keep base info if store detail endpoint is unavailable for this role.
+          try {
+            const storeRes = await adminService.getStoreById(items[0].storeId);
+            if (storeRes.data.success && storeRes.data.data) {
+              const storeData = storeRes.data.data;
+              setStoreInfo({
+                ...baseStoreInfo,
+                address: storeData.address,
+                phone: storeData.phone,
+              });
+              return;
             }
-
-            setStoreInfo(baseStoreInfo);
+          } catch {
+            // Keep base info if store detail endpoint is unavailable for this role.
           }
+
+          setStoreInfo(baseStoreInfo);
         }
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadStoreProfile();
   }, []);
 
   const currentUser = resolveUserAndStore();
