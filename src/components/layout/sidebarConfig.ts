@@ -9,6 +9,7 @@ import {
   BarChart3,
   ReceiptText,
   Info,
+  History,
 } from 'lucide-react';
 
 export const ADMIN_SIDEBAR_ITEMS = [
@@ -23,6 +24,7 @@ export const MANAGER_SIDEBAR_ITEMS = [
   { label: 'Sản phẩm', href: '/manager/products', icon: UtensilsCrossed },
   { label: 'Biên Lai kho', href: '/manager/receipts', icon: ReceiptText },
   { label: 'Tổng quan kho', href: '/manager/inventory-overview', icon: Boxes },
+  { label: 'Biến động kho', href: '/manager/inventory-movements', icon: History },
   { label: 'Báo cáo', href: '/manager/reports', icon: BarChart3 },
 ] as const;
 
