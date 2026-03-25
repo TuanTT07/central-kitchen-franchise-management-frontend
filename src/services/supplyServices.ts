@@ -209,13 +209,20 @@ export interface DeliveryIssueResponse {
 export const supplyServices = {
   /**
    * Lấy danh sách tất cả các đơn hàng từ chi nhánh (Franchise Orders)
+   * Hỗ trợ phân trang và lọc theo mã đơn hoặc trạng thái.
    *
-   * @returns Promise<PaginatedResponse<OrderResponse<OrderDetailResponse[]>[]>>
+   * @param page Số trang hiện tại (bắt đầu từ 0)
+   * @param size Số lượng bản ghi trên mỗi trang (mặc định 10)
+   * @param search Từ khóa tìm kiếm (mã đơn, chi nhánh...)
+   * @param status Trạng thái đơn hàng
+   * @returns Promise<Response<PaginatedResponse<OrderResponse<OrderDetailResponse[]>[]>>>
    */
-  getAllOrders: async (page: number = 0, size: number = 50) => {
-    const response = await http.get<Response<PaginatedResponse<OrderResponse<OrderDetailResponse[]>[]>>>('/orders', {
-      params: { page, size },
-    });
+  getAllOrders: async (page: number = 0, size: number = 10, search?: string, status?: string) => {
+    let url = `/orders?page=${page}&size=${size}`;
+    if (search) url += `&orderCode=${encodeURIComponent(search)}`;
+    if (status && status !== 'ALL') url += `&status=${status}`;
+
+    const response = await http.get<Response<PaginatedResponse<OrderResponse<OrderDetailResponse[]>[]>>>(url);
     return response.data;
   },
 
