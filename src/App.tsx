@@ -12,6 +12,7 @@ import {
   ReportsPage,
   CategoryManager,
   ManagerReceiptsPage,
+  InventoryMovementsPage,
 } from './pages/manager/index.ts';
 import {
   DeliverySchedulePage,
@@ -85,6 +86,7 @@ function App() {
                   <Route path="/manager/products" element={<ProductManagementPage />}></Route>
                   <Route path="/manager/receipts" element={<ManagerReceiptsPage />}></Route>
                   <Route path="/manager/categories" element={<CategoryManager />}></Route>
+                  <Route path="/manager/inventory-movements" element={<InventoryMovementsPage />}></Route>
                   <Route path="/manager/reports" element={<ReportsPage />}></Route>
                 </Route>
               </Route>
