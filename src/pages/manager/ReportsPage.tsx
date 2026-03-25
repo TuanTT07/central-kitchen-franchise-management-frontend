@@ -71,7 +71,7 @@ function ReportsPage() {
         managerServices.getInventoryStock(),
         managerServices.getNearExpiryBatches(NEAR_EXPIRY_DAYS),
         managerServices.getTopImportingStores(10),
-        kitchenServices.getInventoryTransaction(),
+        kitchenServices.getInventoryTransaction({ sort: 'transactionDate,desc', size: 10, page: 0 }),
       ]);
       if (cancelled) return;
 
@@ -118,9 +118,7 @@ function ReportsPage() {
 
   // ================= UTILS =================
 
-  const sortedTx = [...inventoryTransactions]
-    .sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime())
-    .slice(0, 10);
+  const sortedTx = inventoryTransactions.slice(0, 10);
 
   const today = new Date();
 

@@ -161,9 +161,9 @@ export const kitchenServices = {
    * Lấy danh sách nhật ký giao dịch tồn kho (Sổ cái kho)
    * @returns {Promise<Response<PaginatedResponse<InventoryTransactionResponse>>>}
    */
-  getInventoryTransaction: async () => {
+  getInventoryTransaction: async (params?: { sort?: string; size?: number; page?: number }) => {
     const response =
-      await http.get<Response<PaginatedResponse<InventoryTransactionResponse[]>>>('/inventory-transactions');
+      await http.get<Response<PaginatedResponse<InventoryTransactionResponse[]>>>('/inventory-transactions', { params });
     return response.data;
   },
 
