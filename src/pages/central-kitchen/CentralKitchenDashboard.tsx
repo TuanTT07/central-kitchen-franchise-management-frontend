@@ -10,6 +10,7 @@ import { kitchenServices, type ProductBatchesResponse } from '@/services/kitchen
 import { managerServices, type ManagerOrderItem } from '@/services/managerServices';
 import { supplyServices, type ExportNotesResponse } from '@/services/supplyServices';
 import { translateStatus } from '@/utils/labelMapping';
+import { DEFAULT_API_PAGE_SIZE, fetchAllPages, getPaginatedItems } from '@/utils/pagination';
 
 type ProductBatchStatus = 'WAITING_FOR_STOCK' | 'AVAILABLE' | 'OUT_OF_STOCK' | 'EXPIRED';
 
@@ -21,63 +22,41 @@ const CentralKitchenDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  function parsePaginatedItems<T>(data: unknown): T[] {
-    if (!data || typeof data !== 'object') return [];
-    const o = data as Record<string, unknown>;
-    const arr = (o.items ?? o.content) as T[] | undefined;
-    return Array.isArray(arr) ? arr : [];
-  }
-
-  function parseTotalPages(data: unknown): number {
-    if (!data || typeof data !== 'object') return 1;
-    const value = Number((data as Record<string, unknown>).totalPages ?? 1);
-    return Number.isFinite(value) && value > 0 ? value : 1;
-  }
-
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
-        const apiPageSize = 100;
-        const [batchesRes, ordersRes, exportsRes] = await Promise.allSettled([
+        const [batchesRes, allOrders, allExportNotes] = await Promise.all([
           kitchenServices.getAllProductBatches(),
-          managerServices.getOrders(0, apiPageSize),
-          supplyServices.getAllExportNote(0, apiPageSize),
+          fetchAllPages<ManagerOrderItem>({
+            fetchPage: async (page, size) => {
+              const res = await managerServices.getOrders(page, size);
+              return {
+                items: getPaginatedItems<ManagerOrderItem>(res?.data),
+                totalPages: Number(res?.data?.totalPages ?? 1),
+              };
+            },
+            pageSize: DEFAULT_API_PAGE_SIZE,
+          }),
+          fetchAllPages<ExportNotesResponse>({
+            fetchPage: async (page, size) => {
+              const res = await supplyServices.getAllExportNote(page, size);
+              return {
+                items: getPaginatedItems<ExportNotesResponse>(res?.data?.data),
+                totalPages: Number(res?.data?.data?.totalPages ?? 1),
+              };
+            },
+            pageSize: DEFAULT_API_PAGE_SIZE,
+          }),
         ]);
 
-        if (batchesRes.status === 'fulfilled' && batchesRes.value?.data) {
-          const raw = batchesRes.value.data as ProductBatchesResponse[] | unknown;
+        if (batchesRes?.data) {
+          const raw = batchesRes.data as ProductBatchesResponse[] | unknown;
           setBatches(Array.isArray(raw) ? raw : []);
         }
-        if (ordersRes.status === 'fulfilled' && ordersRes.value?.data) {
-          const firstPayload = (ordersRes.value as { data?: unknown }).data;
-          const totalPages = parseTotalPages(firstPayload);
-          const firstItems = parsePaginatedItems<ManagerOrderItem>(firstPayload);
-          if (totalPages <= 1) {
-            setOrders(firstItems);
-          } else {
-            const remaining = await Promise.all(
-              Array.from({ length: totalPages - 1 }, (_, i) => managerServices.getOrders(i + 1, apiPageSize))
-            );
-            const remainingItems = remaining.flatMap((res) => parsePaginatedItems<ManagerOrderItem>(res?.data));
-            setOrders([...firstItems, ...remainingItems]);
-          }
-        }
-        if (exportsRes.status === 'fulfilled' && exportsRes.value?.data) {
-          const firstPayload = (exportsRes.value as { data?: { data?: unknown } }).data?.data;
-          const totalPages = parseTotalPages(firstPayload);
-          const firstItems = parsePaginatedItems<ExportNotesResponse>(firstPayload);
-          if (totalPages <= 1) {
-            setExportNotes(firstItems);
-          } else {
-            const remaining = await Promise.all(
-              Array.from({ length: totalPages - 1 }, (_, i) => supplyServices.getAllExportNote(i + 1, apiPageSize))
-            );
-            const remainingItems = remaining.flatMap((res) => parsePaginatedItems<ExportNotesResponse>(res?.data?.data));
-            setExportNotes([...firstItems, ...remainingItems]);
-          }
-        }
+        setOrders(allOrders);
+        setExportNotes(allExportNotes);
       } catch {
         setError('Không tải được dữ liệu. Vui lòng thử lại.');
       } finally {

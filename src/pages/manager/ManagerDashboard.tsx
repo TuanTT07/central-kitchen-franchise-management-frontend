@@ -22,6 +22,7 @@ import type {
 } from '@/services/managerServices';
 import type { ProductBatchesResponse } from '@/services/kitchenServices';
 import { cn } from '@/lib/utils';
+import { DEFAULT_API_PAGE_SIZE, fetchAllPages, getPaginatedItems } from '@/utils/pagination';
 
 const CATEGORY_COLORS = ['#f59e0b', '#f97316', '#b45309', '#c2410c', '#d97706', '#ea580c'];
 
@@ -29,19 +30,6 @@ const formatDate = (d: string | null | undefined) => {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
-
-function parsePaginatedItems<T>(data: unknown): T[] {
-  if (!data || typeof data !== 'object') return [];
-  const o = data as Record<string, unknown>;
-  const arr = (o.items ?? o.content) as T[] | undefined;
-  return Array.isArray(arr) ? arr : [];
-}
-
-function parseTotalPages(data: unknown): number {
-  if (!data || typeof data !== 'object') return 1;
-  const value = Number((data as Record<string, unknown>).totalPages ?? 1);
-  return Number.isFinite(value) && value > 0 ? value : 1;
-}
 
 const STATUS_ORDER_COLOR: Record<string, string> = {
   PENDING: 'bg-amber-100 text-amber-700 border-amber-200',
@@ -75,11 +63,19 @@ const ManagerDashboard = () => {
       setLoading(true);
       setError(null);
       try {
-        const apiPageSize = 100;
-        const [catRes, prodRes, ordersRes, nearRes, batchesRes] = await Promise.allSettled([
+        const [catRes, prodRes, allOrders, nearRes, batchesRes] = await Promise.allSettled([
           managerServices.getAllCategories(),
           managerServices.getAllProducts(),
-          managerServices.getOrders(0, apiPageSize),
+          fetchAllPages<ManagerOrderItem>({
+            fetchPage: async (page, size) => {
+              const res = await managerServices.getOrders(page, size);
+              return {
+                items: getPaginatedItems<ManagerOrderItem>(res?.data),
+                totalPages: Number(res?.data?.totalPages ?? 1),
+              };
+            },
+            pageSize: DEFAULT_API_PAGE_SIZE,
+          }),
           managerServices.getNearExpiryBatches(14),
           kitchenServices.getAllProductBatches(),
         ]);
@@ -92,22 +88,11 @@ const ManagerDashboard = () => {
           const raw = prodRes.value.data as ProductsResponse[] | unknown;
           setProducts(Array.isArray(raw) ? raw : []);
         }
-        if (ordersRes.status === 'fulfilled' && ordersRes.value?.data) {
-          const firstPayload = (ordersRes.value as { data?: unknown }).data;
-          const totalPages = parseTotalPages(firstPayload);
-          const firstItems = parsePaginatedItems<ManagerOrderItem>(firstPayload);
-          if (totalPages <= 1) {
-            setOrders(firstItems);
-          } else {
-            const remaining = await Promise.all(
-              Array.from({ length: totalPages - 1 }, (_, i) => managerServices.getOrders(i + 1, apiPageSize))
-            );
-            const remainingItems = remaining.flatMap((res) => parsePaginatedItems<ManagerOrderItem>(res?.data));
-            setOrders([...firstItems, ...remainingItems]);
-          }
+        if (allOrders.status === 'fulfilled') {
+          setOrders(allOrders.value);
         }
         if (nearRes.status === 'fulfilled' && nearRes.value?.data) {
-          setNearExpiry(parsePaginatedItems<NearExpiryItem>((nearRes.value as { data?: unknown }).data));
+          setNearExpiry(getPaginatedItems<NearExpiryItem>((nearRes.value as { data?: unknown }).data));
         }
         if (batchesRes.status === 'fulfilled' && batchesRes.value?.data) {
           const raw = batchesRes.value.data as ProductBatchesResponse[] | unknown;

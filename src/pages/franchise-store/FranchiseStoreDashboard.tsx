@@ -19,6 +19,7 @@ import { translateStatus } from '@/utils/labelMapping';
 import { franchiseServices, type OrderResponse } from '@/services/franchiseServices';
 import { supplyServices, type ExportNotesResponse } from '@/services/supplyServices';
 import { useAuth } from '@/contexts/AuthContext';
+import { DEFAULT_API_PAGE_SIZE, fetchAllPages, getPaginatedItems } from '@/utils/pagination';
 
 /**
  * Dashboard Franchise Store: Chỉ dữ liệu từ API (orders, export-notes).
@@ -45,19 +46,6 @@ const EXPORT_STATUS_CLASS: Record<string, string> = {
 const PAGE_SIZE_ORDERS = 5;
 const PAGE_SIZE_EXPORTS = 5;
 
-function parsePaginatedItems<T>(data: unknown): T[] {
-  if (!data || typeof data !== 'object') return [];
-  const o = data as Record<string, unknown>;
-  const arr = (o.items ?? o.content) as T[] | undefined;
-  return Array.isArray(arr) ? arr : [];
-}
-
-function parseTotalPages(data: unknown): number {
-  if (!data || typeof data !== 'object') return 1;
-  const value = Number((data as Record<string, unknown>).totalPages ?? 1);
-  return Number.isFinite(value) && value > 0 ? value : 1;
-}
-
 const FranchiseStoreDashboard = () => {
   const { user } = useAuth();
   const storeId = user?.storeId ?? user?.store_id ?? null;
@@ -73,29 +61,30 @@ const FranchiseStoreDashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      const pageSize = 100;
-
-      const firstOrdersRes = await franchiseServices.getOrders(0, pageSize);
-      const firstOrdersPayload = firstOrdersRes?.data;
-      const orderTotalPages = parseTotalPages(firstOrdersPayload);
-      const firstOrders = parsePaginatedItems<OrderResponse<unknown>>(firstOrdersPayload);
-      const remainingOrdersRes =
-        orderTotalPages > 1
-          ? await Promise.all(Array.from({ length: orderTotalPages - 1 }, (_, i) => franchiseServices.getOrders(i + 1, pageSize)))
-          : [];
-      const remainingOrders = remainingOrdersRes.flatMap((res) => parsePaginatedItems<OrderResponse<unknown>>(res?.data));
-      setOrders([...firstOrders, ...remainingOrders]);
-
-      const firstExportRes = await supplyServices.getAllExportNote(0, pageSize);
-      const firstExportPayload = firstExportRes?.data?.data;
-      const exportTotalPages = parseTotalPages(firstExportPayload);
-      const firstExports = parsePaginatedItems<ExportNotesResponse>(firstExportPayload);
-      const remainingExportRes =
-        exportTotalPages > 1
-          ? await Promise.all(Array.from({ length: exportTotalPages - 1 }, (_, i) => supplyServices.getAllExportNote(i + 1, pageSize)))
-          : [];
-      const remainingExports = remainingExportRes.flatMap((res) => parsePaginatedItems<ExportNotesResponse>(res?.data?.data));
-      setExportNotes([...firstExports, ...remainingExports]);
+      const [allOrders, allExportNotes] = await Promise.all([
+        fetchAllPages<OrderResponse<unknown>>({
+          fetchPage: async (page, size) => {
+            const res = await franchiseServices.getOrders(page, size);
+            return {
+              items: getPaginatedItems<OrderResponse<unknown>>(res?.data),
+              totalPages: Number(res?.data?.totalPages ?? 1),
+            };
+          },
+          pageSize: DEFAULT_API_PAGE_SIZE,
+        }),
+        fetchAllPages<ExportNotesResponse>({
+          fetchPage: async (page, size) => {
+            const res = await supplyServices.getAllExportNote(page, size);
+            return {
+              items: getPaginatedItems<ExportNotesResponse>(res?.data?.data),
+              totalPages: Number(res?.data?.data?.totalPages ?? 1),
+            };
+          },
+          pageSize: DEFAULT_API_PAGE_SIZE,
+        }),
+      ]);
+      setOrders(allOrders);
+      setExportNotes(allExportNotes);
     } catch {
       setError('Không tải được dữ liệu. Vui lòng thử lại.');
     } finally {

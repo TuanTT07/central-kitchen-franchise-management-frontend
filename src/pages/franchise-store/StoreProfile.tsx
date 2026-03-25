@@ -4,25 +4,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { franchiseServices, type OrderResponse, type OrderDetailResponse } from '@/services/franchiseServices';
 import { adminService } from '@/services/adminServices';
 import { cn } from '@/lib/utils';
+import { DEFAULT_API_PAGE_SIZE, fetchAllPages, getPaginatedItems } from '@/utils/pagination';
 
 interface StoreBasicInfo {
   storeId: number;
   storeName: string;
   address?: string;
   phone?: string;
-}
-
-function parseTotalPages(data: unknown): number {
-  if (!data || typeof data !== 'object') return 1;
-  const value = Number((data as Record<string, unknown>).totalPages ?? 1);
-  return Number.isFinite(value) && value > 0 ? value : 1;
-}
-
-function parsePaginatedItems<T>(data: unknown): T[] {
-  if (!data || typeof data !== 'object') return [];
-  const o = data as Record<string, unknown>;
-  const arr = (o.items ?? o.content) as T[] | undefined;
-  return Array.isArray(arr) ? arr : [];
 }
 
 function StoreProfile() {
@@ -48,18 +36,16 @@ function StoreProfile() {
   useEffect(() => {
     const loadStoreProfile = async () => {
       try {
-        const pageSize = 100;
-        const first = await franchiseServices.getOrders(0, pageSize);
-        if (!first.success || !first.data) return;
-
-        const firstItems = parsePaginatedItems<OrderResponse<OrderDetailResponse[]>>(first.data);
-        const totalPages = parseTotalPages(first.data);
-        const rest =
-          totalPages > 1
-            ? await Promise.all(Array.from({ length: totalPages - 1 }, (_, i) => franchiseServices.getOrders(i + 1, pageSize)))
-            : [];
-        const restItems = rest.flatMap((res) => parsePaginatedItems<OrderResponse<OrderDetailResponse[]>>(res?.data));
-        const items = [...firstItems, ...restItems];
+        const items = await fetchAllPages<OrderResponse<OrderDetailResponse[]>>({
+          fetchPage: async (page, size) => {
+            const res = await franchiseServices.getOrders(page, size);
+            return {
+              items: getPaginatedItems<OrderResponse<OrderDetailResponse[]>>(res?.data),
+              totalPages: Number(res?.data?.totalPages ?? 1),
+            };
+          },
+          pageSize: DEFAULT_API_PAGE_SIZE,
+        });
 
         setOrders(items);
         if (items.length > 0 && items[0].storeId && items[0].storeName) {
