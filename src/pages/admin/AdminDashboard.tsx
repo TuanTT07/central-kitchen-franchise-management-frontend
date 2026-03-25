@@ -4,6 +4,7 @@ import { ADMIN_SIDEBAR_ITEMS } from '@/components/layout/sidebarConfig';
 import { adminService, type StoreResponse, type UserResponse } from '@/services/adminServices';
 import { cn } from '@/lib/utils';
 import { translateRole, translateStatus } from '@/utils/labelMapping';
+import { DEFAULT_API_PAGE_SIZE, fetchAllPages } from '@/utils/pagination';
 import { Role } from '@/Types';
 import {
   AlertTriangle,
@@ -18,22 +19,6 @@ import {
 } from 'lucide-react';
 
 type LoadState = 'idle' | 'loading' | 'error';
-const ADMIN_DASHBOARD_PAGE_SIZE = 100;
-const ADMIN_DASHBOARD_PAGE_CAP = 50;
-
-async function fetchAllPages<T>(fetchPage: (page: number) => Promise<{ items: T[]; totalPages?: number }>) {
-  const items: T[] = [];
-  let page = 0;
-  let totalPages = 1;
-  while (page < totalPages && page < ADMIN_DASHBOARD_PAGE_CAP) {
-    const res = await fetchPage(page);
-    items.push(...res.items);
-    totalPages = Math.max(1, Number(res.totalPages ?? totalPages));
-    page += 1;
-  }
-  return items;
-}
-
 const AdminDashboard = () => {
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [users, setUsers] = useState<UserResponse[]>([]);
@@ -43,15 +28,21 @@ const AdminDashboard = () => {
     setLoadState('loading');
     try {
       const [allUsers, allStores] = await Promise.all([
-        fetchAllPages<UserResponse>(async (page) => {
-          const resp = await adminService.getAllUsers(page, ADMIN_DASHBOARD_PAGE_SIZE);
-          const data = resp.data?.data;
-          return { items: data?.items ?? [], totalPages: data?.totalPages ?? 1 };
+        fetchAllPages<UserResponse>({
+          fetchPage: async (page, size) => {
+            const resp = await adminService.getAllUsers(page, size);
+            const data = resp.data?.data;
+            return { items: data?.items ?? [], totalPages: data?.totalPages ?? 1 };
+          },
+          pageSize: DEFAULT_API_PAGE_SIZE,
         }),
-        fetchAllPages<StoreResponse>(async (page) => {
-          const resp = await adminService.getAllStores(page, ADMIN_DASHBOARD_PAGE_SIZE);
-          const data = resp.data?.data;
-          return { items: data?.items ?? [], totalPages: data?.totalPages ?? 1 };
+        fetchAllPages<StoreResponse>({
+          fetchPage: async (page, size) => {
+            const resp = await adminService.getAllStores(page, size);
+            const data = resp.data?.data;
+            return { items: data?.items ?? [], totalPages: data?.totalPages ?? 1 };
+          },
+          pageSize: DEFAULT_API_PAGE_SIZE,
         }),
       ]);
       setUsers(allUsers);

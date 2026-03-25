@@ -4,6 +4,7 @@ import { SUPPLY_COORDINATOR_SIDEBAR_ITEMS } from '@/components/layout/sidebarCon
 import { Role } from '@/Types';
 import { supplyServices, type DeliveryPlanResponse, type ExportNotesResponse } from '@/services/supplyServices';
 import { translateStatus } from '@/utils/labelMapping';
+import { DEFAULT_API_PAGE_SIZE, fetchAllPages, getPaginatedItems } from '@/utils/pagination';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -26,19 +27,6 @@ const formatDate = (d: string | null | undefined) => {
   return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-function parsePaginatedItems<T>(data: unknown): T[] {
-  if (!data || typeof data !== 'object') return [];
-  const o = data as Record<string, unknown>;
-  const arr = (o.items ?? o.content) as T[] | undefined;
-  return Array.isArray(arr) ? arr : [];
-}
-
-function parseTotalPages(data: unknown): number {
-  if (!data || typeof data !== 'object') return 1;
-  const value = Number((data as Record<string, unknown>).totalPages ?? 1);
-  return Number.isFinite(value) && value > 0 ? value : 1;
-}
-
 const SupplyDashboard = () => {
   const [exportNotes, setExportNotes] = useState<ExportNotesResponse[]>([]);
   const [deliveryPlans, setDeliveryPlans] = useState<DeliveryPlanResponse[]>([]);
@@ -50,33 +38,30 @@ const SupplyDashboard = () => {
       setLoading(true);
       setError(null);
       try {
-        const pageSize = 100;
-
-        const firstExportRes = await supplyServices.getAllExportNote(0, pageSize);
-        const firstExportPayload = firstExportRes?.data?.data;
-        const exportTotalPages = parseTotalPages(firstExportPayload);
-        const firstExportItems = parsePaginatedItems<ExportNotesResponse>(firstExportPayload);
-        const remainingExportRes =
-          exportTotalPages > 1
-            ? await Promise.all(
-                Array.from({ length: exportTotalPages - 1 }, (_, i) => supplyServices.getAllExportNote(i + 1, pageSize))
-              )
-            : [];
-        const remainingExportItems = remainingExportRes.flatMap((res) => parsePaginatedItems<ExportNotesResponse>(res?.data?.data));
-        setExportNotes([...firstExportItems, ...remainingExportItems]);
-
-        const firstDeliveryRes = await supplyServices.getDeliveryPlan(0, pageSize);
-        const firstDeliveryPayload = firstDeliveryRes?.data;
-        const deliveryTotalPages = parseTotalPages(firstDeliveryPayload);
-        const firstDeliveryItems = parsePaginatedItems<DeliveryPlanResponse>(firstDeliveryPayload);
-        const remainingDeliveryRes =
-          deliveryTotalPages > 1
-            ? await Promise.all(
-                Array.from({ length: deliveryTotalPages - 1 }, (_, i) => supplyServices.getDeliveryPlan(i + 1, pageSize))
-              )
-            : [];
-        const remainingDeliveryItems = remainingDeliveryRes.flatMap((res) => parsePaginatedItems<DeliveryPlanResponse>(res?.data));
-        setDeliveryPlans([...firstDeliveryItems, ...remainingDeliveryItems]);
+        const [allExportNotes, allDeliveryPlans] = await Promise.all([
+          fetchAllPages<ExportNotesResponse>({
+            fetchPage: async (page, size) => {
+              const res = await supplyServices.getAllExportNote(page, size);
+              return {
+                items: getPaginatedItems<ExportNotesResponse>(res?.data?.data),
+                totalPages: Number(res?.data?.data?.totalPages ?? 1),
+              };
+            },
+            pageSize: DEFAULT_API_PAGE_SIZE,
+          }),
+          fetchAllPages<DeliveryPlanResponse>({
+            fetchPage: async (page, size) => {
+              const res = await supplyServices.getDeliveryPlan(page, size);
+              return {
+                items: getPaginatedItems<DeliveryPlanResponse>(res?.data),
+                totalPages: Number(res?.data?.totalPages ?? 1),
+              };
+            },
+            pageSize: DEFAULT_API_PAGE_SIZE,
+          }),
+        ]);
+        setExportNotes(allExportNotes);
+        setDeliveryPlans(allDeliveryPlans);
       } catch {
         setError('Không tải được dữ liệu. Vui lòng thử lại.');
       } finally {

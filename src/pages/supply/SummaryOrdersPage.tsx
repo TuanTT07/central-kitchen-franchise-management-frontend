@@ -18,6 +18,7 @@ import type { OrderDetailResponse, OrderResponse } from '@/services/franchiseSer
 import type { ConsolidationProduct, ConsolidationResponse } from '@/services/supplyServices';
 import { supplyServices } from '@/services/supplyServices';
 import { normalizeStatusKey, translateStatus } from '@/utils/labelMapping';
+import { DEFAULT_API_PAGE_SIZE, fetchAllPages, getPaginatedItems } from '@/utils/pagination';
 import { toast } from 'sonner';
 
 // ================= COMPONENT =================
@@ -61,36 +62,17 @@ function SummaryOrdersPage() {
    */
   const getAllOrders = async () => {
     try {
-      const pageSize = 100;
-      const first = await supplyServices.getAllOrders(0, pageSize);
-      if (!first.success || !first.data) return;
-
-      const firstPayload = first.data as any;
-      const firstItems: OrderResponse<OrderDetailResponse[]>[] =
-        (Array.isArray(firstPayload.items) && firstPayload.items) ||
-        (Array.isArray(firstPayload.content) && firstPayload.content) ||
-        [];
-
-      const totalPages = Number(firstPayload.totalPages ?? 1);
-      if (!Number.isFinite(totalPages) || totalPages <= 1) {
-        setOrders(firstItems);
-        return;
-      }
-
-      const rest = await Promise.all(
-        Array.from({ length: totalPages - 1 }, (_, i) => supplyServices.getAllOrders(i + 1, pageSize))
-      );
-
-      const restItems = rest.flatMap((res) => {
-        const payload = res?.data as any;
-        return (
-          (Array.isArray(payload?.items) && payload.items) ||
-          (Array.isArray(payload?.content) && payload.content) ||
-          []
-        );
+      const items = await fetchAllPages<OrderResponse<OrderDetailResponse[]>>({
+        fetchPage: async (page, size) => {
+          const res = await supplyServices.getAllOrders(page, size);
+          return {
+            items: getPaginatedItems<OrderResponse<OrderDetailResponse[]>>(res?.data),
+            totalPages: Number(res?.data?.totalPages ?? 1),
+          };
+        },
+        pageSize: DEFAULT_API_PAGE_SIZE,
       });
-
-      setOrders([...firstItems, ...restItems]);
+      setOrders(items);
     } catch (error) {
       toast.error('Không thể tải danh sách đơn hàng');
     }
