@@ -83,6 +83,21 @@ function SummaryOrdersPage() {
         setTotalPages(response.data.totalPages);
         setTotalElements(response.data.totalElements);
       }
+
+      const rest = await Promise.all(
+        Array.from({ length: totalPages - 1 }, (_, i) => supplyServices.getAllOrders(i + 1, pageSize))
+      );
+
+      const restItems = rest.flatMap((res) => {
+        const payload = res?.data as any;
+        return (
+          (Array.isArray(payload?.items) && payload.items) ||
+          (Array.isArray(payload?.content) && payload.content) ||
+          []
+        );
+      });
+
+      setOrders([...firstItems, ...restItems]);
     } catch (error) {
       toast.error('Không thể tải danh sách đơn hàng');
     }

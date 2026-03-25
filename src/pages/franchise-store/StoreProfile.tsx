@@ -13,6 +13,19 @@ interface StoreBasicInfo {
   phone?: string;
 }
 
+function parseTotalPages(data: unknown): number {
+  if (!data || typeof data !== 'object') return 1;
+  const value = Number((data as Record<string, unknown>).totalPages ?? 1);
+  return Number.isFinite(value) && value > 0 ? value : 1;
+}
+
+function parsePaginatedItems<T>(data: unknown): T[] {
+  if (!data || typeof data !== 'object') return [];
+  const o = data as Record<string, unknown>;
+  const arr = (o.items ?? o.content) as T[] | undefined;
+  return Array.isArray(arr) ? arr : [];
+}
+
 function StoreProfile() {
   const { user, userName } = useAuth();
 
