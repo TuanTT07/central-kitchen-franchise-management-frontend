@@ -78,14 +78,17 @@ function SummaryOrdersPage() {
   const getAllOrders = async () => {
     try {
       const response = await supplyServices.getAllOrders(page, PAGE_SIZE, search, statusFilter);
+      let firstItems: any[] = [];
+      let currentTotalPages = 1;
       if (response.success && response.data) {
-        setOrders(response.data.items);
+        firstItems = response.data.items;
+        currentTotalPages = response.data.totalPages;
         setTotalPages(response.data.totalPages);
         setTotalElements(response.data.totalElements);
       }
 
       const rest = await Promise.all(
-        Array.from({ length: totalPages - 1 }, (_, i) => supplyServices.getAllOrders(i + 1, pageSize))
+        Array.from({ length: currentTotalPages - 1 }, (_, i) => supplyServices.getAllOrders(i + 1, PAGE_SIZE))
       );
 
       const restItems = rest.flatMap((res) => {
