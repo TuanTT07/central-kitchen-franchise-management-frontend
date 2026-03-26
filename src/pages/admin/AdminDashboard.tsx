@@ -132,7 +132,7 @@ const AdminDashboard = () => {
   return (
     <DashboardLayout navItems={ADMIN_SIDEBAR_ITEMS} roleLabel="ADMIN">
       <div className="min-h-screen bg-slate-50/60">
-        <div className="mx-auto max-w-6xl space-y-6 px-4 py-7 sm:px-6 lg:px-8">
+        <div className="space-y-6 px-4 py-7 sm:px-6 lg:px-8">
 
           {/* ── TOOLBAR ── */}
           <div className="flex items-center justify-between">
