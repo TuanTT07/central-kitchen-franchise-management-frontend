@@ -158,7 +158,7 @@ const ManagerDashboard = () => {
   return (
     <DashboardLayout navItems={MANAGER_SIDEBAR_ITEMS} roleLabel="MANAGER">
       <div className="min-h-screen bg-slate-50/60">
-        <div className="mx-auto max-w-6xl space-y-6 px-4 py-7 sm:px-6 lg:px-8">
+        <div className="space-y-6 px-4 py-7 sm:px-6 lg:px-8">
 
           {error && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
