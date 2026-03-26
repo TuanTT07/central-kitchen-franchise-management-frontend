@@ -99,7 +99,7 @@ const SupplyDashboard = () => {
   return (
     <DashboardLayout navItems={SUPPLY_COORDINATOR_SIDEBAR_ITEMS} roleLabel={Role.SUPPLY_COORDINATOR}>
       <div className="min-h-screen bg-slate-50/60">
-        <div className="mx-auto max-w-6xl space-y-6 px-4 py-7 sm:px-6 lg:px-8">
+        <div className="space-y-6 px-4 py-7 sm:px-6 lg:px-8">
 
           {/* ── TITLE ── */}
           <div>
