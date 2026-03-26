@@ -118,7 +118,7 @@ const CentralKitchenDashboard = () => {
   return (
     <DashboardLayout navItems={CENTRAL_KITCHEN_SIDEBAR_ITEMS} roleLabel={Role.CENTRAL_KITCHEN_STAFF}>
       <div className="min-h-screen bg-slate-50/50">
-        <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+        <div className="space-y-8 px-4 py-8 sm:px-6 lg:px-8">
           {error && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               {error}
