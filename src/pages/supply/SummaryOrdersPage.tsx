@@ -37,6 +37,9 @@ function SummaryOrdersPage() {
   // ================= STATE =================
   // Danh sách đơn hàng từ API (đã được phân trang)
   const [orders, setOrders] = useState<OrderResponse<OrderDetailResponse[]>[]>([]);
+  // Danh sách đơn hàng dùng cho modal gom thủ công (load all APPROVED)
+  const [manualOrders, setManualOrders] = useState<OrderResponse<OrderDetailResponse[]>[]>([]);
+  const [isLoadingManualOrders, setIsLoadingManualOrders] = useState(false);
 
   // Tìm kiếm và lọc
   const [search, setSearch] = useState('');
@@ -98,29 +101,55 @@ function SummaryOrdersPage() {
   const getAllOrders = async () => {
     try {
       const response = await supplyServices.getAllOrders(page, PAGE_SIZE, search, statusFilter);
-      let firstItems: any[] = [];
-      let currentTotalPages = 1;
       if (response.success && response.data) {
-        firstItems = response.data.items;
-        currentTotalPages = response.data.totalPages;
-        setTotalPages(response.data.totalPages);
-        setTotalElements(response.data.totalElements);
+        setOrders(Array.isArray(response.data.items) ? response.data.items : []);
+        setTotalPages(response.data.totalPages ?? 1);
+        setTotalElements(response.data.totalElements ?? 0);
+      } else {
+        setOrders([]);
+        setTotalPages(1);
+        setTotalElements(0);
+      }
+    } catch (error) {
+      toast.error('Không thể tải danh sách đơn hàng');
+    }
+  };
+
+  /**
+   * Load toàn bộ đơn hàng APPROVED cho modal gom thủ công (tránh phụ thuộc vào trang hiện tại).
+   */
+  const loadManualOrders = async () => {
+    try {
+      setIsLoadingManualOrders(true);
+      const first = await supplyServices.getAllOrders(0, PAGE_SIZE, search, 'APPROVED');
+      if (!first.success || !first.data) {
+        setManualOrders([]);
+        return;
+      }
+
+      const total = first.data.totalPages ?? 1;
+      const firstItems = Array.isArray(first.data.items) ? first.data.items : [];
+
+      if (total <= 1) {
+        setManualOrders(firstItems);
+        return;
       }
 
       const rest = await Promise.all(
-        Array.from({ length: currentTotalPages - 1 }, (_, i) => supplyServices.getAllOrders(i + 1, PAGE_SIZE))
+        Array.from({ length: total - 1 }, (_, i) => supplyServices.getAllOrders(i + 1, PAGE_SIZE, search, 'APPROVED'))
       );
+      const restItems = rest.flatMap((res) => (res?.success && res.data && Array.isArray(res.data.items) ? res.data.items : []));
 
-      const restItems = rest.flatMap((res) => {
-        const payload = res?.data as any;
-        return (
-          (Array.isArray(payload?.items) && payload.items) || (Array.isArray(payload?.content) && payload.content) || []
-        );
+      // Dedup theo orderId để an toàn
+      const map = new Map<number, OrderResponse<OrderDetailResponse[]> >();
+      [...firstItems, ...restItems].forEach((o) => {
+        if (o?.orderId != null && !map.has(o.orderId)) map.set(o.orderId, o);
       });
-
-      setOrders([...firstItems, ...restItems]);
-    } catch (error) {
-      toast.error('Không thể tải danh sách đơn hàng');
+      setManualOrders(Array.from(map.values()));
+    } catch {
+      setManualOrders([]);
+    } finally {
+      setIsLoadingManualOrders(false);
     }
   };
 
@@ -160,6 +189,7 @@ function SummaryOrdersPage() {
   function manuConsolidate() {
     setSelectedOrderIds([]);
     setIsManualModalOpen(true);
+    loadManualOrders();
   }
 
   /**
@@ -544,7 +574,7 @@ function SummaryOrdersPage() {
                       ) : (
                         paginatedOrders.map((o: OrderResponse<OrderDetailResponse[]>) => (
                           <tr
-                            key={o.orderId}
+                            key={`${o.orderId}-${o.storeId}-${o.orderCode}`}
                             className="cursor-pointer transition-colors hover:bg-amber-50/60 group"
                             onClick={() => openDetail(o)}
                             title="Xem chi tiết đơn hàng"
@@ -740,11 +770,11 @@ function SummaryOrdersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-amber-50">
-                  {orders
+                  {(isLoadingManualOrders ? [] : manualOrders)
                     .filter((o) => normalizeStatusKey(o.status) === 'APPROVED')
                     .map((o) => (
                       <tr
-                        key={o.orderId}
+                        key={`manual-${o.orderId}-${o.storeId}-${o.orderCode}`}
                         className={`hover:bg-amber-50/40 cursor-pointer ${selectedOrderIds.includes(o.orderId) ? 'bg-amber-50' : ''}`}
                         onClick={() => toggleOrderSelection(o.orderId)}
                       >
@@ -764,7 +794,8 @@ function SummaryOrdersPage() {
                         </td>
                       </tr>
                     ))}
-                  {orders.filter((o) => normalizeStatusKey(o.status) === 'APPROVED').length === 0 && (
+                  {!isLoadingManualOrders &&
+                    manualOrders.filter((o) => normalizeStatusKey(o.status) === 'APPROVED').length === 0 && (
                     <tr>
                       <td colSpan={5} className="py-10 text-center text-stone-500">
                         Không có đơn hàng nào đã duyệt để tổng hợp.
@@ -965,7 +996,7 @@ function SummaryOrdersPage() {
                       </thead>
                       <tbody className="divide-y divide-amber-50">
                         {selectedOrder.details?.map((d, idx) => (
-                          <tr key={`${d.productId ?? idx}-${idx}`} className="bg-white">
+                          <tr key={`${selectedOrder.orderId}-${d.orderDetailId ?? `${d.productId}-${idx}`}`} className="bg-white">
                             <td className="px-4 py-2 font-semibold text-stone-900">{d.productName}</td>
                             <td className="px-4 py-2 text-right font-bold text-stone-800">{d.quantity}</td>
                           </tr>
