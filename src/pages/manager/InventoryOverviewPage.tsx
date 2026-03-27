@@ -151,9 +151,32 @@ const InventoryOverviewPage = () => {
    * Lọc danh sách theo từ khóa tìm kiếm
    */
   const filteredRows = useMemo(() => {
-    if (!search.trim()) return overviewRows;
-    const keyword = search.toLowerCase();
-    return overviewRows.filter((row) => row.product.productName.toLowerCase().includes(keyword));
+    let data = overviewRows;
+    if (search.trim()) {
+      const keyword = search.toLowerCase();
+      data = data.filter((row) => row.product.productName.toLowerCase().includes(keyword));
+    }
+
+    // Sort theo ưu tiên cảnh báo:
+    // 1) Hết hàng (total_quantity === 0)
+    // 2) Sắp hết hạn (critical_batches > 0)
+    // 3) Hạn gần nhất (tăng dần)
+    // 4) Tên sản phẩm (A → Z)
+    return [...data].sort((a, b) => {
+      const aOut = a.total_quantity === 0 ? 1 : 0;
+      const bOut = b.total_quantity === 0 ? 1 : 0;
+      if (aOut !== bOut) return bOut - aOut;
+
+      const aCritical = a.critical_batches > 0 ? 1 : 0;
+      const bCritical = b.critical_batches > 0 ? 1 : 0;
+      if (aCritical !== bCritical) return bCritical - aCritical;
+
+      const aExp = a.nearest_expiry ? new Date(a.nearest_expiry).getTime() : Number.POSITIVE_INFINITY;
+      const bExp = b.nearest_expiry ? new Date(b.nearest_expiry).getTime() : Number.POSITIVE_INFINITY;
+      if (aExp !== bExp) return aExp - bExp;
+
+      return a.product.productName.localeCompare(b.product.productName, 'vi');
+    });
   }, [overviewRows, search]);
 
   const totalItems = overviewRows.reduce((sum, r) => sum + r.total_quantity, 0);
