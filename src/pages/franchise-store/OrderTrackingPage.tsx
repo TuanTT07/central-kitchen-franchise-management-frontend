@@ -331,7 +331,13 @@ const OrderTrackingPage = () => {
           (o.deliveryDate || '').toLowerCase().includes(q)
       );
     }
-    return data;
+    // Mới nhất lên trước để dễ theo dõi đơn vừa tạo
+    return [...data].sort((a, b) => {
+      const at = a.orderDate ? new Date(a.orderDate).getTime() : 0;
+      const bt = b.orderDate ? new Date(b.orderDate).getTime() : 0;
+      if (bt !== at) return bt - at;
+      return (b.orderId ?? 0) - (a.orderId ?? 0);
+    });
   }, [orders, search, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
