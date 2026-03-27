@@ -24,6 +24,40 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { kitchenServices, type InventoryTransactionResponse, type TransactionType } from '@/services/kitchenServices';
 
+function normalizeTxType(value: string | null | undefined): TransactionType | null {
+  if (!value) return null;
+  const key = value
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_');
+
+  if (key === 'IMPORT') return 'IMPORT';
+  if (key === 'EXPORT') return 'EXPORT';
+  if (key === 'ADJUST' || key === 'ADJUSTMENT') return 'ADJUST';
+
+  // fallback: tolerate variants like ADJUST_STOCK, STOCK_ADJUST, etc.
+  if (key.includes('IMPORT')) return 'IMPORT';
+  if (key.includes('EXPORT')) return 'EXPORT';
+  if (key.includes('ADJUST')) return 'ADJUST';
+
+  return null;
+}
+
+function inferTxTypeFromReferenceCode(referenceCode: string | null | undefined): TransactionType | null {
+  if (!referenceCode) return null;
+  const code = referenceCode.trim().toUpperCase();
+  // Các prefix hay gặp (tuỳ BE): ADJ/IMP/EXP...
+  if (code.startsWith('ADJ') || code.includes('ADJUST')) return 'ADJUST';
+  if (code.startsWith('IMP') || code.includes('IMPORT')) return 'IMPORT';
+  if (code.startsWith('EXP') || code.includes('EXPORT')) return 'EXPORT';
+  return null;
+}
+
+function getTxType(tx: Pick<InventoryTransactionResponse, 'transactionType' | 'referenceCode'>): TransactionType {
+  // Ưu tiên type từ backend, fallback suy luận từ mã tham chiếu.
+  return normalizeTxType(tx.transactionType) ?? inferTxTypeFromReferenceCode(tx.referenceCode) ?? 'ADJUST';
+}
+
 const PAGE_SIZE = 10;
 
 const FILTER_OPTIONS: (TransactionType | 'ALL')[] = ['ALL', 'IMPORT', 'EXPORT', 'ADJUST'];
@@ -48,7 +82,7 @@ const formatDateTime = (value: string | null | undefined) => {
 };
 
 function TxBadge({ type }: { type: string }) {
-  const transactionType = type as TransactionType;
+  const transactionType = normalizeTxType(type) ?? 'ADJUST';
 
   if (transactionType === 'IMPORT') {
     return (
@@ -94,11 +128,24 @@ const PaginationBar = ({
 }) => {
   const safeTotalPages = Math.max(1, totalPages);
   const current = page + 1; // UI dùng 1-based
-  const windowStart = Math.max(1, current - 2);
-  const windowEnd = Math.min(safeTotalPages, current + 2);
-  const pagesSet = new Set<number>([1, safeTotalPages]);
-  for (let p = windowStart; p <= windowEnd; p += 1) pagesSet.add(p);
-  const pages = Array.from(pagesSet).sort((a, b) => a - b);
+
+  const pages: (number | 'ellipsis')[] = (() => {
+    // Ít trang thì hiển thị đầy đủ để tránh "mất số" kiểu 1 2 3 5
+    if (safeTotalPages <= 7) {
+      return Array.from({ length: safeTotalPages }, (_, i) => i + 1);
+    }
+
+    // Nhiều trang thì rút gọn dạng: 1 ... (window) ... last
+    if (current <= 4) {
+      return [1, 2, 3, 4, 5, 'ellipsis', safeTotalPages];
+    }
+
+    if (current >= safeTotalPages - 3) {
+      return [1, 'ellipsis', safeTotalPages - 4, safeTotalPages - 3, safeTotalPages - 2, safeTotalPages - 1, safeTotalPages];
+    }
+
+    return [1, 'ellipsis', current - 1, current, current + 1, 'ellipsis', safeTotalPages];
+  })();
 
   return (
     <div className="flex items-center justify-between border-t border-amber-100 bg-amber-50/30 px-5 py-3">
@@ -115,7 +162,15 @@ const PaginationBar = ({
           <ChevronLeft className="size-4" />
         </button>
 
-        {pages.map((p) => {
+        {pages.map((p, idx) => {
+          if (p === 'ellipsis') {
+            return (
+              <span key={`e-${idx}`} className="px-1 text-xs font-semibold text-stone-400">
+                …
+              </span>
+            );
+          }
+
           const isActive = p === page + 1;
           return (
             <button
@@ -152,40 +207,56 @@ export default function InventoryMovementsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // page: 0-based để khớp backend (PaginatedResponse.page)
+  // page: 0-based (client-side pagination sau khi đã lọc)
   const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalElements, setTotalElements] = useState(0);
   const [transactions, setTransactions] = useState<InventoryTransactionResponse[]>([]);
 
-  // lọc client-side (chỉ áp dụng trên trang hiện tại)
+  // lọc client-side (áp dụng trên toàn bộ dữ liệu đã tải)
   const [searchCode, setSearchCode] = useState('');
   const [typeFilter, setTypeFilter] = useState<TransactionType | 'ALL'>('ALL');
 
-  const fetchPage = async (pageIndex: number) => {
+  const fetchAll = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const res = await kitchenServices.getInventoryTransaction({
+      const first = await kitchenServices.getInventoryTransaction({
         sort: 'transactionDate,desc',
         size: PAGE_SIZE,
-        page: pageIndex,
+        page: 0,
       });
 
-      const payload = res as unknown as {
-        success?: boolean;
+      const payload = first as unknown as {
         data?: {
           items?: InventoryTransactionResponse[];
           totalPages?: number;
-          totalElements?: number;
         };
       };
 
-      const items = payload?.data?.items;
-      setTransactions(Array.isArray(items) ? items : []);
-      setTotalPages(payload?.data?.totalPages ?? 1);
-      setTotalElements(payload?.data?.totalElements ?? (Array.isArray(items) ? items.length : 0));
+      const firstItems = Array.isArray(payload?.data?.items) ? payload!.data!.items! : [];
+      const total = payload?.data?.totalPages ?? 1;
+
+      if (total <= 1) {
+        setTransactions(firstItems);
+        return;
+      }
+
+      const rest = await Promise.all(
+        Array.from({ length: total - 1 }, (_, i) =>
+          kitchenServices.getInventoryTransaction({
+            sort: 'transactionDate,desc',
+            size: PAGE_SIZE,
+            page: i + 1,
+          }),
+        ),
+      );
+
+      const restItems = rest.flatMap((res) => {
+        const p = res as unknown as { data?: { items?: InventoryTransactionResponse[] } };
+        return Array.isArray(p?.data?.items) ? p!.data!.items! : [];
+      });
+
+      setTransactions([...firstItems, ...restItems]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Không tải được dữ liệu biến động kho');
     } finally {
@@ -194,14 +265,16 @@ export default function InventoryMovementsPage() {
   };
 
   useEffect(() => {
-    fetchPage(page);
+    fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, []);
 
-  const displayTransactions = useMemo(() => {
+  const filteredTransactions = useMemo(() => {
     let data = transactions;
     if (typeFilter !== 'ALL') {
-      data = data.filter((t) => t.transactionType === typeFilter);
+      data = data.filter((t) => {
+        return getTxType(t) === typeFilter;
+      });
     }
     const q = searchCode.trim().toLowerCase();
     if (q) {
@@ -212,19 +285,34 @@ export default function InventoryMovementsPage() {
           t.batchCode?.toLowerCase().includes(q),
       );
     }
-    return data;
+
+    // giữ thứ tự mới nhất trước (đề phòng backend trả không ổn định giữa các trang)
+    return [...data].sort((a, b) => {
+      const at = a.transactionDate ? new Date(a.transactionDate).getTime() : 0;
+      const bt = b.transactionDate ? new Date(b.transactionDate).getTime() : 0;
+      if (bt !== at) return bt - at;
+      return (b.transactionId ?? 0) - (a.transactionId ?? 0);
+    });
   }, [transactions, searchCode, typeFilter]);
 
-  const today = useMemo(() => new Date(), []);
+  const totalElements = filteredTransactions.length;
+  const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
 
-  if (loading) {
-    return (
-      <div className="flex h-64 w-full flex-col items-center justify-center gap-3">
-        <Loader2 className="size-9 animate-spin text-amber-500" />
-        <p className="text-sm font-medium text-amber-700">Đang tải biến động kho...</p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    // Khi filter/search thay đổi thì quay về trang đầu cho dễ hiểu
+    setPage(0);
+  }, [searchCode, typeFilter]);
+
+  useEffect(() => {
+    if (page > totalPages - 1) setPage(Math.max(0, totalPages - 1));
+  }, [page, totalPages]);
+
+  const displayTransactions = useMemo(
+    () => filteredTransactions.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [filteredTransactions, page],
+  );
+
+  const today = useMemo(() => new Date(), []);
 
   if (error) {
     return (
@@ -299,8 +387,8 @@ export default function InventoryMovementsPage() {
           onClick={() => {
             setSearchCode('');
             setTypeFilter('ALL');
-            if (page !== 0) setPage(0);
-            fetchPage(0);
+            setPage(0);
+            fetchAll();
           }}
           className="h-9 flex-none gap-1.5 border-amber-200 text-xs text-amber-700 hover:bg-amber-50"
         >
@@ -332,7 +420,17 @@ export default function InventoryMovementsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-100">
-                {displayTransactions.map((row) => (
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="size-7 animate-spin text-amber-400" />
+                        <p className="text-xs text-stone-400">Đang tải biến động kho...</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  displayTransactions.map((row) => (
                   <tr key={row.transactionId} className="transition hover:bg-amber-50/40">
                     <td className="px-6 py-3 font-mono text-[11px] text-stone-500">{row.referenceCode}</td>
                     <td className="px-6 py-3">
@@ -345,9 +443,10 @@ export default function InventoryMovementsPage() {
                     </td>
                     <td className="px-6 py-3 text-stone-500">{formatDateTime(row.transactionDate)}</td>
                   </tr>
-                ))}
+                  ))
+                )}
 
-                {displayTransactions.length === 0 && (
+                {!loading && displayTransactions.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-6 py-10 text-center text-xs italic text-stone-400">
                       Không có giao dịch phù hợp.
