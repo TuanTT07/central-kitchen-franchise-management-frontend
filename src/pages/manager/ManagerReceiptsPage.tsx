@@ -24,6 +24,7 @@ import { kitchenServices, type InventoryReceiptApi } from '@/services/kitchenSer
 import { supplyServices, type ExportNotesResponse } from '@/services/supplyServices';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { normalizeStatusKey, translateStatus } from '@/utils/labelMapping';
 
 type ReceiptStatus = 'DRAFT' | 'COMPLETED';
 
@@ -114,6 +115,7 @@ const ManagerReceiptsPage = () => {
 
   // Export tab
   const [exportSearch, setExportSearch] = useState('');
+  const [exportStatusFilter, setExportStatusFilter] = useState<string>('ALL');
   const [exportNotes, setExportNotes] = useState<ExportNotesResponse[]>([]);
   const [isLoadingExport, setIsLoadingExport] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -135,8 +137,8 @@ const ManagerReceiptsPage = () => {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'EXPORT') fetchExportNotes(exportPage);
-  }, [activeTab, exportPage]);
+    if (activeTab === 'EXPORT') fetchExportNotes();
+  }, [activeTab]);
 
   // ── API ────────────────────────────────────────────────────────────────────
   const fetchReceipts = async () => {
@@ -151,18 +153,35 @@ const ManagerReceiptsPage = () => {
     }
   };
 
-  const fetchExportNotes = async (page: number) => {
+  const fetchExportNotes = async () => {
     setIsLoadingExport(true);
     setExportError(null);
     try {
-      const res = await supplyServices.getAllExportNote(page - 1, PAGE_SIZE);
-      if (res.data.success) {
-        setExportNotes(res.data.data.items);
-        setExportTotalElements(res.data.data.totalElements);
-      } else {
+      const firstRes = await supplyServices.getAllExportNote(0, PAGE_SIZE);
+      if (!firstRes.data.success) {
         setExportNotes([]);
         setExportTotalElements(0);
+        return;
       }
+
+      const firstData = firstRes.data.data;
+      const firstItems = firstData.items ?? [];
+      const lastPage = firstData.totalPages ?? 1;
+
+      if (lastPage <= 1) {
+        setExportNotes(firstItems);
+        setExportTotalElements(firstData.totalElements ?? firstItems.length);
+        return;
+      }
+
+      const restResponses = await Promise.all(
+        Array.from({ length: lastPage - 1 }, (_, i) => supplyServices.getAllExportNote(i + 1, PAGE_SIZE))
+      );
+      const restItems = restResponses.flatMap((res) => (res.data?.success ? res.data.data.items ?? [] : []));
+      const allItems = [...firstItems, ...restItems];
+
+      setExportNotes(allItems);
+      setExportTotalElements(firstData.totalElements ?? allItems.length);
     } catch {
       setExportError('Không tải được danh sách phiếu xuất kho.');
       setExportNotes([]);
@@ -200,7 +219,7 @@ const ManagerReceiptsPage = () => {
 
   const handleRefresh = () => {
     if (activeTab === 'IMPORT') fetchReceipts();
-    else fetchExportNotes(exportPage);
+    else fetchExportNotes();
   };
 
   // ── Computed ───────────────────────────────────────────────────────────────
@@ -218,7 +237,13 @@ const ManagerReceiptsPage = () => {
           (r.receiptDate && new Date(r.receiptDate).toLocaleDateString('vi-VN').toLowerCase().includes(q))
       );
     }
-    return data;
+    // Mặc định: mới nhất lên đầu, fallback theo receiptId để ổn định.
+    return [...data].sort((a, b) => {
+      const at = a.receiptDate ? new Date(a.receiptDate).getTime() : 0;
+      const bt = b.receiptDate ? new Date(b.receiptDate).getTime() : 0;
+      if (bt !== at) return bt - at;
+      return (b.receiptId ?? 0) - (a.receiptId ?? 0);
+    });
   }, [receipts, search, statusFilter]);
 
   const importTotalPages = Math.max(1, Math.ceil(filteredImportReceipts.length / PAGE_SIZE));
@@ -227,15 +252,56 @@ const ManagerReceiptsPage = () => {
     [filteredImportReceipts, importPage]
   );
 
-  const filteredExportNotes = useMemo(() => {
-    if (!exportSearch.trim()) return exportNotes;
-    const q = exportSearch.toLowerCase();
-    return exportNotes.filter(
-      (n) => n.exportCode?.toLowerCase().includes(q) || n.storeName?.toLowerCase().includes(q)
-    );
-  }, [exportNotes, exportSearch]);
+  const exportStatusOptions = useMemo(() => {
+    const set = new Set<string>();
+    exportNotes.forEach((n) => {
+      const key = normalizeStatusKey(n.status);
+      if (key) set.add(key);
+    });
 
-  const exportTotalPages = Math.max(1, Math.ceil(exportTotalElements / PAGE_SIZE));
+    const PRIORITY = ['READY', 'IN_TRANSIT', 'SHIPPING', 'SHIPPED', 'COMPLETED', 'CANCEL', 'CANCELLED'];
+    const values = Array.from(set);
+    values.sort((a, b) => {
+      const pa = PRIORITY.indexOf(a);
+      const pb = PRIORITY.indexOf(b);
+      if (pa === -1 && pb === -1) return a.localeCompare(b);
+      if (pa === -1) return 1;
+      if (pb === -1) return -1;
+      return pa - pb;
+    });
+
+    return ['ALL', ...values];
+  }, [exportNotes]);
+
+  const filteredExportNotes = useMemo(() => {
+    let data = exportNotes;
+
+    if (exportStatusFilter !== 'ALL') data = data.filter((n) => normalizeStatusKey(n.status) === exportStatusFilter);
+
+    if (exportSearch.trim()) {
+      const q = exportSearch.toLowerCase();
+      data = data.filter((n) => n.exportCode?.toLowerCase().includes(q) || n.storeName?.toLowerCase().includes(q));
+    }
+
+    // Mặc định: mới nhất lên đầu, fallback theo exportId để ổn định.
+    return [...data].sort((a, b) => {
+      const at = a.exportDate ? new Date(a.exportDate).getTime() : 0;
+      const bt = b.exportDate ? new Date(b.exportDate).getTime() : 0;
+      if (bt !== at) return bt - at;
+      return (b.exportId ?? 0) - (a.exportId ?? 0);
+    });
+  }, [exportNotes, exportSearch, exportStatusFilter]);
+
+  const exportTotalPages = Math.max(1, Math.ceil(filteredExportNotes.length / PAGE_SIZE));
+  const paginatedExportNotes = useMemo(
+    () => filteredExportNotes.slice((exportPage - 1) * PAGE_SIZE, exportPage * PAGE_SIZE),
+    [filteredExportNotes, exportPage]
+  );
+
+  useEffect(() => {
+    if (activeTab !== 'EXPORT') return;
+    if (exportPage > exportTotalPages) setExportPage(exportTotalPages);
+  }, [activeTab, exportPage, exportTotalPages]);
 
   const isRefreshing = isLoadingImport || isLoadingExport;
 
@@ -447,14 +513,40 @@ const ManagerReceiptsPage = () => {
       {activeTab === 'EXPORT' && (
         <div className="space-y-3">
           {/* Toolbar */}
-          <div className="relative max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-amber-500" />
-            <Input
-              placeholder="Tìm theo mã phiếu xuất, cửa hàng..."
-              value={exportSearch}
-              onChange={(e) => setExportSearch(e.target.value)}
-              className="border-amber-200 bg-white pl-9 text-xs shadow-sm focus:border-amber-400 focus:ring-amber-200"
-            />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative max-w-md flex-1">
+              <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-amber-500" />
+              <Input
+                placeholder="Tìm theo mã phiếu xuất, cửa hàng..."
+                value={exportSearch}
+                onChange={(e) => {
+                  setExportSearch(e.target.value);
+                  setExportPage(1);
+                }}
+                className="border-amber-200 bg-white pl-9 text-xs shadow-sm focus:border-amber-400 focus:ring-amber-200"
+              />
+            </div>
+
+            <div className="inline-flex overflow-hidden rounded-xl border border-amber-200 bg-white p-1 text-xs shadow-sm">
+              {exportStatusOptions.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => {
+                    setExportStatusFilter(opt);
+                    setExportPage(1);
+                  }}
+                  className={cn(
+                    'rounded-lg px-3 py-1.5 font-medium transition',
+                    exportStatusFilter === opt
+                      ? 'bg-amber-500 text-white shadow-sm'
+                      : 'text-amber-800 hover:bg-amber-50'
+                  )}
+                >
+                  {opt === 'ALL' ? 'Tất cả' : translateStatus(opt) || opt}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Table card */}
@@ -500,7 +592,7 @@ const ManagerReceiptsPage = () => {
                         </td>
                       </tr>
                     ) : filteredExportNotes.length > 0 ? (
-                      filteredExportNotes.map((note, idx) => (
+                      paginatedExportNotes.map((note, idx) => (
                         <tr
                           key={note.exportId}
                           className={cn('transition-colors hover:bg-amber-50/60', idx % 2 === 1 && 'bg-stone-50/30')}
@@ -546,11 +638,11 @@ const ManagerReceiptsPage = () => {
                     )}
                   </tbody>
                 </table>
-                {exportTotalElements > PAGE_SIZE && (
+                {filteredExportNotes.length > PAGE_SIZE && (
                   <PaginationBar
                     page={exportPage}
                     totalPages={exportTotalPages}
-                    totalItems={exportTotalElements}
+                    totalItems={filteredExportNotes.length}
                     unit="phiếu"
                     loading={isLoadingExport}
                     onPrev={() => setExportPage((p) => Math.max(1, p - 1))}
