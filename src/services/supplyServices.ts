@@ -64,6 +64,25 @@ export interface ExportNotesResponse {
   status: string;
   exportDate: string;
   items: ExportNoteItem[];
+  /** Có trong snapshot khi chuyến đã hủy (tùy backend). */
+  storeOrderCode?: string;
+}
+
+/** Phần tử trong JSON `cancelled_notes_snapshot` / `cancelledNotesSnapshot` khi chuyến CANCELLED. */
+export interface CancelledExportSnapshotItem {
+  batchCode?: string;
+  expiryDate?: string;
+  productName?: string;
+  unit?: string;
+  unitName?: string;
+  quantity?: number;
+}
+
+export interface CancelledExportSnapshotEntry {
+  exportCode?: string;
+  storeName?: string;
+  storeOrderCode?: string;
+  items?: CancelledExportSnapshotItem[];
 }
 
 /**
@@ -121,6 +140,51 @@ export interface DeliveryPlanResponse {
     storeName: string;
     status: string;
   }[];
+  /** Giống chi tiết chuyến — khi CANCELLED, API có thể trả snapshot thay vì exportNotes đầy đủ. */
+  cancelledNotesSnapshot?: string | CancelledExportSnapshotEntry[] | null;
+}
+
+/** Đọc raw snapshot từ camelCase hoặc snake_case (backend/Supabase). */
+export function pickCancelledNotesSnapshotRaw(source: {
+  cancelledNotesSnapshot?: string | CancelledExportSnapshotEntry[] | null;
+}): string | CancelledExportSnapshotEntry[] | null | undefined {
+  const s = source as { cancelled_notes_snapshot?: string | CancelledExportSnapshotEntry[] | null };
+  return source.cancelledNotesSnapshot ?? s.cancelled_notes_snapshot;
+}
+
+/** Parse JSON snapshot phiếu xuất khi hủy chuyến. */
+export function parseCancelledExportSnapshotEntries(
+  raw: string | CancelledExportSnapshotEntry[] | null | undefined
+): CancelledExportSnapshotEntry[] {
+  if (raw == null || raw === '') return [];
+  if (typeof raw === 'string') {
+    const t = raw.trim();
+    if (!t) return [];
+    try {
+      const parsed = JSON.parse(t) as unknown;
+      return Array.isArray(parsed) ? (parsed as CancelledExportSnapshotEntry[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  if (Array.isArray(raw)) return raw;
+  return [];
+}
+
+/**
+ * Tên chi nhánh nhận cho một dòng lịch giao (bảng danh sách): ưu tiên exportNotes, không có thì đọc snapshot hủy.
+ */
+export function getStoreNamesForDeliveryPlan(plan: DeliveryPlanResponse): string[] {
+  const notes = plan.exportNotes ?? [];
+  const fromNotes = [...new Set(notes.map((n) => n.storeName?.trim()).filter((s): s is string => Boolean(s)))];
+  if (fromNotes.length > 0) return fromNotes;
+
+  const raw = pickCancelledNotesSnapshotRaw(plan);
+  const entries = parseCancelledExportSnapshotEntries(raw);
+  const fromSnap = entries
+    .map((e) => e.storeName?.trim())
+    .filter((s): s is string => Boolean(s));
+  return [...new Set(fromSnap)];
 }
 
 export interface DeliveryDetail {
@@ -135,6 +199,39 @@ export interface DeliveryDetail {
   createdByUsername: string;
   createdAt: string;
   exportNotes: ExportNotesResponse[];
+  /**
+   * Snapshot phiếu xuất tại lúc hủy (chuỗi JSON hoặc mảng). Backend/DB: `cancelled_notes_snapshot`.
+   */
+  cancelledNotesSnapshot?: string | CancelledExportSnapshotEntry[] | null;
+}
+
+/**
+ * Danh sách phiếu xuất để hiển thị: ưu tiên `exportNotes`, nếu rỗng thì parse snapshot hủy chuyến.
+ */
+export function resolveDeliveryExportNotesForDisplay(detail: DeliveryDetail): ExportNotesResponse[] {
+  const fromApi = detail.exportNotes;
+  if (Array.isArray(fromApi) && fromApi.length > 0) return fromApi;
+
+  const entries = parseCancelledExportSnapshotEntries(pickCancelledNotesSnapshotRaw(detail));
+  if (entries.length === 0) return [];
+
+  return entries.map((entry, i) => ({
+    exportId: -(i + 1),
+    exportCode: entry.exportCode ?? '—',
+    storeOrderId: 0,
+    storeName: entry.storeName ?? '—',
+    status: 'CANCELLED',
+    exportDate: '',
+    storeOrderCode: entry.storeOrderCode,
+    items: (entry.items ?? []).map((it, j) => ({
+      productId: j + 1,
+      productName: it.productName ?? '—',
+      batchCode: it.batchCode ?? '',
+      expiryDate: it.expiryDate ?? '',
+      quantity: Number(it.quantity) || 0,
+      unitName: it.unitName ?? it.unit ?? '',
+    })),
+  }));
 }
 
 /**
@@ -354,6 +451,27 @@ export const supplyServices = {
       `/deliveries?page=${page}&size=${size}`
     );
     return response.data;
+  },
+
+  /**
+   * Lấy toàn bộ chuyến giao (lặp phân trang server) — dùng khi lọc theo trạng thái trên client,
+   * vì trang 1 của API có thể không chứa bản ghi khớp trạng thái.
+   */
+  getAllDeliveryPlans: async (pageSize: number = 50): Promise<DeliveryPlanResponse[]> => {
+    const all: DeliveryPlanResponse[] = [];
+    let page = 0;
+    let totalPages = 1;
+    while (page < totalPages) {
+      const ax = await http.get<Response<PaginatedResponse<DeliveryPlanResponse[]>>>(
+        `/deliveries?page=${page}&size=${pageSize}`
+      );
+      const payload = ax.data?.data;
+      if (!payload || !Array.isArray(payload.items)) break;
+      all.push(...payload.items);
+      totalPages = Number(payload.totalPages) || 1;
+      page += 1;
+    }
+    return all;
   },
 
   /**
