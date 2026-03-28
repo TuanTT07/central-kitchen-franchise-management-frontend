@@ -38,7 +38,16 @@ export const STATUS_LABEL_MAP: Record<string, string> = {
   LATE_DELIVERY: 'Giao hàng trễ',
   REFUSED_DELIVERY: 'Từ chối nhận',
   CREATE_REPLACEMENT_ORDER: 'Tạo đơn mới',
+  RESCHEDULE_CURRENT_ORDER: 'Dời lịch đơn hiện tại',
   REFUND: 'Hoàn tiền',
+
+  // Hướng xử lý sự cố giao (đề xuất / lựa chọn — API giữ key tiếng Anh)
+  REPLACE_FULL: 'Giao lại toàn bộ',
+  REPLACE_PARTIAL: 'Giao lại phần bị ảnh hưởng',
+  BACKORDER: 'Giao bù phần thiếu',
+  REDELIVER_CORRECT_ITEMS: 'Giao lại đúng hàng',
+  REJECT_DELIVERY: 'Từ chối đơn giao hiện tại',
+  DESTROY_AT_STORE: 'Huỷ hàng tại cửa hàng',
 
   // Trạng thái chung bật/tắt
   ACTIVE: 'Hoạt động',
