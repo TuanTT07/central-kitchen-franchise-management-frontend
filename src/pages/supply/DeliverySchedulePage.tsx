@@ -32,6 +32,7 @@ import {
   getStoreNamesForDeliveryPlan,
   type DeliveryDetail,
   type DeliveryPlanResponse,
+  type ExportNoteItem,
   type ExportNotesResponse,
 } from '@/services/supplyServices';
 import { useEffect, useMemo, useState } from 'react';
@@ -440,10 +441,9 @@ const DeliverySchedulePage = () => {
   const completedCount = deliveryPlans.filter((p) => p.status === 'COMPLETED').length;
   const inTransitCount = deliveryPlans.filter((p) => p.status === 'IN_TRANSIT').length;
 
-  const detailExportNotes = useMemo(
-    () => (deliveryDetail ? resolveDeliveryExportNotesForDisplay(deliveryDetail) : []),
-    [deliveryDetail]
-  );
+  const detailExportNotes = useMemo((): ExportNotesResponse[] => {
+    return deliveryDetail ? resolveDeliveryExportNotesForDisplay(deliveryDetail) : [];
+  }, [deliveryDetail]);
 
   // ================= RENDER =================
 
@@ -573,7 +573,7 @@ const DeliverySchedulePage = () => {
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1">
                             {storeNames.length > 0 ? (
-                              storeNames.map((storeName, idx) => (
+                              storeNames.map((storeName: string, idx: number) => (
                                 <div key={idx} className="flex items-center gap-2 font-semibold text-stone-800">
                                   <MapPin className="size-3 text-amber-500" />
                                   <span className="truncate max-w-[150px]">{storeName}</span>
@@ -957,7 +957,7 @@ const DeliverySchedulePage = () => {
                   <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-700">Danh sách phiếu xuất</p>
                   <div className="space-y-3">
                     {detailExportNotes.length ? (
-                      detailExportNotes.map((note) => (
+                      detailExportNotes.map((note: ExportNotesResponse) => (
                         <div
                           key={note.exportId}
                           className="rounded-xl border border-amber-100 bg-amber-50/20 overflow-hidden"
@@ -997,8 +997,8 @@ const DeliverySchedulePage = () => {
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-stone-50">
-                                    {note.items.map((item, id) => (
-                                      <tr key={id} className="text-xs hover:bg-stone-50/80 transition-colors">
+                                    {note.items.map((item: ExportNoteItem, rowIdx: number) => (
+                                      <tr key={rowIdx} className="text-xs hover:bg-stone-50/80 transition-colors">
                                         <td className="px-3 py-2 font-semibold text-stone-500">#{item.productId}</td>
                                         <td className="px-3 py-2 font-bold text-stone-800">{item.productName}</td>
                                         <td className="px-3 py-2">

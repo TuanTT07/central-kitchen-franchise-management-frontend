@@ -64,6 +64,24 @@ export interface ExportNotesResponse {
   status: string;
   exportDate: string;
   items: ExportNoteItem[];
+  storeOrderCode?: string;
+}
+
+/** Phần tử trong JSON snapshot khi chuyến CANCELLED. */
+export interface CancelledExportSnapshotItem {
+  batchCode?: string;
+  expiryDate?: string;
+  productName?: string;
+  unit?: string;
+  unitName?: string;
+  quantity?: number;
+}
+
+export interface CancelledExportSnapshotEntry {
+  exportCode?: string;
+  storeName?: string;
+  storeOrderCode?: string;
+  items?: CancelledExportSnapshotItem[];
 }
 
 /**
@@ -121,6 +139,45 @@ export interface DeliveryPlanResponse {
     storeName: string;
     status: string;
   }[];
+  cancelledNotesSnapshot?: string | CancelledExportSnapshotEntry[] | null;
+}
+
+export function pickCancelledNotesSnapshotRaw(source: {
+  cancelledNotesSnapshot?: string | CancelledExportSnapshotEntry[] | null;
+}): string | CancelledExportSnapshotEntry[] | null | undefined {
+  const s = source as { cancelled_notes_snapshot?: string | CancelledExportSnapshotEntry[] | null };
+  return source.cancelledNotesSnapshot ?? s.cancelled_notes_snapshot;
+}
+
+export function parseCancelledExportSnapshotEntries(
+  raw: string | CancelledExportSnapshotEntry[] | null | undefined
+): CancelledExportSnapshotEntry[] {
+  if (raw == null || raw === '') return [];
+  if (typeof raw === 'string') {
+    const t = raw.trim();
+    if (!t) return [];
+    try {
+      const parsed = JSON.parse(t) as unknown;
+      return Array.isArray(parsed) ? (parsed as CancelledExportSnapshotEntry[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  if (Array.isArray(raw)) return raw;
+  return [];
+}
+
+export function getStoreNamesForDeliveryPlan(plan: DeliveryPlanResponse): string[] {
+  const notes = plan.exportNotes ?? [];
+  const fromNotes = [...new Set(notes.map((n) => n.storeName?.trim()).filter((s): s is string => Boolean(s)))];
+  if (fromNotes.length > 0) return fromNotes;
+
+  const raw = pickCancelledNotesSnapshotRaw(plan);
+  const entries = parseCancelledExportSnapshotEntries(raw);
+  const fromSnap = entries
+    .map((e) => e.storeName?.trim())
+    .filter((s): s is string => Boolean(s));
+  return [...new Set(fromSnap)];
 }
 
 export interface DeliveryDetail {
@@ -135,6 +192,33 @@ export interface DeliveryDetail {
   createdByUsername: string;
   createdAt: string;
   exportNotes: ExportNotesResponse[];
+  cancelledNotesSnapshot?: string | CancelledExportSnapshotEntry[] | null;
+}
+
+export function resolveDeliveryExportNotesForDisplay(detail: DeliveryDetail): ExportNotesResponse[] {
+  const fromApi = detail.exportNotes;
+  if (Array.isArray(fromApi) && fromApi.length > 0) return fromApi;
+
+  const entries = parseCancelledExportSnapshotEntries(pickCancelledNotesSnapshotRaw(detail));
+  if (entries.length === 0) return [];
+
+  return entries.map((entry, i) => ({
+    exportId: -(i + 1),
+    exportCode: entry.exportCode ?? '—',
+    storeOrderId: 0,
+    storeName: entry.storeName ?? '—',
+    status: 'CANCELLED',
+    exportDate: '',
+    storeOrderCode: entry.storeOrderCode,
+    items: (entry.items ?? []).map((it, j) => ({
+      productId: j + 1,
+      productName: it.productName ?? '—',
+      batchCode: it.batchCode ?? '',
+      expiryDate: it.expiryDate ?? '',
+      quantity: Number(it.quantity) || 0,
+      unitName: it.unitName ?? it.unit ?? '',
+    })),
+  }));
 }
 
 /**
@@ -354,6 +438,25 @@ export const supplyServices = {
       `/deliveries?page=${page}&size=${size}`
     );
     return response.data;
+  },
+
+  getAllDeliveryPlans: async (size: number = 50): Promise<DeliveryPlanResponse[]> => {
+    const acc: DeliveryPlanResponse[] = [];
+    let page = 0;
+    let totalPages = 1;
+    for (;;) {
+      const response = await http.get<Response<PaginatedResponse<DeliveryPlanResponse[]>>>(
+        `/deliveries?page=${page}&size=${size}`
+      );
+      const body = response.data;
+      if (!body?.success || !body.data) break;
+      const pg = body.data;
+      if (Array.isArray(pg.items)) acc.push(...pg.items);
+      totalPages = Math.max(1, pg.totalPages ?? 1);
+      page += 1;
+      if (page >= totalPages) break;
+    }
+    return acc;
   },
 
   /**
