@@ -23,26 +23,14 @@ import {
   SlidersHorizontal,
   Zap,
   ListChecks,
-  Calendar,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import type { OrderDetailResponse, OrderResponse } from '@/services/franchiseServices';
-import { normalizeOrderDetailLine, normalizeSupplyOrder } from '@/services/franchiseServices';
 import type { ConsolidationProduct, ConsolidationResponse } from '@/services/supplyServices';
 import { supplyServices } from '@/services/supplyServices';
 import { managerServices, type ProductsResponse } from '@/services/managerServices';
 import { normalizeStatusKey, translateStatus } from '@/utils/labelMapping';
-import { formatCalendarDayVi } from '@/lib/utils';
 import { toast } from 'sonner';
-
-function mapOrdersFromApi(items: OrderResponse<OrderDetailResponse[]>[]): OrderResponse<OrderDetailResponse[]>[] {
-  return items.map((o) => {
-    const n = normalizeSupplyOrder(o);
-    const det = n.details;
-    const detailsNorm = Array.isArray(det) ? det.map(normalizeOrderDetailLine) : det;
-    return { ...n, details: detailsNorm };
-  });
-}
 
 // ================= COMPONENT =================
 function SummaryOrdersPage() {
@@ -114,8 +102,7 @@ function SummaryOrdersPage() {
     try {
       const response = await supplyServices.getAllOrders(page, PAGE_SIZE, search, statusFilter);
       if (response.success && response.data) {
-        const raw = Array.isArray(response.data.items) ? response.data.items : [];
-        setOrders(mapOrdersFromApi(raw));
+        setOrders(Array.isArray(response.data.items) ? response.data.items : []);
         setTotalPages(response.data.totalPages ?? 1);
         setTotalElements(response.data.totalElements ?? 0);
       } else {
@@ -141,7 +128,7 @@ function SummaryOrdersPage() {
       }
 
       const total = first.data.totalPages ?? 1;
-      const firstItems = mapOrdersFromApi(Array.isArray(first.data.items) ? first.data.items : []);
+      const firstItems = Array.isArray(first.data.items) ? first.data.items : [];
 
       if (total <= 1) {
         setManualOrders(firstItems);
@@ -151,9 +138,7 @@ function SummaryOrdersPage() {
       const rest = await Promise.all(
         Array.from({ length: total - 1 }, (_, i) => supplyServices.getAllOrders(i + 1, PAGE_SIZE, search, 'APPROVED'))
       );
-      const restItems = rest.flatMap((res) =>
-        res?.success && res.data && Array.isArray(res.data.items) ? mapOrdersFromApi(res.data.items) : []
-      );
+      const restItems = rest.flatMap((res) => (res?.success && res.data && Array.isArray(res.data.items) ? res.data.items : []));
 
       // Dedup theo orderId để an toàn
       const map = new Map<number, OrderResponse<OrderDetailResponse[]> >();
@@ -569,8 +554,6 @@ function SummaryOrdersPage() {
                       <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
                         <th className="px-4 py-2 font-semibold">Mã đơn</th>
                         <th className="px-4 py-2 font-semibold">Chi nhánh</th>
-                        <th className="px-4 py-2 font-semibold whitespace-nowrap">Ngày đặt</th>
-                        <th className="px-4 py-2 font-semibold whitespace-nowrap">Giao dự kiến</th>
                         <th className="px-4 py-2 font-semibold">Sản phẩm chính</th>
                         <th className="px-2 py-2 font-semibold text-center">SL</th>
                         <th className="px-4 py-2 font-semibold">Trạng thái</th>
@@ -580,7 +563,7 @@ function SummaryOrdersPage() {
                     <tbody className="divide-y divide-amber-50/70">
                       {paginatedOrders.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="py-14 text-center">
+                          <td colSpan={6} className="py-14 text-center">
                             <div className="flex flex-col items-center gap-2 text-stone-400">
                               <Package className="size-10 opacity-30" />
                               <p className="text-sm font-medium">Không có đơn hàng nào</p>
@@ -599,28 +582,7 @@ function SummaryOrdersPage() {
                             <td className="px-4 py-3 font-mono text-[11px] font-semibold text-stone-700">
                               {o.orderCode}
                             </td>
-                            <td className="px-4 py-3 text-stone-700">
-                              <span className="font-medium">{o.storeName}</span>
-                              {o.storeCode ? (
-                                <span className="mt-0.5 block text-[10px] text-stone-400">{o.storeCode}</span>
-                              ) : null}
-                            </td>
-                            <td className="px-4 py-3 text-[11px] text-stone-600 whitespace-nowrap">
-                              <span className="inline-flex items-center gap-1">
-                                <Calendar className="size-3 shrink-0 text-amber-500" />
-                                {formatCalendarDayVi(o.orderDate)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-[11px] text-stone-600 whitespace-nowrap">
-                              {o.deliveryDate ? (
-                                <span className="inline-flex items-center gap-1">
-                                  <Calendar className="size-3 shrink-0 text-sky-500" />
-                                  {formatCalendarDayVi(o.deliveryDate)}
-                                </span>
-                              ) : (
-                                <span className="text-stone-400">—</span>
-                              )}
-                            </td>
+                            <td className="px-4 py-3 text-stone-700">{o.storeName}</td>
                             <td className="px-4 py-3 text-stone-700">
                               {o.details?.[0]?.productName || 'N/A'}
                               {o.details?.length > 1 && (
@@ -1019,87 +981,29 @@ function SummaryOrdersPage() {
                   <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 sm:col-span-2">
                     <p className="text-[11px] font-semibold text-stone-500">Chi nhánh</p>
                     <p className="mt-1 font-bold text-stone-900">{selectedOrder.storeName}</p>
-                    {selectedOrder.storeCode ? (
-                      <p className="mt-0.5 text-[11px] text-stone-500">Mã CN: {selectedOrder.storeCode}</p>
-                    ) : null}
                   </div>
-                  <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
-                    <p className="text-[11px] font-semibold text-stone-500">Ngày đặt</p>
-                    <p className="mt-1 font-bold text-stone-900">{formatCalendarDayVi(selectedOrder.orderDate)}</p>
-                  </div>
-                  <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
-                    <p className="text-[11px] font-semibold text-stone-500">Ngày giao dự kiến</p>
-                    <p className="mt-1 font-bold text-stone-900">
-                      {selectedOrder.deliveryDate ? formatCalendarDayVi(selectedOrder.deliveryDate) : '—'}
-                    </p>
-                  </div>
-                  {selectedOrder.updatedAt ? (
-                    <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 sm:col-span-2">
-                      <p className="text-[11px] font-semibold text-stone-500">Cập nhật lần cuối</p>
-                      <p className="mt-1 font-bold text-stone-900">{formatCalendarDayVi(selectedOrder.updatedAt)}</p>
-                    </div>
-                  ) : null}
-                  {selectedOrder.approvedAt || selectedOrder.approvedByUsername ? (
-                    <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 sm:col-span-2">
-                      <p className="text-[11px] font-semibold text-stone-500">Phê duyệt</p>
-                      <p className="mt-1 font-bold text-stone-900">
-                        {selectedOrder.approvedAt ? formatCalendarDayVi(selectedOrder.approvedAt) : '—'}
-                        {selectedOrder.approvedByUsername ? (
-                          <span className="mt-0.5 block text-[11px] font-medium text-stone-600">
-                            Bởi: {selectedOrder.approvedByUsername}
-                          </span>
-                        ) : null}
-                      </p>
-                    </div>
-                  ) : null}
-                  {selectedOrder.note ? (
-                    <div className="rounded-lg border border-amber-100 bg-amber-50/40 px-4 py-3 sm:col-span-2">
-                      <p className="text-[11px] font-semibold text-amber-800">Ghi chú đơn</p>
-                      <p className="mt-1 text-sm text-stone-800 whitespace-pre-wrap">{selectedOrder.note}</p>
-                    </div>
-                  ) : null}
-                  {selectedOrder.cancelReason ? (
-                    <div className="rounded-lg border border-rose-100 bg-rose-50/50 px-4 py-3 sm:col-span-2">
-                      <p className="text-[11px] font-semibold text-rose-700">Lý do hủy</p>
-                      <p className="mt-1 text-sm text-stone-800 whitespace-pre-wrap">{selectedOrder.cancelReason}</p>
-                    </div>
-                  ) : null}
                 </div>
 
                 <div>
                   <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-700">Danh sách sản phẩm</p>
-                  <div className="overflow-x-auto overflow-hidden rounded-xl border border-amber-100">
-                    <table className="w-full min-w-[520px] text-xs">
+                  <div className="overflow-hidden rounded-xl border border-amber-100">
+                    <table className="w-full text-xs">
                       <thead className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
                         <tr>
                           <th className="px-4 py-2 font-semibold">Sản phẩm</th>
-                          <th className="px-4 py-2 font-semibold">Đơn vị</th>
                           <th className="px-4 py-2 font-semibold text-right">Số lượng</th>
-                          <th className="px-4 py-2 font-semibold text-right">Đơn giá</th>
-                          <th className="px-4 py-2 font-semibold text-right">Thành tiền</th>
-                          <th className="px-4 py-2 font-semibold">Ghi chú</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-amber-50">
                         {selectedOrder.details?.map((d, idx) => (
                           <tr key={`${selectedOrder.orderId}-${d.orderDetailId ?? `${d.productId}-${idx}`}`} className="bg-white">
                             <td className="px-4 py-2 font-semibold text-stone-900">{d.productName}</td>
-                            <td className="px-4 py-2 text-stone-600">{d.unitName || d.unit || '—'}</td>
                             <td className="px-4 py-2 text-right font-bold text-stone-800">{d.quantity}</td>
-                            <td className="px-4 py-2 text-right text-stone-700">
-                              {d.unitPrice != null ? `${Number(d.unitPrice).toLocaleString('vi-VN')} ₫` : '—'}
-                            </td>
-                            <td className="px-4 py-2 text-right font-semibold text-amber-800">
-                              {d.lineTotal != null ? `${Number(d.lineTotal).toLocaleString('vi-VN')} ₫` : '—'}
-                            </td>
-                            <td className="px-4 py-2 text-stone-600 max-w-[140px] truncate" title={d.note}>
-                              {d.note || '—'}
-                            </td>
                           </tr>
                         ))}
                         {!selectedOrder.details?.length && (
                           <tr>
-                            <td colSpan={6} className="px-4 py-6 text-center text-xs text-stone-500">
+                            <td colSpan={2} className="px-4 py-6 text-center text-xs text-stone-500">
                               Không có dòng chi tiết.
                             </td>
                           </tr>
