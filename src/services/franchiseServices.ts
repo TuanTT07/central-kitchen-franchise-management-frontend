@@ -24,6 +24,12 @@ export interface OrderDetailResponse {
   unit?: string;
   unitName?: string;
   quantity: number;
+  /** Đơn giá dòng (BE mới) */
+  unitPrice?: number;
+  /** Thành tiền dòng (BE mới) */
+  lineTotal?: number;
+  /** Ghi chú theo dòng */
+  note?: string;
 }
 
 // Thông tin đơn hàng chi nhánh (Giữ tên cũ cho các page khác)
@@ -32,10 +38,52 @@ export interface OrderResponse<T> {
   orderCode: string;
   storeId: number;
   storeName: string;
+  /** Mã chi nhánh (BE mới) */
+  storeCode?: string;
   orderDate: string;
   deliveryDate?: string;
-  status: 'PENDING' | 'APPROVED' | 'CONSOLIDATED' | 'CANCELLED' | 'IN_TRANSIT' | 'DONE';
+  /** Cho phép mọi trạng thái API (AWAITING_DELIVERY, DELIVERY_ISSUE_PENDING, …) */
+  status: string;
   details: T;
+  /** Cập nhật lần cuối */
+  updatedAt?: string;
+  /** Thời điểm duyệt (supply) */
+  approvedAt?: string;
+  /** Người duyệt — username hoặc tên hiển thị */
+  approvedByUsername?: string;
+  /** Ghi chú đơn */
+  note?: string;
+  /** Lý do hủy (khi CANCELLED) */
+  cancelReason?: string;
+}
+
+/**
+ * Chuẩn hóa object đơn từ API (Jackson camelCase hoặc snake_case từ Supabase/Spring).
+ */
+export function normalizeSupplyOrder<T>(order: OrderResponse<T>): OrderResponse<T> {
+  const r = order as OrderResponse<T> & Record<string, unknown>;
+  return {
+    ...order,
+    orderDate: order.orderDate ?? (r.order_date as string | undefined) ?? '',
+    storeCode: order.storeCode ?? (r.store_code as string | undefined),
+    deliveryDate: order.deliveryDate ?? (r.delivery_date as string | undefined),
+    updatedAt: order.updatedAt ?? (r.updated_at as string | undefined),
+    approvedAt: order.approvedAt ?? (r.approved_at as string | undefined),
+    approvedByUsername: order.approvedByUsername ?? (r.approved_by_username as string | undefined),
+    note: order.note ?? (r.notes as string | undefined) ?? (r.order_note as string | undefined),
+    cancelReason: order.cancelReason ?? (r.cancel_reason as string | undefined),
+  };
+}
+
+export function normalizeOrderDetailLine(d: OrderDetailResponse): OrderDetailResponse {
+  const r = d as OrderDetailResponse & Record<string, unknown>;
+  return {
+    ...d,
+    unitName: d.unitName ?? d.unit ?? (r.unit_name as string | undefined),
+    unitPrice: d.unitPrice ?? (r.unit_price as number | undefined),
+    lineTotal: d.lineTotal ?? (r.line_total as number | undefined),
+    note: d.note ?? (r.line_note as string | undefined),
+  };
 }
 
 // Chi tiết sản phẩm trong phiếu xuất kho (Dựa trên JSON mới)
