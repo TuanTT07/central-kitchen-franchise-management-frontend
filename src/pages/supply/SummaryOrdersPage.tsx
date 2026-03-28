@@ -32,20 +32,8 @@ import type { ConsolidationProduct, ConsolidationResponse } from '@/services/sup
 import { supplyServices } from '@/services/supplyServices';
 import { managerServices, type ProductsResponse } from '@/services/managerServices';
 import { normalizeStatusKey, translateStatus } from '@/utils/labelMapping';
+import { formatCalendarDayVi } from '@/lib/utils';
 import { toast } from 'sonner';
-
-function formatOrderDateTime(iso?: string | null): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return String(iso);
-  return d.toLocaleString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 function mapOrdersFromApi(items: OrderResponse<OrderDetailResponse[]>[]): OrderResponse<OrderDetailResponse[]>[] {
   return items.map((o) => {
@@ -620,14 +608,14 @@ function SummaryOrdersPage() {
                             <td className="px-4 py-3 text-[11px] text-stone-600 whitespace-nowrap">
                               <span className="inline-flex items-center gap-1">
                                 <Calendar className="size-3 shrink-0 text-amber-500" />
-                                {formatOrderDateTime(o.orderDate)}
+                                {formatCalendarDayVi(o.orderDate)}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-[11px] text-stone-600 whitespace-nowrap">
                               {o.deliveryDate ? (
                                 <span className="inline-flex items-center gap-1">
                                   <Calendar className="size-3 shrink-0 text-sky-500" />
-                                  {formatOrderDateTime(o.deliveryDate)}
+                                  {formatCalendarDayVi(o.deliveryDate)}
                                 </span>
                               ) : (
                                 <span className="text-stone-400">—</span>
@@ -1037,25 +1025,25 @@ function SummaryOrdersPage() {
                   </div>
                   <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
                     <p className="text-[11px] font-semibold text-stone-500">Ngày đặt</p>
-                    <p className="mt-1 font-bold text-stone-900">{formatOrderDateTime(selectedOrder.orderDate)}</p>
+                    <p className="mt-1 font-bold text-stone-900">{formatCalendarDayVi(selectedOrder.orderDate)}</p>
                   </div>
                   <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
                     <p className="text-[11px] font-semibold text-stone-500">Ngày giao dự kiến</p>
                     <p className="mt-1 font-bold text-stone-900">
-                      {selectedOrder.deliveryDate ? formatOrderDateTime(selectedOrder.deliveryDate) : '—'}
+                      {selectedOrder.deliveryDate ? formatCalendarDayVi(selectedOrder.deliveryDate) : '—'}
                     </p>
                   </div>
                   {selectedOrder.updatedAt ? (
                     <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 sm:col-span-2">
                       <p className="text-[11px] font-semibold text-stone-500">Cập nhật lần cuối</p>
-                      <p className="mt-1 font-bold text-stone-900">{formatOrderDateTime(selectedOrder.updatedAt)}</p>
+                      <p className="mt-1 font-bold text-stone-900">{formatCalendarDayVi(selectedOrder.updatedAt)}</p>
                     </div>
                   ) : null}
                   {selectedOrder.approvedAt || selectedOrder.approvedByUsername ? (
                     <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 sm:col-span-2">
                       <p className="text-[11px] font-semibold text-stone-500">Phê duyệt</p>
                       <p className="mt-1 font-bold text-stone-900">
-                        {selectedOrder.approvedAt ? formatOrderDateTime(selectedOrder.approvedAt) : '—'}
+                        {selectedOrder.approvedAt ? formatCalendarDayVi(selectedOrder.approvedAt) : '—'}
                         {selectedOrder.approvedByUsername ? (
                           <span className="mt-0.5 block text-[11px] font-medium text-stone-600">
                             Bởi: {selectedOrder.approvedByUsername}
