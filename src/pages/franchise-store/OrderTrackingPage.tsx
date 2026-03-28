@@ -35,11 +35,26 @@ import {
    AlertTriangle,
    Upload,
  } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatCalendarDayVi } from '@/lib/utils';
 import { translateStatus } from '@/utils/labelMapping';
 import StatusBadge from '@/components/ui/StatusBadge';
-import { franchiseServices, type OrderResponse, type OrderDetailResponse } from '@/services/franchiseServices';
+import {
+  franchiseServices,
+  normalizeOrderDetailLine,
+  normalizeSupplyOrder,
+  type OrderResponse,
+  type OrderDetailResponse,
+} from '@/services/franchiseServices';
 import { toast } from 'sonner';
+
+function mapOrderFromApi(o: OrderResponse<OrderDetailResponse[]>): OrderResponse<OrderDetailResponse[]> {
+  const n = normalizeSupplyOrder(o);
+  const det = n.details;
+  return {
+    ...n,
+    details: Array.isArray(det) ? det.map(normalizeOrderDetailLine) : det,
+  };
+}
 
 /**
  * Component Description
@@ -100,7 +115,9 @@ const OrderTrackingPage = () => {
     try {
       setLoading(true);
       const orderRes = await franchiseServices.getOrders();
-      if (orderRes.success && orderRes.data) setOrders(orderRes.data.items);
+      if (orderRes.success && orderRes.data && Array.isArray(orderRes.data.items)) {
+        setOrders(orderRes.data.items.map(mapOrderFromApi));
+      }
     } catch {
       toast.error('Không thể tải dữ liệu đơn hàng');
     } finally {
@@ -132,7 +149,7 @@ const OrderTrackingPage = () => {
     try {
       const res = await franchiseServices.getOrderById(orderId);
       if (res.success && res.data) {
-        setOrderDetail(res.data);
+        setOrderDetail(mapOrderFromApi(res.data));
       } else {
         toast.error(res.message || 'Không tải được chi tiết đơn hàng');
       }
@@ -196,16 +213,16 @@ const OrderTrackingPage = () => {
       // Tải chi tiết đơn hàng để lấy danh sách sản phẩm
       const res = await franchiseServices.getOrderById(orderId);
       if (res.success && res.data) {
-        const items = (res.data.details || []).map((d) => ({
+        const mapped = mapOrderFromApi(res.data);
+        const items = (mapped.details || []).map((d) => ({
           productId: d.productId,
           productName: d.productName,
           orderedQuantity: d.quantity,
-          actualQuantity: d.quantity, // Mặc định khớp với số lượng đặt
-          unitName: d.unitName || d.unit || '—'
+          actualQuantity: d.quantity,
+          unitName: d.unitName || d.unit || '—',
         }));
         setReportItems(items);
-        // Lưu lại để có thông tin khác (ngày giao...)
-        setOrderDetail(res.data);
+        setOrderDetail(mapped);
       }
     } catch {
       toast.error('Không thể tải chi tiết sản phẩm cho báo cáo');
@@ -804,37 +821,95 @@ const OrderTrackingPage = () => {
 
             {!isLoadingDetail && orderDetail && (
               <>
-                {/* Info grid */}
+                {/* Info grid — cùng layout 4 ô như cũ */}
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {[
-                    { label: 'Ngày đặt', value: new Date(orderDetail.orderDate).toLocaleDateString('vi-VN') },
-                    { label: 'Ngày giao dự kiến', value: orderDetail.deliveryDate ? new Date(orderDetail.deliveryDate).toLocaleDateString('vi-VN') : '—' },
-                    { label: 'Cửa hàng', value: orderDetail.storeName || '—' },
+                    { label: 'Ngày đặt', value: formatCalendarDayVi(orderDetail.orderDate) },
+                    {
+                      label: 'Ngày giao dự kiến',
+                      value: orderDetail.deliveryDate ? formatCalendarDayVi(orderDetail.deliveryDate) : '—',
+                    },
+                    {
+                      label: 'Cửa hàng',
+                      value: (
+                        <span>
+                          <span className="block">{orderDetail.storeName || '—'}</span>
+                          {orderDetail.storeCode ? (
+                            <span className="mt-0.5 block text-[11px] font-normal text-stone-500">
+                              Mã: {orderDetail.storeCode}
+                            </span>
+                          ) : null}
+                        </span>
+                      ),
+                    },
                     { label: 'Số mặt hàng', value: `${orderDetail.details?.length ?? 0} món` },
                   ].map((info) => (
                     <div key={info.label} className="rounded-xl border border-amber-100 bg-amber-50/40 px-4 py-3">
                       <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">{info.label}</p>
-                      <p className="mt-1 text-sm font-bold text-stone-900">{info.value}</p>
+                      <div className="mt-1 text-sm font-bold text-stone-900">{info.value}</div>
                     </div>
                   ))}
                 </div>
 
+                {/* Trường bổ sung từ API (chỉ hiện khi có) */}
+                {(orderDetail.updatedAt ||
+                  orderDetail.approvedAt ||
+                  orderDetail.approvedByUsername ||
+                  orderDetail.note ||
+                  orderDetail.cancelReason) && (
+                  <div className="space-y-3 rounded-xl border border-stone-200 bg-stone-50/50 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-stone-500">Thông tin thêm</p>
+                    <div className="grid gap-2 text-xs sm:grid-cols-2">
+                      {orderDetail.updatedAt ? (
+                        <p>
+                          <span className="text-stone-500">Cập nhật: </span>
+                          <span className="font-semibold text-stone-800">{formatCalendarDayVi(orderDetail.updatedAt)}</span>
+                        </p>
+                      ) : null}
+                      {orderDetail.approvedAt || orderDetail.approvedByUsername ? (
+                        <p>
+                          <span className="text-stone-500">Phê duyệt: </span>
+                          <span className="font-semibold text-stone-800">
+                            {orderDetail.approvedAt ? formatCalendarDayVi(orderDetail.approvedAt) : '—'}
+                            {orderDetail.approvedByUsername ? ` · ${orderDetail.approvedByUsername}` : ''}
+                          </span>
+                        </p>
+                      ) : null}
+                    </div>
+                    {orderDetail.note ? (
+                      <div>
+                        <p className="text-[10px] font-bold uppercase text-amber-700">Ghi chú đơn</p>
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-stone-800">{orderDetail.note}</p>
+                      </div>
+                    ) : null}
+                    {orderDetail.cancelReason ? (
+                      <div>
+                        <p className="text-[10px] font-bold uppercase text-rose-700">Lý do hủy</p>
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-stone-800">{orderDetail.cancelReason}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
                 {/* Items */}
                 <div>
                   <p className="mb-3 text-sm font-bold text-stone-800">Danh sách mặt hàng</p>
-                  <div className="overflow-hidden rounded-xl border border-amber-100">
-                    <table className="w-full text-sm">
+                  <div className="overflow-x-auto overflow-hidden rounded-xl border border-amber-100">
+                    <table className="w-full min-w-[480px] text-sm">
                       <thead>
                         <tr className="bg-amber-50 text-left text-[11px] font-bold uppercase tracking-wide text-amber-800">
                           <th className="px-4 py-3">#</th>
                           <th className="px-4 py-3">Sản phẩm</th>
                           <th className="px-4 py-3 text-center">SL</th>
                           <th className="px-4 py-3">Đơn vị</th>
+                          <th className="px-4 py-3 text-right">Đơn giá</th>
+                          <th className="px-4 py-3 text-right">Thành tiền</th>
+                          <th className="px-4 py-3">Ghi chú</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-amber-50">
                         {orderDetail.details?.map((d, idx) => (
-                          <tr key={d.orderDetailId} className="hover:bg-amber-50/40 transition-colors">
+                          <tr key={d.orderDetailId ?? `${d.productId}-${idx}`} className="hover:bg-amber-50/40 transition-colors">
                             <td className="px-4 py-3 text-xs text-stone-400 font-medium">{idx + 1}</td>
                             <td className="px-4 py-3 font-semibold text-stone-900">{d.productName}</td>
                             <td className="px-4 py-3 text-center">
@@ -843,11 +918,20 @@ const OrderTrackingPage = () => {
                               </span>
                             </td>
                             <td className="px-4 py-3 text-stone-500">{d.unitName ?? d.unit ?? '—'}</td>
+                            <td className="px-4 py-3 text-right text-stone-700">
+                              {d.unitPrice != null ? `${Number(d.unitPrice).toLocaleString('vi-VN')} ₫` : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-right font-semibold text-amber-800">
+                              {d.lineTotal != null ? `${Number(d.lineTotal).toLocaleString('vi-VN')} ₫` : '—'}
+                            </td>
+                            <td className="max-w-[120px] truncate px-4 py-3 text-xs text-stone-600" title={d.note}>
+                              {d.note || '—'}
+                            </td>
                           </tr>
                         ))}
                         {!orderDetail.details?.length && (
                           <tr>
-                            <td colSpan={4} className="px-4 py-10 text-center text-sm text-stone-400">
+                            <td colSpan={7} className="px-4 py-10 text-center text-sm text-stone-400">
                               Đơn hàng chưa có mặt hàng chi tiết.
                             </td>
                           </tr>
