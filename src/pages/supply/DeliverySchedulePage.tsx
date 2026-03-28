@@ -28,11 +28,13 @@ import {
 } from 'lucide-react';
 import {
   supplyServices,
+  resolveDeliveryExportNotesForDisplay,
+  getStoreNamesForDeliveryPlan,
   type DeliveryDetail,
   type DeliveryPlanResponse,
   type ExportNotesResponse,
 } from '@/services/supplyServices';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -40,6 +42,9 @@ import { Input } from '@/components/ui/input';
 import { translateStatus } from '@/utils/labelMapping';
 
 import { toast } from 'sonner';
+
+/** Khớp với `size` khi gọi GET /deliveries */
+const DELIVERY_PAGE_SIZE = 10;
 
 // ================= TYPES =================
 
@@ -89,6 +94,10 @@ const DeliverySchedulePage = () => {
   // ---------------- Pagination State ----------------
   const [currentPage, setCurrentPage] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(0);
+  const [totalElements, setTotalElements] = useState<number>(0);
+  /** Khi có bộ lọc trạng thái: toàn bộ chuyến đã tải để lọc + phân trang cục bộ */
+  const [allTripsForFilter, setAllTripsForFilter] = useState<DeliveryPlanResponse[] | null>(null);
+  const [statusFilterBulkNonce, setStatusFilterBulkNonce] = useState(0);
 
   // ================= FORM =================
 
@@ -101,10 +110,96 @@ const DeliverySchedulePage = () => {
 
   // ================= EFFECT =================
 
-  // Tự động fetch data khi currentPage thay đổi
+  // Phân trang server: chỉ khi không lọc theo trạng thái
   useEffect(() => {
-    fetchDeliveryPlans(currentPage);
-  }, [currentPage]);
+    if (statusFilter) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const response = await supplyServices.getDeliveryPlan(currentPage, DELIVERY_PAGE_SIZE);
+        if (cancelled) return;
+        if (response?.data && Array.isArray(response.data.items)) {
+          setDeliveryPlans(response.data.items);
+          setTotalPages(response.data.totalPages || 0);
+          setTotalElements(response.data.totalElements || 0);
+        } else {
+          toast.error('Không thể lấy danh sách lịch giao hàng');
+          setDeliveryPlans([]);
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error('Không thể lấy danh sách lịch giao hàng');
+          setDeliveryPlans([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPage, statusFilter]);
+
+  // Có bộ lọc trạng thái: tải hết chuyến rồi lọc + paginate cục bộ (tránh trang 1 API không có CANCELLED…)
+  useEffect(() => {
+    if (!statusFilter) {
+      setAllTripsForFilter(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setAllTripsForFilter(null);
+      setDeliveryPlans([]);
+      try {
+        const all = await supplyServices.getAllDeliveryPlans(50);
+        if (!cancelled) setAllTripsForFilter(all);
+      } catch {
+        if (!cancelled) {
+          toast.error('Không thể lấy danh sách lịch giao hàng');
+          setAllTripsForFilter([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [statusFilter, statusFilterBulkNonce]);
+
+  // Áp dụng lọc trạng thái + tìm kiếm + slice theo trang
+  useEffect(() => {
+    if (!statusFilter || allTripsForFilter === null) return;
+
+    const q = searchTerm.toLowerCase().trim();
+    const matchesSearch = (plan: DeliveryPlanResponse) => {
+      if (!q) return true;
+      return (
+        (plan?.deliveryCode?.toLowerCase() || '').includes(q) ||
+        (plan?.driverName?.toLowerCase() || '').includes(q)
+      );
+    };
+
+    const filtered = allTripsForFilter
+      .filter((p) => p.status === statusFilter)
+      .filter(matchesSearch);
+
+    const totalP = Math.max(1, Math.ceil(filtered.length / DELIVERY_PAGE_SIZE) || 1);
+    const maxIdx = totalP - 1;
+    const safePage = Math.min(currentPage, maxIdx);
+
+    if (safePage !== currentPage) {
+      setCurrentPage(safePage);
+      return;
+    }
+
+    setTotalElements(filtered.length);
+    setTotalPages(totalP);
+    const start = safePage * DELIVERY_PAGE_SIZE;
+    setDeliveryPlans(filtered.slice(start, start + DELIVERY_PAGE_SIZE));
+  }, [statusFilter, allTripsForFilter, currentPage, searchTerm]);
 
   // Fetch phiếu xuất kho khi mở modal
   useEffect(() => {
@@ -115,25 +210,29 @@ const DeliverySchedulePage = () => {
 
   // ================= API =================
 
-  // Gọi API lấy danh sách lịch giao hàng
-  const fetchDeliveryPlans = async (page: number = 0) => {
+  const fetchDeliveryPlansServer = async (page: number) => {
     try {
       setLoading(true);
-      const response = await supplyServices.getDeliveryPlan(page);
-      // Truy cập vào đúng cấu trúc JSON: response.data.items
-      if (response && response.data && Array.isArray(response.data.items)) {
+      const response = await supplyServices.getDeliveryPlan(page, DELIVERY_PAGE_SIZE);
+      if (response?.data && Array.isArray(response.data.items)) {
         setDeliveryPlans(response.data.items);
         setTotalPages(response.data.totalPages || 0);
+        setTotalElements(response.data.totalElements || 0);
       } else {
         toast.error('Không thể lấy danh sách lịch giao hàng');
         setDeliveryPlans([]);
       }
-    } catch (error) {
+    } catch {
       toast.error('Không thể lấy danh sách lịch giao hàng');
       setDeliveryPlans([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const refreshDeliveryList = () => {
+    if (statusFilter) setStatusFilterBulkNonce((n) => n + 1);
+    else void fetchDeliveryPlansServer(currentPage);
   };
 
   // Gọi API lấy lịch sử giao hàng chi tiết
@@ -180,10 +279,9 @@ const DeliverySchedulePage = () => {
         exportNoteIds: selectedNoteIds,
       };
       await supplyServices.createDeliveryPlan(payload);
-      // Thành công
       setIsModalOpen(false);
       resetModal();
-      fetchDeliveryPlans();
+      reloadFirstPage();
       toast.success('Tạo lịch giao hàng thành công');
     } catch (error) {
       toast.error('Không thể tạo lịch giao hàng');
@@ -193,6 +291,21 @@ const DeliverySchedulePage = () => {
   };
 
   // ================= HANDLER =================
+
+  /**
+   * Reload về trang 0. Nếu đang ở trang 0, gọi API trực tiếp vì
+   * setCurrentPage(0) không trigger useEffect khi state không đổi.
+   */
+  const reloadFirstPage = () => {
+    if (statusFilter) {
+      setCurrentPage(0);
+      setStatusFilterBulkNonce((n) => n + 1);
+    } else if (currentPage !== 0) {
+      setCurrentPage(0);
+    } else {
+      void fetchDeliveryPlansServer(0);
+    }
+  };
 
   // Reset trạng thái modal
   const resetModal = () => {
@@ -211,7 +324,8 @@ const DeliverySchedulePage = () => {
     try {
       await supplyServices.updateDeliveryStatusCancel(plan.deliveryId);
       toast.success('Xóa lịch giao hàng thành công');
-      fetchDeliveryPlans();
+      if (statusFilter) setStatusFilterBulkNonce((n) => n + 1);
+      else void fetchDeliveryPlansServer(currentPage);
     } catch (error) {
       toast.error('Không thể xóa lịch giao hàng');
     }
@@ -248,7 +362,8 @@ const DeliverySchedulePage = () => {
 
       setIsStatusModalOpen(false);
       setSelectedPlanForStatus(null);
-      fetchDeliveryPlans();
+      if (statusFilter) setStatusFilterBulkNonce((n) => n + 1);
+      else void fetchDeliveryPlansServer(currentPage);
       toast.success(`${response?.message}`);
     } catch (error) {
       toast.error('Không thể cập nhật trạng thái');
@@ -260,6 +375,13 @@ const DeliverySchedulePage = () => {
   // Xử lý thay đổi ô tìm kiếm
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
+    if (currentPage !== 0) setCurrentPage(0);
+  };
+
+  // Xử lý thay đổi bộ lọc trạng thái
+  const handleStatusFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setStatusFilter(e.target.value);
+    if (currentPage !== 0) setCurrentPage(0);
   };
 
   // ================= UTILS =================
@@ -289,16 +411,18 @@ const DeliverySchedulePage = () => {
     );
   };
 
-  // Lọc danh sách theo từ khóa tìm kiếm và trạng thái
-  const filteredPlans = Array.isArray(deliveryPlans)
-    ? deliveryPlans.filter((plan) => {
-        const matchesSearch =
-          (plan?.deliveryCode?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-          (plan?.driverName?.toLowerCase() || '').includes(searchTerm.toLowerCase());
-        const matchesStatus = statusFilter ? plan.status === statusFilter : true;
-        return matchesSearch && matchesStatus;
-      })
-    : [];
+  // Tìm kiếm trên trang hiện tại (server paginate). Khi có lọc trạng thái, tìm kiếm đã áp trong effect.
+  const displayPlans = useMemo(() => {
+    if (!Array.isArray(deliveryPlans)) return [];
+    if (statusFilter) return deliveryPlans;
+    const q = searchTerm.toLowerCase().trim();
+    if (!q) return deliveryPlans;
+    return deliveryPlans.filter(
+      (plan) =>
+        (plan?.deliveryCode?.toLowerCase() || '').includes(q) ||
+        (plan?.driverName?.toLowerCase() || '').includes(q)
+    );
+  }, [deliveryPlans, statusFilter, searchTerm]);
 
   // Định dạng ngày tháng
   const formatDate = (dateString: string) => {
@@ -315,6 +439,11 @@ const DeliverySchedulePage = () => {
 
   const completedCount = deliveryPlans.filter((p) => p.status === 'COMPLETED').length;
   const inTransitCount = deliveryPlans.filter((p) => p.status === 'IN_TRANSIT').length;
+
+  const detailExportNotes = useMemo(
+    () => (deliveryDetail ? resolveDeliveryExportNotesForDisplay(deliveryDetail) : []),
+    [deliveryDetail]
+  );
 
   // ================= RENDER =================
 
@@ -335,7 +464,7 @@ const DeliverySchedulePage = () => {
           <div className="hidden items-center gap-4 md:flex">
             <div className="flex flex-col items-center rounded-xl border border-amber-100 bg-white/70 px-5 py-2.5 shadow-sm">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">Tổng chuyến</span>
-              <span className="mt-0.5 text-2xl font-bold text-amber-900">{deliveryPlans.length}</span>
+              <span className="mt-0.5 text-2xl font-bold text-amber-900">{totalElements || deliveryPlans.length}</span>
             </div>
             <div className="flex flex-col items-center rounded-xl border border-sky-100 bg-white/70 px-5 py-2.5 shadow-sm">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-sky-600">Đang giao</span>
@@ -369,7 +498,7 @@ const DeliverySchedulePage = () => {
           <span className="whitespace-nowrap text-[11px] font-medium text-amber-700">Bộ lọc:</span>
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={handleStatusFilterChange}
             className="cursor-pointer appearance-none bg-transparent pr-4 text-xs font-semibold text-amber-900 outline-none"
           >
             <option value="">Tất cả</option>
@@ -385,7 +514,7 @@ const DeliverySchedulePage = () => {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => fetchDeliveryPlans(currentPage)}
+          onClick={() => refreshDeliveryList()}
           className="h-9 flex-none gap-1.5 border-amber-200 text-xs text-amber-700 hover:bg-amber-50"
         >
           <RefreshCw className="size-3.5" />
@@ -426,8 +555,10 @@ const DeliverySchedulePage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-amber-50/50">
-                  {filteredPlans.length > 0 ? (
-                    filteredPlans.map((plan) => (
+                  {displayPlans.length > 0 ? (
+                    displayPlans.map((plan) => {
+                      const storeNames = getStoreNamesForDeliveryPlan(plan);
+                      return (
                       <tr
                         key={plan.deliveryId}
                         className="group cursor-pointer hover:bg-amber-50/20 transition-all border-b border-amber-100"
@@ -441,13 +572,15 @@ const DeliverySchedulePage = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1">
-                            {Array.from(new Set(plan.exportNotes.map((note) => note.storeName))).map(
-                              (storeName, idx) => (
+                            {storeNames.length > 0 ? (
+                              storeNames.map((storeName, idx) => (
                                 <div key={idx} className="flex items-center gap-2 font-semibold text-stone-800">
                                   <MapPin className="size-3 text-amber-500" />
                                   <span className="truncate max-w-[150px]">{storeName}</span>
                                 </div>
-                              )
+                              ))
+                            ) : (
+                              <span className="text-xs text-stone-400">—</span>
                             )}
                           </div>
                         </td>
@@ -495,7 +628,8 @@ const DeliverySchedulePage = () => {
                           </div>
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   ) : (
                     <tr>
                       <td colSpan={6} className="px-6 py-12 text-center">
@@ -515,6 +649,9 @@ const DeliverySchedulePage = () => {
               <div className="flex items-center justify-between border-t border-amber-50 px-6 py-4 bg-amber-50/10">
                 <div className="text-[11px] font-bold text-stone-500">
                   Trang <span className="text-amber-600">{currentPage + 1}</span> / {totalPages || 1}
+                  {totalElements > 0 && (
+                    <span className="ml-2 text-stone-400 font-normal">({totalElements} chuyến)</span>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -819,8 +956,8 @@ const DeliverySchedulePage = () => {
                 <div>
                   <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-700">Danh sách phiếu xuất</p>
                   <div className="space-y-3">
-                    {deliveryDetail.exportNotes?.length ? (
-                      deliveryDetail.exportNotes.map((note) => (
+                    {detailExportNotes.length ? (
+                      detailExportNotes.map((note) => (
                         <div
                           key={note.exportId}
                           className="rounded-xl border border-amber-100 bg-amber-50/20 overflow-hidden"
@@ -832,7 +969,14 @@ const DeliverySchedulePage = () => {
                                 {note.storeName}
                               </p>
                               <p className="text-[11px] font-medium text-stone-500 mt-0.5 ml-6">
-                                Phiếu xuất: <span className="font-semibold text-stone-700">{note.exportCode}</span> | {formatDate(note.exportDate)}
+                                Phiếu xuất: <span className="font-semibold text-stone-700">{note.exportCode}</span>
+                                {note.exportDate ? <> | {formatDate(note.exportDate)}</> : null}
+                                {note.storeOrderCode ? (
+                                  <>
+                                    {' '}
+                                    | Đơn CH: <span className="font-semibold text-stone-700">{note.storeOrderCode}</span>
+                                  </>
+                                ) : null}
                               </p>
                             </div>
                             {renderStatusBadge(note.status)}
@@ -937,7 +1081,9 @@ const DeliverySchedulePage = () => {
                   <p className="text-xs font-medium text-stone-700">
                     Lộ trình:{' '}
                     <span className="font-bold">
-                      {selectedPlanForStatus?.exportNotes.map((n) => n.storeName).join(', ')}
+                      {selectedPlanForStatus
+                        ? getStoreNamesForDeliveryPlan(selectedPlanForStatus).join(', ') || '—'
+                        : ''}
                     </span>
                   </p>
                 </div>
