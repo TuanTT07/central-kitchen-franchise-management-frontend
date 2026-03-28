@@ -428,15 +428,11 @@ const IssueHandlingPage = () => {
                       </div>
                     )}
 
-                    {/* Đề xuất / lựa chọn xử lý (API: recommendedResolution hoặc selectedResolution) */}
-                    {(selectedIssue.recommendedResolution || selectedIssue.selectedResolution) && (
+                    {/* Đề xuất giải quyết */}
+                    {selectedIssue.recommendedResolution && (
                       <div className="flex items-start">
                         <span className="w-40 text-slate-600">Đề xuất xử lý:</span>
-                        <span className="font-semibold text-amber-600">
-                          {translateStatus(
-                            selectedIssue.recommendedResolution || selectedIssue.selectedResolution
-                          )}
-                        </span>
+                        <span className="font-semibold text-amber-600">{translateStatus(selectedIssue.recommendedResolution)}</span>
                       </div>
                     )}
 
