@@ -25,7 +25,12 @@ import {
   ListChecks,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import type { OrderDetailResponse, OrderResponse } from '@/services/franchiseServices';
+import {
+  type OrderDetailResponse,
+  type OrderResponse,
+  getOrderNoteText,
+  resolveOrderPlacedAt,
+} from '@/services/franchiseServices';
 import type { ConsolidationProduct, ConsolidationResponse } from '@/services/supplyServices';
 import { supplyServices } from '@/services/supplyServices';
 import { managerServices, type ProductsResponse } from '@/services/managerServices';
@@ -358,6 +363,31 @@ function SummaryOrdersPage() {
 
   // ================= UTILS =================
 
+  const formatOrderDateTime = (value?: string | null) => {
+    if (!value) return '—';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const formatOrderDateOnly = (value?: string | null) => {
+    if (!value) return '—';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('vi-VN');
+  };
+
+  const formatVnd = (n?: number | null) => {
+    if (n == null || !Number.isFinite(Number(n))) return '—';
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(n));
+  };
+
   /**
    * Component con hiển thị Badge trạng thái với màu sắc tương ứng
    *
@@ -387,6 +417,24 @@ function SummaryOrdersPage() {
       case 'AWAITING_DELIVERY':
         return (
           <span className="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-800">
+            {translateStatus(status)}
+          </span>
+        );
+      case 'DELIVERY_ISSUE_PENDING':
+        return (
+          <span className="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-900">
+            {translateStatus(status)}
+          </span>
+        );
+      case 'IN_TRANSIT':
+        return (
+          <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
+            {translateStatus(status)}
+          </span>
+        );
+      case 'DONE':
+        return (
+          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
             {translateStatus(status)}
           </span>
         );
@@ -470,6 +518,9 @@ function SummaryOrdersPage() {
             <option value="PENDING">{translateStatus('PENDING')}</option>
             <option value="APPROVED">{translateStatus('APPROVED')}</option>
             <option value="AWAITING_DELIVERY">Đợi giao hàng</option>
+            <option value="DELIVERY_ISSUE_PENDING">{translateStatus('DELIVERY_ISSUE_PENDING')}</option>
+            <option value="IN_TRANSIT">{translateStatus('IN_TRANSIT')}</option>
+            <option value="DONE">{translateStatus('DONE')}</option>
             <option value="CONSOLIDATED">{translateStatus('CONSOLIDATED')}</option>
             <option value="CANCELLED">{translateStatus('CANCELLED')}</option>
           </select>
@@ -532,7 +583,9 @@ function SummaryOrdersPage() {
                 <span className="ml-1">
                   — lọc theo{' '}
                   <span className="font-semibold text-amber-700">
-                    {statusFilter === 'AWAITING_DELIVERY' ? 'Đợi giao hàng' : translateStatus(statusFilter)}
+                    {statusFilter === 'AWAITING_DELIVERY'
+                    ? 'Đợi giao hàng'
+                    : translateStatus(statusFilter)}
                   </span>
                 </span>
               )}
@@ -554,6 +607,8 @@ function SummaryOrdersPage() {
                       <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
                         <th className="px-4 py-2 font-semibold">Mã đơn</th>
                         <th className="px-4 py-2 font-semibold">Chi nhánh</th>
+                        <th className="px-4 py-2 font-semibold whitespace-nowrap">Ngày đặt</th>
+                        <th className="px-4 py-2 font-semibold whitespace-nowrap">Ngày giao (dự kiến)</th>
                         <th className="px-4 py-2 font-semibold">Sản phẩm chính</th>
                         <th className="px-2 py-2 font-semibold text-center">SL</th>
                         <th className="px-4 py-2 font-semibold">Trạng thái</th>
@@ -563,7 +618,7 @@ function SummaryOrdersPage() {
                     <tbody className="divide-y divide-amber-50/70">
                       {paginatedOrders.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-14 text-center">
+                          <td colSpan={8} className="py-14 text-center">
                             <div className="flex flex-col items-center gap-2 text-stone-400">
                               <Package className="size-10 opacity-30" />
                               <p className="text-sm font-medium">Không có đơn hàng nào</p>
@@ -572,7 +627,9 @@ function SummaryOrdersPage() {
                           </td>
                         </tr>
                       ) : (
-                        paginatedOrders.map((o: OrderResponse<OrderDetailResponse[]>) => (
+                        paginatedOrders.map((o: OrderResponse<OrderDetailResponse[]>) => {
+                          const rowNote = getOrderNoteText(o);
+                          return (
                           <tr
                             key={`${o.orderId}-${o.storeId}-${o.orderCode}`}
                             className="cursor-pointer transition-colors hover:bg-amber-50/60 group"
@@ -580,9 +637,28 @@ function SummaryOrdersPage() {
                             title="Xem chi tiết đơn hàng"
                           >
                             <td className="px-4 py-3 font-mono text-[11px] font-semibold text-stone-700">
-                              {o.orderCode}
+                              <div>{o.orderCode}</div>
+                              {o.totalAmount != null && Number.isFinite(Number(o.totalAmount)) ? (
+                                <div className="mt-1 text-[10px] font-normal text-green-700">{formatVnd(o.totalAmount)}</div>
+                              ) : null}
                             </td>
-                            <td className="px-4 py-3 text-stone-700">{o.storeName}</td>
+                            <td className="px-4 py-3 text-stone-700">
+                              <div className="font-medium">{o.storeName}</div>
+                              {o.storeCode ? (
+                                <div className="mt-0.5 text-[10px] text-stone-500">Mã CH: {o.storeCode}</div>
+                              ) : null}
+                              {rowNote ? (
+                                <div className="mt-1 line-clamp-2 max-w-[200px] text-[10px] italic text-amber-800/80" title={rowNote}>
+                                  {rowNote}
+                                </div>
+                              ) : null}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-stone-600">
+                              {formatOrderDateTime(resolveOrderPlacedAt(o))}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-stone-600">
+                              {formatOrderDateOnly(o.deliveryDate)}
+                            </td>
                             <td className="px-4 py-3 text-stone-700">
                               {o.details?.[0]?.productName || 'N/A'}
                               {o.details?.length > 1 && (
@@ -627,7 +703,8 @@ function SummaryOrdersPage() {
                               </div>
                             </td>
                           </tr>
-                        ))
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -765,6 +842,8 @@ function SummaryOrdersPage() {
                     <th className="px-4 py-2 font-semibold w-10">Chọn</th>
                     <th className="px-4 py-2 font-semibold">Mã đơn</th>
                     <th className="px-4 py-2 font-semibold">Chi nhánh</th>
+                    <th className="px-4 py-2 font-semibold whitespace-nowrap">Ngày đặt</th>
+                    <th className="px-4 py-2 font-semibold whitespace-nowrap">Ngày giao</th>
                     <th className="px-4 py-2 font-semibold">Sản phẩm chính</th>
                     <th className="px-4 py-2 font-semibold text-center">SL</th>
                   </tr>
@@ -787,7 +866,16 @@ function SummaryOrdersPage() {
                           />
                         </td>
                         <td className="px-4 py-2 font-semibold text-stone-900">{o.orderCode}</td>
-                        <td className="px-4 py-2 text-stone-800">{o.storeName}</td>
+                        <td className="px-4 py-2 text-stone-800">
+                          <div>{o.storeName}</div>
+                          {o.storeCode ? <div className="text-[10px] text-stone-500">Mã CH: {o.storeCode}</div> : null}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2 text-stone-700">
+                          {formatOrderDateTime(resolveOrderPlacedAt(o))}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2 text-stone-700">
+                          {formatOrderDateOnly(o.deliveryDate)}
+                        </td>
                         <td className="px-4 py-2 text-stone-800">{o.details?.[0]?.productName || 'N/A'}</td>
                         <td className="px-4 py-2 text-center text-stone-800">
                           {o.details?.reduce((acc, curr) => acc + curr.quantity, 0) || 0}
@@ -797,7 +885,7 @@ function SummaryOrdersPage() {
                   {!isLoadingManualOrders &&
                     manualOrders.filter((o) => normalizeStatusKey(o.status) === 'APPROVED').length === 0 && (
                     <tr>
-                      <td colSpan={5} className="py-10 text-center text-stone-500">
+                      <td colSpan={7} className="py-10 text-center text-stone-500">
                         Không có đơn hàng nào đã duyệt để tổng hợp.
                       </td>
                     </tr>
@@ -968,6 +1056,14 @@ function SummaryOrdersPage() {
             {!selectedOrder ? (
               <p className="text-sm text-stone-500">Đang tải...</p>
             ) : (
+              (() => {
+                const detailList = selectedOrder.details ?? [];
+                const showMoneyCols = detailList.some(
+                  (d) => d.unitPrice != null || d.lineTotal != null
+                );
+                const detailColSpan = showMoneyCols ? 5 : 3;
+                const note = getOrderNoteText(selectedOrder);
+                return (
               <>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
@@ -981,8 +1077,52 @@ function SummaryOrdersPage() {
                   <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 sm:col-span-2">
                     <p className="text-[11px] font-semibold text-stone-500">Chi nhánh</p>
                     <p className="mt-1 font-bold text-stone-900">{selectedOrder.storeName}</p>
+                    {selectedOrder.storeCode ? (
+                      <p className="mt-0.5 text-xs text-stone-600">Mã cửa hàng: {selectedOrder.storeCode}</p>
+                    ) : null}
                   </div>
+                  <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
+                    <p className="text-[11px] font-semibold text-stone-500">Ngày đặt</p>
+                    <p className="mt-1 font-bold text-stone-900">
+                      {formatOrderDateTime(resolveOrderPlacedAt(selectedOrder))}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
+                    <p className="text-[11px] font-semibold text-stone-500">Ngày giao dự kiến</p>
+                    <p className="mt-1 font-bold text-stone-900">{formatOrderDateOnly(selectedOrder.deliveryDate)}</p>
+                  </div>
+                  {selectedOrder.updatedAt ? (
+                    <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
+                      <p className="text-[11px] font-semibold text-stone-500">Cập nhật lần cuối</p>
+                      <p className="mt-1 font-bold text-stone-900">{formatOrderDateTime(selectedOrder.updatedAt)}</p>
+                    </div>
+                  ) : null}
+                  {selectedOrder.approvedAt ? (
+                    <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
+                      <p className="text-[11px] font-semibold text-stone-500">Duyệt lúc</p>
+                      <p className="mt-1 font-bold text-stone-900">{formatOrderDateTime(selectedOrder.approvedAt)}</p>
+                    </div>
+                  ) : null}
+                  {selectedOrder.approvedByUsername ? (
+                    <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 sm:col-span-2">
+                      <p className="text-[11px] font-semibold text-stone-500">Người duyệt (Supply)</p>
+                      <p className="mt-1 font-bold text-stone-900">{selectedOrder.approvedByUsername}</p>
+                    </div>
+                  ) : null}
+                  {selectedOrder.totalAmount != null && Number.isFinite(Number(selectedOrder.totalAmount)) ? (
+                    <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-4 py-3 sm:col-span-2">
+                      <p className="text-[11px] font-semibold text-emerald-800">Tổng tiền (ước tính)</p>
+                      <p className="mt-1 text-lg font-bold text-emerald-900">{formatVnd(selectedOrder.totalAmount)}</p>
+                    </div>
+                  ) : null}
                 </div>
+
+                {note ? (
+                  <div className="rounded-lg border border-amber-100 bg-amber-50/50 px-4 py-3">
+                    <p className="text-[11px] font-semibold text-amber-900">Ghi chú đơn</p>
+                    <p className="mt-1 text-sm whitespace-pre-wrap text-stone-800">{note}</p>
+                  </div>
+                ) : null}
 
                 <div>
                   <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-700">Danh sách sản phẩm</p>
@@ -991,19 +1131,40 @@ function SummaryOrdersPage() {
                       <thead className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
                         <tr>
                           <th className="px-4 py-2 font-semibold">Sản phẩm</th>
+                          <th className="px-4 py-2 font-semibold">Đơn vị</th>
                           <th className="px-4 py-2 font-semibold text-right">Số lượng</th>
+                          {showMoneyCols ? (
+                            <>
+                              <th className="px-4 py-2 font-semibold text-right">Đơn giá</th>
+                              <th className="px-4 py-2 font-semibold text-right">Thành tiền</th>
+                            </>
+                          ) : null}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-amber-50">
-                        {selectedOrder.details?.map((d, idx) => (
+                        {detailList.map((d, idx) => (
                           <tr key={`${selectedOrder.orderId}-${d.orderDetailId ?? `${d.productId}-${idx}`}`} className="bg-white">
-                            <td className="px-4 py-2 font-semibold text-stone-900">{d.productName}</td>
+                            <td className="px-4 py-2 font-semibold text-stone-900">
+                              <div>{d.productName}</div>
+                              {d.note ? (
+                                <p className="mt-0.5 text-[10px] font-normal text-stone-500">{d.note}</p>
+                              ) : null}
+                            </td>
+                            <td className="px-4 py-2 text-stone-700">{d.unitName || d.unit || '—'}</td>
                             <td className="px-4 py-2 text-right font-bold text-stone-800">{d.quantity}</td>
+                            {showMoneyCols ? (
+                              <>
+                                <td className="px-4 py-2 text-right text-stone-700">{formatVnd(d.unitPrice)}</td>
+                                <td className="px-4 py-2 text-right font-semibold text-stone-900">
+                                  {formatVnd(d.lineTotal)}
+                                </td>
+                              </>
+                            ) : null}
                           </tr>
                         ))}
-                        {!selectedOrder.details?.length && (
+                        {!detailList.length && (
                           <tr>
-                            <td colSpan={2} className="px-4 py-6 text-center text-xs text-stone-500">
+                            <td colSpan={detailColSpan} className="px-4 py-6 text-center text-xs text-stone-500">
                               Không có dòng chi tiết.
                             </td>
                           </tr>
@@ -1013,6 +1174,8 @@ function SummaryOrdersPage() {
                   </div>
                 </div>
               </>
+                );
+              })()
             )}
           </div>
           <DialogFooter className="border-t border-stone-100 bg-stone-50 px-6 py-3">
