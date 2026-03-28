@@ -101,8 +101,6 @@ function SummaryOrdersPage() {
   const getAllOrders = async () => {
     try {
       const response = await supplyServices.getAllOrders(page, PAGE_SIZE, search, statusFilter);
-      let firstItems: any[] = [];
-      let currentTotalPages = 1;
       if (response.success && response.data) {
         setOrders(Array.isArray(response.data.items) ? response.data.items : []);
         setTotalPages(response.data.totalPages ?? 1);
