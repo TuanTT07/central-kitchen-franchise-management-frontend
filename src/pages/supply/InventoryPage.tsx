@@ -8,7 +8,7 @@
  */
 
 // ================= IMPORTS =================
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -32,6 +32,7 @@ import {
 import { cn } from '@/lib/utils';
 import { managerServices, type InventoryReportResponse } from '@/services/managerServices';
 import { toast } from 'sonner';
+import { useGlobalListPageSize } from '@/hooks/useGlobalListPageSize';
 
 // ================= TYPES =================
 interface InventoryRow {
@@ -55,9 +56,13 @@ const InventoryPage = () => {
   const [selectedProduct, setSelectedProduct] = useState<InventoryReportResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(0);
-  const PAGE_SIZE = 10;
+  const pageSize = useGlobalListPageSize();
 
   const TODAY = new Date();
+
+  useLayoutEffect(() => {
+    setPage(0);
+  }, [pageSize]);
 
   // ================= API =================
   const getInventoryData = async () => {
@@ -150,8 +155,8 @@ const InventoryPage = () => {
     });
   }, [overviewRows, search, stockFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
-  const paginatedRows = filteredRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const paginatedRows = filteredRows.slice(page * pageSize, (page + 1) * pageSize);
 
   // Reset về trang 0 khi filter/search thay đổi
   useEffect(() => { setPage(0); }, [search, stockFilter]);

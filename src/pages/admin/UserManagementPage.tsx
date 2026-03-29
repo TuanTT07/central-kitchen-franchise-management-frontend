@@ -36,6 +36,7 @@ import { adminService, type StoreResponse, type UserResponse } from '@/services/
 import { useForm } from 'react-hook-form';
 import { Field, FieldLabel, FieldError, FieldContent } from '@/components/ui/field';
 import { toast } from 'sonner';
+import { ADMIN_PAGINATION_CHANGED_EVENT, getListPageSizeForRole, type AdminPaginationPrefs } from '@/lib/adminPaginationSettings';
 
 // ================= CONSTANTS =================
 const ROLES: { roleId: number; roleName: RoleType; label: string }[] = [
@@ -68,7 +69,7 @@ const UserManagementPage = () => {
 
   // --- QUẢN LÝ PHÂN TRANG (PAGINATION) ---
   const [currentPage, setCurrentPage] = useState(0); // Trang hiện tại (bắt đầu từ 0)
-  const [pageSize] = useState(10); // Số lượng phần tử mỗi trang
+  const [pageSize, setPageSize] = useState(() => getListPageSizeForRole(Role.ADMIN));
   const [pageInfo, setPageInfo] = useState({
     totalPages: 0,
     totalElements: 0,
@@ -159,6 +160,18 @@ const UserManagementPage = () => {
   useEffect(() => {
     fetchActiveStores();
   }, [fetchActiveStores]);
+
+  useEffect(() => {
+    const onPaginationChange = (ev: Event) => {
+      const detail = (ev as CustomEvent<AdminPaginationPrefs>).detail;
+      const next =
+        detail?.pageSizeByRole?.[Role.ADMIN] ?? getListPageSizeForRole(Role.ADMIN);
+      setPageSize(next);
+      setCurrentPage(0);
+    };
+    window.addEventListener(ADMIN_PAGINATION_CHANGED_EVENT, onPaginationChange as EventListener);
+    return () => window.removeEventListener(ADMIN_PAGINATION_CHANGED_EVENT, onPaginationChange as EventListener);
+  }, []);
 
   // ================= LOGIC / FILTER =================
   /**

@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   Package,
   Users,
+  Settings,
   ShoppingCart,
   Boxes,
   UtensilsCrossed,
@@ -16,6 +17,7 @@ export const ADMIN_SIDEBAR_ITEMS = [
   { label: 'Trang chủ', href: '/', icon: LayoutDashboard },
   { label: 'Chi nhánh', href: '/admin/stores', icon: Package },
   { label: 'Người dùng', href: '/admin/users', icon: Users },
+  { label: 'Phân trang', href: '/admin/settings', icon: Settings },
 ] as const;
 
 export const MANAGER_SIDEBAR_ITEMS = [

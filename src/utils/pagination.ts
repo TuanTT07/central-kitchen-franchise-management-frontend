@@ -1,6 +1,5 @@
 export const DEFAULT_API_PAGE_SIZE = 100;
 export const DEFAULT_MAX_PAGE_FETCH = 50;
-export const ISSUE_LIST_PAGE_SIZE = 10;
 
 export function getPaginatedItems<T>(data: unknown): T[] {
   if (!data || typeof data !== 'object') return [];

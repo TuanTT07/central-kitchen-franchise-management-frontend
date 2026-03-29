@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout';
@@ -20,6 +20,7 @@ import { franchiseServices, type OrderResponse } from '@/services/franchiseServi
 import { supplyServices, type ExportNotesResponse } from '@/services/supplyServices';
 import { useAuth } from '@/contexts/AuthContext';
 import { DEFAULT_API_PAGE_SIZE, fetchAllPages, getPaginatedItems } from '@/utils/pagination';
+import { useGlobalListPageSize } from '@/hooks/useGlobalListPageSize';
 
 /**
  * Dashboard Franchise Store: Chỉ dữ liệu từ API (orders, export-notes).
@@ -43,10 +44,8 @@ const EXPORT_STATUS_CLASS: Record<string, string> = {
   CANCEL: 'bg-stone-200 text-stone-600 border-stone-300',
 };
 
-const PAGE_SIZE_ORDERS = 5;
-const PAGE_SIZE_EXPORTS = 5;
-
 const FranchiseStoreDashboard = () => {
+  const listPageSize = useGlobalListPageSize();
   const { user } = useAuth();
   const storeId = user?.storeId ?? user?.store_id ?? null;
 
@@ -96,6 +95,11 @@ const FranchiseStoreDashboard = () => {
     fetchData();
   }, [fetchData]);
 
+  useLayoutEffect(() => {
+    setOrderPage(0);
+    setExportPage(0);
+  }, [listPageSize]);
+
   const ordersOfStore = useMemo(() => {
     if (storeId != null) {
       return orders.filter((o) => (o as OrderResponse<unknown> & { storeId?: number }).storeId === storeId);
@@ -117,10 +121,10 @@ const FranchiseStoreDashboard = () => {
   }, [ordersOfStore, exportNotes]);
   const totalOrders = ordersOfStore.length;
 
-  const orderTotalPages = Math.max(1, Math.ceil(ordersOfStore.length / PAGE_SIZE_ORDERS));
+  const orderTotalPages = Math.max(1, Math.ceil(ordersOfStore.length / listPageSize));
   const paginatedOrders = ordersOfStore.slice(
-    orderPage * PAGE_SIZE_ORDERS,
-    (orderPage + 1) * PAGE_SIZE_ORDERS
+    orderPage * listPageSize,
+    (orderPage + 1) * listPageSize
   );
   const recentOrdersWithExport = useMemo(() => {
     return paginatedOrders.map((o) => {
@@ -140,10 +144,10 @@ const FranchiseStoreDashboard = () => {
     () => exportNotes.filter((e) => e.status === 'READY' || e.status === 'IN_TRANSIT'),
     [exportNotes]
   );
-  const exportTotalPages = Math.max(1, Math.ceil(exportNotes.length / PAGE_SIZE_EXPORTS));
+  const exportTotalPages = Math.max(1, Math.ceil(exportNotes.length / listPageSize));
   const paginatedExports = exportNotes.slice(
-    exportPage * PAGE_SIZE_EXPORTS,
-    (exportPage + 1) * PAGE_SIZE_EXPORTS
+    exportPage * listPageSize,
+    (exportPage + 1) * listPageSize
   );
 
   const formatDate = (d: string | null | undefined) => {

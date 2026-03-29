@@ -3,7 +3,7 @@
  * Description: Quản lý biên lai nhập và xuất kho của bếp trung tâm
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -25,6 +25,7 @@ import { supplyServices, type ExportNotesResponse } from '@/services/supplyServi
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { normalizeStatusKey, translateStatus } from '@/utils/labelMapping';
+import { useGlobalListPageSize } from '@/hooks/useGlobalListPageSize';
 
 type ReceiptStatus = 'DRAFT' | 'COMPLETED';
 
@@ -34,8 +35,6 @@ const RECEIPT_STATUS_LABEL: Record<ReceiptStatus, string> = {
 };
 
 const FILTER_OPTIONS: (ReceiptStatus | 'ALL')[] = ['ALL', 'DRAFT', 'COMPLETED'];
-
-const PAGE_SIZE = 10;
 
 const formatDateTime = (value: string | null) => {
   if (!value) return '—';
@@ -51,6 +50,7 @@ const formatDateTime = (value: string | null) => {
 
 type PaginationBarProps = {
   page: number;
+  pageSize: number;
   totalPages: number;
   totalItems: number;
   unit: string;
@@ -60,10 +60,20 @@ type PaginationBarProps = {
   onPage: (p: number) => void;
 };
 
-const PaginationBar = ({ page, totalPages, totalItems, unit, loading, onPrev, onNext, onPage }: PaginationBarProps) => (
+const PaginationBar = ({
+  page,
+  pageSize,
+  totalPages,
+  totalItems,
+  unit,
+  loading,
+  onPrev,
+  onNext,
+  onPage,
+}: PaginationBarProps) => (
   <div className="flex items-center justify-between border-t border-amber-100 bg-amber-50/30 px-5 py-3">
     <p className="text-xs text-stone-500">
-      {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalItems)} / {totalItems} {unit}
+      {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, totalItems)} / {totalItems} {unit}
     </p>
     <div className="flex items-center gap-1">
       <button
@@ -103,6 +113,8 @@ const PaginationBar = ({ page, totalPages, totalItems, unit, loading, onPrev, on
 );
 
 const ManagerReceiptsPage = () => {
+  const pageSize = useGlobalListPageSize();
+
   // ── State ──────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<'IMPORT' | 'EXPORT'>('IMPORT');
 
@@ -138,7 +150,12 @@ const ManagerReceiptsPage = () => {
 
   useEffect(() => {
     if (activeTab === 'EXPORT') fetchExportNotes();
-  }, [activeTab]);
+  }, [activeTab, pageSize]);
+
+  useLayoutEffect(() => {
+    setImportPage(1);
+    setExportPage(1);
+  }, [pageSize]);
 
   // ── API ────────────────────────────────────────────────────────────────────
   const fetchReceipts = async () => {
@@ -157,7 +174,7 @@ const ManagerReceiptsPage = () => {
     setIsLoadingExport(true);
     setExportError(null);
     try {
-      const firstRes = await supplyServices.getAllExportNote(0, PAGE_SIZE);
+      const firstRes = await supplyServices.getAllExportNote(0, pageSize);
       if (!firstRes.data.success) {
         setExportNotes([]);
         setExportTotalElements(0);
@@ -175,7 +192,7 @@ const ManagerReceiptsPage = () => {
       }
 
       const restResponses = await Promise.all(
-        Array.from({ length: lastPage - 1 }, (_, i) => supplyServices.getAllExportNote(i + 1, PAGE_SIZE))
+        Array.from({ length: lastPage - 1 }, (_, i) => supplyServices.getAllExportNote(i + 1, pageSize))
       );
       const restItems = restResponses.flatMap((res) => (res.data?.success ? res.data.data.items ?? [] : []));
       const allItems = [...firstItems, ...restItems];
@@ -246,10 +263,10 @@ const ManagerReceiptsPage = () => {
     });
   }, [receipts, search, statusFilter]);
 
-  const importTotalPages = Math.max(1, Math.ceil(filteredImportReceipts.length / PAGE_SIZE));
+  const importTotalPages = Math.max(1, Math.ceil(filteredImportReceipts.length / pageSize));
   const paginatedReceipts = useMemo(
-    () => filteredImportReceipts.slice((importPage - 1) * PAGE_SIZE, importPage * PAGE_SIZE),
-    [filteredImportReceipts, importPage]
+    () => filteredImportReceipts.slice((importPage - 1) * pageSize, importPage * pageSize),
+    [filteredImportReceipts, importPage, pageSize]
   );
 
   const exportStatusOptions = useMemo(() => {
@@ -292,10 +309,10 @@ const ManagerReceiptsPage = () => {
     });
   }, [exportNotes, exportSearch, exportStatusFilter]);
 
-  const exportTotalPages = Math.max(1, Math.ceil(filteredExportNotes.length / PAGE_SIZE));
+  const exportTotalPages = Math.max(1, Math.ceil(filteredExportNotes.length / pageSize));
   const paginatedExportNotes = useMemo(
-    () => filteredExportNotes.slice((exportPage - 1) * PAGE_SIZE, exportPage * PAGE_SIZE),
-    [filteredExportNotes, exportPage]
+    () => filteredExportNotes.slice((exportPage - 1) * pageSize, exportPage * pageSize),
+    [filteredExportNotes, exportPage, pageSize]
   );
 
   useEffect(() => {
@@ -491,9 +508,10 @@ const ManagerReceiptsPage = () => {
                     )}
                   </tbody>
                 </table>
-                {filteredImportReceipts.length > PAGE_SIZE && (
+                {filteredImportReceipts.length > pageSize && (
                   <PaginationBar
                     page={importPage}
+                    pageSize={pageSize}
                     totalPages={importTotalPages}
                     totalItems={filteredImportReceipts.length}
                     unit="biên lai"
@@ -638,9 +656,10 @@ const ManagerReceiptsPage = () => {
                     )}
                   </tbody>
                 </table>
-                {filteredExportNotes.length > PAGE_SIZE && (
+                {filteredExportNotes.length > pageSize && (
                   <PaginationBar
                     page={exportPage}
+                    pageSize={pageSize}
                     totalPages={exportTotalPages}
                     totalItems={filteredExportNotes.length}
                     unit="phiếu"
