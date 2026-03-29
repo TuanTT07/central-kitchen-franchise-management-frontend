@@ -17,6 +17,7 @@ import { useNavigate } from 'react-router';
 import { useForm } from 'react-hook-form';
 import { CookingPot, Eye, EyeOff, Lock, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { extractPrimaryRoleFromLoginUser, normalizeToAppRole } from '@/lib/authRole';
 
 /**
  * LoginForm Component
@@ -54,7 +55,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
       localStorage.setItem('authToken', payload.access_token ?? '');
       localStorage.setItem('refreshToken', payload.refresh_token ?? '');
       if (payload.user) {
-        localStorage.setItem('userRole', payload.user.roles?.[0] ?? '');
+        const rawRole = extractPrimaryRoleFromLoginUser(payload.user);
+        const normalized = normalizeToAppRole(rawRole);
+        const toStore = normalized ?? (rawRole.trim() ? rawRole.trim() : '');
+        if (toStore) localStorage.setItem('userRole', toStore);
+        else localStorage.removeItem('userRole');
         localStorage.setItem('user', JSON.stringify(payload.user));
       }
 

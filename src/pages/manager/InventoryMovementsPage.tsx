@@ -3,7 +3,7 @@
  * Description: Trang "Biến động kho" cho manager - hiển thị lịch sử giao dịch tồn kho (sổ cái kho).
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { kitchenServices, type InventoryTransactionResponse, type TransactionType } from '@/services/kitchenServices';
+import { useGlobalListPageSize } from '@/hooks/useGlobalListPageSize';
 
 function normalizeTxType(value: string | null | undefined): TransactionType | null {
   if (!value) return null;
@@ -57,8 +58,6 @@ function getTxType(tx: Pick<InventoryTransactionResponse, 'transactionType' | 'r
   // Ưu tiên type từ backend, fallback suy luận từ mã tham chiếu.
   return normalizeTxType(tx.transactionType) ?? inferTxTypeFromReferenceCode(tx.referenceCode) ?? 'ADJUST';
 }
-
-const PAGE_SIZE = 10;
 
 const FILTER_OPTIONS: (TransactionType | 'ALL')[] = ['ALL', 'IMPORT', 'EXPORT', 'ADJUST'];
 
@@ -109,6 +108,7 @@ function TxBadge({ type }: { type: string }) {
 
 const PaginationBar = ({
   page,
+  pageSize,
   totalPages,
   totalItems,
   unit,
@@ -118,6 +118,7 @@ const PaginationBar = ({
   onPage,
 }: {
   page: number;
+  pageSize: number;
   totalPages: number;
   totalItems: number;
   unit: string;
@@ -150,7 +151,7 @@ const PaginationBar = ({
   return (
     <div className="flex items-center justify-between border-t border-amber-100 bg-amber-50/30 px-5 py-3">
       <p className="text-xs text-stone-500">
-        {(page) * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalItems)} / {totalItems} {unit}
+        {page * pageSize + 1}–{Math.min((page + 1) * pageSize, totalItems)} / {totalItems} {unit}
       </p>
       <div className="flex items-center gap-1">
         <button
@@ -204,6 +205,7 @@ const PaginationBar = ({
 };
 
 export default function InventoryMovementsPage() {
+  const pageSize = useGlobalListPageSize();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -222,7 +224,7 @@ export default function InventoryMovementsPage() {
     try {
       const first = await kitchenServices.getInventoryTransaction({
         sort: 'transactionDate,desc',
-        size: PAGE_SIZE,
+        size: pageSize,
         page: 0,
       });
 
@@ -245,7 +247,7 @@ export default function InventoryMovementsPage() {
         Array.from({ length: total - 1 }, (_, i) =>
           kitchenServices.getInventoryTransaction({
             sort: 'transactionDate,desc',
-            size: PAGE_SIZE,
+            size: pageSize,
             page: i + 1,
           }),
         ),
@@ -267,7 +269,11 @@ export default function InventoryMovementsPage() {
   useEffect(() => {
     fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pageSize]);
+
+  useLayoutEffect(() => {
+    setPage(0);
+  }, [pageSize]);
 
   const filteredTransactions = useMemo(() => {
     let data = transactions;
@@ -296,7 +302,7 @@ export default function InventoryMovementsPage() {
   }, [transactions, searchCode, typeFilter]);
 
   const totalElements = filteredTransactions.length;
-  const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalElements / pageSize));
 
   useEffect(() => {
     // Khi filter/search thay đổi thì quay về trang đầu cho dễ hiểu
@@ -308,8 +314,8 @@ export default function InventoryMovementsPage() {
   }, [page, totalPages]);
 
   const displayTransactions = useMemo(
-    () => filteredTransactions.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
-    [filteredTransactions, page],
+    () => filteredTransactions.slice(page * pageSize, (page + 1) * pageSize),
+    [filteredTransactions, page, pageSize],
   );
 
   const today = useMemo(() => new Date(), []);
@@ -461,6 +467,7 @@ export default function InventoryMovementsPage() {
         {totalElements > 0 && (
           <PaginationBar
             page={page}
+            pageSize={pageSize}
             totalPages={totalPages}
             totalItems={totalElements}
             unit="giao dịch"

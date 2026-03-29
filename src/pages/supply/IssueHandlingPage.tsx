@@ -7,7 +7,7 @@
 
 // ================= IMPORTS =================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,9 @@ import { Search, ChevronLeft, ChevronRight, AlertCircle, Loader2, Package, User,
 import { supplyServices, type DeliveryIssueResponse } from '@/services/supplyServices';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { translateStatus } from '@/utils/labelMapping';
-import { ISSUE_LIST_PAGE_SIZE } from '@/utils/pagination';
+import { Role } from '@/Types';
+import { getListPageSizeForRole } from '@/lib/adminPaginationSettings';
+import { useGlobalListPageSize } from '@/hooks/useGlobalListPageSize';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
@@ -32,6 +34,8 @@ import { toast } from 'sonner';
 const IssueHandlingPage = () => {
   // ================= STATE =================
 
+  const listPageSize = useGlobalListPageSize();
+
   // Danh sách sự cố từ API
   const [issues, setIssues] = useState<DeliveryIssueResponse[]>([]);
   
@@ -47,7 +51,7 @@ const IssueHandlingPage = () => {
   // Thông tin phân trang
   const [pagination, setPagination] = useState({
     page: 0,
-    size: ISSUE_LIST_PAGE_SIZE,
+    size: getListPageSizeForRole(Role.SUPPLY_COORDINATOR),
     totalElements: 0,
     totalPages: 0,
   });
@@ -69,10 +73,14 @@ const IssueHandlingPage = () => {
 
   // ================= EFFECT =================
 
+  useLayoutEffect(() => {
+    setPagination((prev) => ({ ...prev, page: 0, size: listPageSize }));
+  }, [listPageSize]);
+
   // Tải dữ liệu khi component mount hoặc khi thay đổi trang/bộ lọc
   useEffect(() => {
     fetchIssues();
-  }, [pagination.page, statusFilter]);
+  }, [pagination.page, pagination.size, statusFilter]);
 
   // ================= API =================
 

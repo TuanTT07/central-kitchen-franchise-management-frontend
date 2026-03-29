@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { kitchenServices, type InventoryReceiptApi, type ProductBatchesResponse 
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import { useGlobalListPageSize } from '@/hooks/useGlobalListPageSize';
 
 type ReceiptStatus = 'DRAFT' | 'COMPLETED';
 
@@ -40,7 +41,7 @@ function Receipts() {
   const [isLoadingList, setIsLoadingList] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 10;
+  const pageSize = useGlobalListPageSize();
 
   // Modal tạo phiếu nhập kho (nhập kho hàng loạt) – di chuyển từ trang Lô sản phẩm
   const [isStockInModalOpen, setIsStockInModalOpen] = useState(false);
@@ -88,14 +89,18 @@ function Receipts() {
     setPage(1);
   }, [search, statusFilter]);
 
+  useLayoutEffect(() => {
+    setPage(1);
+  }, [pageSize]);
+
   const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(filteredReceipts.length / PAGE_SIZE)),
-    [filteredReceipts.length]
+    () => Math.max(1, Math.ceil(filteredReceipts.length / pageSize)),
+    [filteredReceipts.length, pageSize]
   );
   const paginatedReceipts = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filteredReceipts.slice(start, start + PAGE_SIZE);
-  }, [filteredReceipts, page]);
+    const start = (page - 1) * pageSize;
+    return filteredReceipts.slice(start, start + pageSize);
+  }, [filteredReceipts, page, pageSize]);
 
   const handleCloseDetail = () => {
     setIsDetailOpen(false);
@@ -373,8 +378,8 @@ function Receipts() {
               {filteredReceipts.length > 0 && (
                 <div className="flex items-center justify-between border-t border-amber-100 bg-amber-50/30 px-5 py-3">
                   <p className="text-xs text-stone-500">
-                    {filteredReceipts.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–
-                    {Math.min(page * PAGE_SIZE, filteredReceipts.length)} /{' '}
+                    {filteredReceipts.length === 0 ? 0 : (page - 1) * pageSize + 1}–
+                    {Math.min(page * pageSize, filteredReceipts.length)} /{' '}
                     <span className="font-semibold text-stone-700">{filteredReceipts.length}</span> phiếu
                   </p>
                   <div className="flex items-center gap-1">

@@ -8,7 +8,7 @@
  */
 
 // ================= IMPORT =================
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +36,7 @@ import { supplyServices } from '@/services/supplyServices';
 import { managerServices, type ProductsResponse } from '@/services/managerServices';
 import { normalizeStatusKey, translateStatus } from '@/utils/labelMapping';
 import { toast } from 'sonner';
+import { useGlobalListPageSize } from '@/hooks/useGlobalListPageSize';
 
 // ================= COMPONENT =================
 function SummaryOrdersPage() {
@@ -54,7 +55,7 @@ function SummaryOrdersPage() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
-  const PAGE_SIZE = 10;
+  const pageSize = useGlobalListPageSize();
 
   // Chi tiết đơn hàng (UI)
   const [detailOpen, setDetailOpen] = useState(false);
@@ -83,7 +84,11 @@ function SummaryOrdersPage() {
   // Gọi lại API khi chuyển trang hoặc thay đổi bộ lọc
   useEffect(() => {
     getAllOrders();
-  }, [page, statusFilter]);
+  }, [page, statusFilter, pageSize]);
+
+  useLayoutEffect(() => {
+    setPage(0);
+  }, [pageSize]);
 
   // Xử lý tìm kiếm với delay (debounce)
   useEffect(() => {
@@ -105,7 +110,7 @@ function SummaryOrdersPage() {
    */
   const getAllOrders = async () => {
     try {
-      const response = await supplyServices.getAllOrders(page, PAGE_SIZE, search, statusFilter);
+      const response = await supplyServices.getAllOrders(page, pageSize, search, statusFilter);
       if (response.success && response.data) {
         setOrders(Array.isArray(response.data.items) ? response.data.items : []);
         setTotalPages(response.data.totalPages ?? 1);
@@ -126,7 +131,7 @@ function SummaryOrdersPage() {
   const loadManualOrders = async () => {
     try {
       setIsLoadingManualOrders(true);
-      const first = await supplyServices.getAllOrders(0, PAGE_SIZE, search, 'APPROVED');
+      const first = await supplyServices.getAllOrders(0, pageSize, search, 'APPROVED');
       if (!first.success || !first.data) {
         setManualOrders([]);
         return;
@@ -141,7 +146,7 @@ function SummaryOrdersPage() {
       }
 
       const rest = await Promise.all(
-        Array.from({ length: total - 1 }, (_, i) => supplyServices.getAllOrders(i + 1, PAGE_SIZE, search, 'APPROVED'))
+        Array.from({ length: total - 1 }, (_, i) => supplyServices.getAllOrders(i + 1, pageSize, search, 'APPROVED'))
       );
       const restItems = rest.flatMap((res) => (res?.success && res.data && Array.isArray(res.data.items) ? res.data.items : []));
 

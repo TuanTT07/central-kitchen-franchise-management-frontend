@@ -8,7 +8,7 @@
 
 // ================= IMPORTS =================
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LayoutGrid, MapPin, Search, Loader2, Package, ChevronLeft, ChevronRight, RefreshCw, SlidersHorizontal, Filter, Plus } from 'lucide-react';
@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import type { OrderResponse, OrderDetailResponse } from '@/services/franchiseServices';
 import { translateStatus } from '@/utils/labelMapping';
 import { toast } from 'sonner';
+import { useGlobalListPageSize } from '@/hooks/useGlobalListPageSize';
 
 // ================= STATUS BADGE =================
 
@@ -76,7 +77,7 @@ const DistributionPlanPage = () => {
 
   // Phân trang (client-side sau khi lọc/sắp xếp)
   const [page, setPage] = useState(0);
-  const PAGE_SIZE = 10;
+  const pageSize = useGlobalListPageSize();
 
   // Loading states
   const [loading, setLoading] = useState(false);
@@ -85,10 +86,14 @@ const DistributionPlanPage = () => {
 
   // ================= EFFECT =================
 
-  // Gọi API khi load trang
+  // Gọi API khi load trang hoặc đổi kích thước trang (tải lại theo batch API)
   useEffect(() => {
     getExportNotes();
-  }, []);
+  }, [pageSize]);
+
+  useLayoutEffect(() => {
+    setPage(0);
+  }, [pageSize]);
 
   // ================= API =================
 
@@ -99,7 +104,7 @@ const DistributionPlanPage = () => {
     try {
       setLoading(true);
       // Tải toàn bộ phiếu xuất để lọc/sắp xếp đúng trên toàn bộ dữ liệu
-      const firstResponse = await supplyServices.getAllExportNote(0, PAGE_SIZE);
+      const firstResponse = await supplyServices.getAllExportNote(0, pageSize);
       if (firstResponse.data.success) {
         const firstPage = firstResponse.data.data.items ?? [];
         const lastPage = firstResponse.data.data.totalPages || 1;
@@ -108,7 +113,7 @@ const DistributionPlanPage = () => {
           setExportNotes(firstPage);
         } else {
           const restPages = await Promise.all(
-            Array.from({ length: lastPage - 1 }, (_, i) => supplyServices.getAllExportNote(i + 1, PAGE_SIZE))
+            Array.from({ length: lastPage - 1 }, (_, i) => supplyServices.getAllExportNote(i + 1, pageSize))
           );
           const restItems = restPages.flatMap((res) => (res.data.success ? res.data.data.items ?? [] : []));
           setExportNotes([...firstPage, ...restItems]);
@@ -240,8 +245,8 @@ const DistributionPlanPage = () => {
     });
   }, [search, statusFilter, exportNotes]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredPlans.length / PAGE_SIZE));
-  const paginatedPlans = filteredPlans.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filteredPlans.length / pageSize));
+  const paginatedPlans = filteredPlans.slice(page * pageSize, (page + 1) * pageSize);
 
   useEffect(() => {
     setPage(0);

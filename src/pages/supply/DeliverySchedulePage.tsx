@@ -34,7 +34,7 @@ import {
   type DeliveryPlanResponse,
   type ExportNotesResponse,
 } from '@/services/supplyServices';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -42,9 +42,7 @@ import { Input } from '@/components/ui/input';
 import { translateStatus } from '@/utils/labelMapping';
 
 import { toast } from 'sonner';
-
-/** Khớp với `size` khi gọi GET /deliveries */
-const DELIVERY_PAGE_SIZE = 10;
+import { useGlobalListPageSize } from '@/hooks/useGlobalListPageSize';
 
 // ================= TYPES =================
 
@@ -63,6 +61,8 @@ interface DeliveryFormInput {
  */
 const DeliverySchedulePage = () => {
   // ================= STATE =================
+
+  const deliveryPageSize = useGlobalListPageSize();
 
   // Danh sách lịch giao hàng từ API
   const [deliveryPlans, setDeliveryPlans] = useState<DeliveryPlanResponse[]>([]);
@@ -117,7 +117,7 @@ const DeliverySchedulePage = () => {
     (async () => {
       setLoading(true);
       try {
-        const response = await supplyServices.getDeliveryPlan(currentPage, DELIVERY_PAGE_SIZE);
+        const response = await supplyServices.getDeliveryPlan(currentPage, deliveryPageSize);
         if (cancelled) return;
         if (response?.data && Array.isArray(response.data.items)) {
           setDeliveryPlans(response.data.items);
@@ -139,7 +139,11 @@ const DeliverySchedulePage = () => {
     return () => {
       cancelled = true;
     };
-  }, [currentPage, statusFilter]);
+  }, [currentPage, statusFilter, deliveryPageSize]);
+
+  useLayoutEffect(() => {
+    setCurrentPage(0);
+  }, [deliveryPageSize]);
 
   // Có bộ lọc trạng thái: tải hết chuyến rồi lọc + paginate cục bộ (tránh trang 1 API không có CANCELLED…)
   useEffect(() => {
@@ -186,7 +190,7 @@ const DeliverySchedulePage = () => {
       .filter((p) => p.status === statusFilter)
       .filter(matchesSearch);
 
-    const totalP = Math.max(1, Math.ceil(filtered.length / DELIVERY_PAGE_SIZE) || 1);
+    const totalP = Math.max(1, Math.ceil(filtered.length / deliveryPageSize) || 1);
     const maxIdx = totalP - 1;
     const safePage = Math.min(currentPage, maxIdx);
 
@@ -197,9 +201,9 @@ const DeliverySchedulePage = () => {
 
     setTotalElements(filtered.length);
     setTotalPages(totalP);
-    const start = safePage * DELIVERY_PAGE_SIZE;
-    setDeliveryPlans(filtered.slice(start, start + DELIVERY_PAGE_SIZE));
-  }, [statusFilter, allTripsForFilter, currentPage, searchTerm]);
+    const start = safePage * deliveryPageSize;
+    setDeliveryPlans(filtered.slice(start, start + deliveryPageSize));
+  }, [statusFilter, allTripsForFilter, currentPage, searchTerm, deliveryPageSize]);
 
   // Fetch phiếu xuất kho khi mở modal
   useEffect(() => {
@@ -213,7 +217,7 @@ const DeliverySchedulePage = () => {
   const fetchDeliveryPlansServer = async (page: number) => {
     try {
       setLoading(true);
-      const response = await supplyServices.getDeliveryPlan(page, DELIVERY_PAGE_SIZE);
+      const response = await supplyServices.getDeliveryPlan(page, deliveryPageSize);
       if (response?.data && Array.isArray(response.data.items)) {
         setDeliveryPlans(response.data.items);
         setTotalPages(response.data.totalPages || 0);

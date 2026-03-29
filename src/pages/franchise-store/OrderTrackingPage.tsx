@@ -6,7 +6,7 @@
 
 // ================= IMPORTS =================
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useLayoutEffect } from 'react';
 import { Link } from 'react-router';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ import { translateStatus } from '@/utils/labelMapping';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { franchiseServices, type OrderResponse, type OrderDetailResponse } from '@/services/franchiseServices';
 import { toast } from 'sonner';
+import { useGlobalListPageSize } from '@/hooks/useGlobalListPageSize';
 
 /**
  * Component Description
@@ -71,7 +72,7 @@ const OrderTrackingPage = () => {
   const [isReceiving, setIsReceiving] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 10;
+  const pageSize = useGlobalListPageSize();
   const [openDetailDialog, setOpenDetailDialog] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [orderDetail, setOrderDetail] = useState<OrderResponse<OrderDetailResponse[]> | null>(null);
@@ -87,6 +88,10 @@ const OrderTrackingPage = () => {
   const [reportItems, setReportItems] = useState<{ productId: number; productName: string; orderedQuantity: number; actualQuantity: number; unitName: string }[]>([]);
   const [selectedWrongProductIds, setSelectedWrongProductIds] = useState<number[]>([]);
   const [isFetchingReportData, setIsFetchingReportData] = useState(false);
+
+  useLayoutEffect(() => {
+    setPage(1);
+  }, [pageSize]);
 
   // ================= EFFECT =================
 
@@ -340,8 +345,8 @@ const OrderTrackingPage = () => {
     });
   }, [orders, search, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
-  const paginatedOrders = filteredOrders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
+  const paginatedOrders = filteredOrders.slice((page - 1) * pageSize, page * pageSize);
 
   const stats = useMemo(() => {
     return {
@@ -595,11 +600,11 @@ const OrderTrackingPage = () => {
                 </div>
 
                 {/* Pagination */}
-                {!loading && filteredOrders.length > PAGE_SIZE && (
+                {!loading && filteredOrders.length > pageSize && (
                   <div className="flex items-center justify-between border-t border-amber-100 bg-amber-50/20 px-4 py-3">
                     <p className="text-[11px] text-stone-500">
                       <span className="font-semibold text-stone-700">
-                        {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredOrders.length)}
+                        {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filteredOrders.length)}
                       </span>{' '}
                       / {filteredOrders.length} đơn
                     </p>

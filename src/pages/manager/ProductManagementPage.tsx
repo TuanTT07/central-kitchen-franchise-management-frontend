@@ -7,7 +7,7 @@
 
 // ================= IMPORTS =================
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useLayoutEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import {
   ChevronLeft,
@@ -40,6 +40,7 @@ import {
   type UnitResponse,
 } from '@/services/managerServices';
 import { toast } from 'sonner';
+import { useGlobalListPageSize } from '@/hooks/useGlobalListPageSize';
 
 /**
  * ProductManagementPage Component
@@ -63,7 +64,7 @@ const ProductManagementPage = () => {
   const [search, setSearch] = useState('');
   // Trang hiện tại
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 10;
+  const pageSize = useGlobalListPageSize();
 
   // Trạng thái Dialog
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -120,6 +121,10 @@ const ProductManagementPage = () => {
       }
     };
   }, [previewUrl]);
+
+  useLayoutEffect(() => {
+    setPage(1);
+  }, [pageSize]);
 
   // ================= API CALLS =================
 
@@ -426,8 +431,8 @@ const ProductManagementPage = () => {
   }, [products, categories, units, search]);
 
   // Phân trang
-  const totalPages = Math.ceil(displayProducts.length / PAGE_SIZE);
-  const paginatedProducts = displayProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.ceil(displayProducts.length / pageSize);
+  const paginatedProducts = displayProducts.slice((page - 1) * pageSize, page * pageSize);
 
   // ================= RENDER =================
 
@@ -497,7 +502,7 @@ const ProductManagementPage = () => {
                     onClick={() => openDetail(product)}
                   >
                     <td className="px-6 py-4 text-xs font-mono text-amber-600/70">
-                      {(page - 1) * PAGE_SIZE + index + 1}
+                      {(page - 1) * pageSize + index + 1}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -590,7 +595,7 @@ const ProductManagementPage = () => {
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-amber-100 px-4 py-3">
                 <p className="text-xs text-stone-500 whitespace-nowrap">
-                  {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, displayProducts.length)} /{' '}
+                  {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, displayProducts.length)} /{' '}
                   {displayProducts.length}
                 </p>
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar ml-4">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,15 +6,17 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field';
 import { cn } from '@/lib/utils';
-import { Tag, Plus, Pencil, Trash2, Search, CheckCircle2, XCircle } from 'lucide-react';
+import { Tag, Plus, Pencil, Trash2, Search, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { managerServices, type CategoryResponse, type ProductsResponse } from '@/services/managerServices';
 import { toast } from 'sonner';
+import { useGlobalListPageSize } from '@/hooks/useGlobalListPageSize';
 
 type CategoryStatus = 'ACTIVE' | 'INACTIVE';
 type CategoryFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
 function CategoryManager() {
+  const pageSize = useGlobalListPageSize();
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [products, setProducts] = useState<ProductsResponse[]>([]);
 
@@ -24,6 +26,7 @@ function CategoryManager() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CategoryResponse | null>(null);
   const [categoryToDelete, setCategoryToDelete] = useState<CategoryResponse | null>(null);
+  const [page, setPage] = useState(1);
 
   const {
     register,
@@ -112,6 +115,24 @@ function CategoryManager() {
 
     return list;
   }, [categories, search, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCategories.length / pageSize));
+  const paginatedCategories = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredCategories.slice(start, start + pageSize);
+  }, [filteredCategories, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  useLayoutEffect(() => {
+    setPage(1);
+  }, [pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const openDelete = (category: CategoryResponse) => {
     setCategoryToDelete(category);
@@ -277,10 +298,12 @@ function CategoryManager() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-100/60">
-                {filteredCategories.map((category, index) => {
+                {paginatedCategories.map((category, index) => {
                   return (
                     <tr key={category.categoryId} className="group transition hover:bg-amber-50/40">
-                      <td className="px-6 py-4 font-mono text-xs text-amber-700">#{index + 1}</td>
+                      <td className="px-6 py-4 font-mono text-xs text-amber-700">
+                        #{(page - 1) * pageSize + index + 1}
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-0.5">
                           <span className="text-sm font-semibold text-stone-900">{category.categoryName}</span>
@@ -348,6 +371,41 @@ function CategoryManager() {
               <Search className="mb-1 size-10 opacity-30" />
               <p className="text-sm font-medium">Không tìm thấy danh mục nào phù hợp</p>
               <p className="text-xs text-amber-700/70">Hãy thử lại với từ khóa khác hoặc thêm danh mục mới.</p>
+            </div>
+          )}
+
+          {filteredCategories.length > pageSize && (
+            <div className="flex items-center justify-between border-t border-amber-100 bg-amber-50/30 px-5 py-3">
+              <p className="text-xs text-stone-500">
+                {filteredCategories.length === 0
+                  ? '0'
+                  : `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, filteredCategories.length)}`}{' '}
+                / {filteredCategories.length} danh mục
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-8 border-amber-200"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  aria-label="Trang trước"
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-8 border-amber-200"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  aria-label="Trang sau"
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

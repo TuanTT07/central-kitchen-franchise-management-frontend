@@ -21,6 +21,8 @@ import { cn } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field';
 import { toast } from 'sonner';
+import { Role } from '@/Types';
+import { ADMIN_PAGINATION_CHANGED_EVENT, getListPageSizeForRole, type AdminPaginationPrefs } from '@/lib/adminPaginationSettings';
 
 // type của Filter
 type StoreFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
@@ -80,7 +82,7 @@ const BranchManagementPage = () => {
 
   // --- QUẢN LÝ PHÂN TRANG (PAGINATION) ---
   const [currentPage, setCurrentPage] = useState(0); // Trang hiện tại (bắt đầu từ 0)
-  const [pageSize] = useState(10); // Số lượng phần tử mỗi trang
+  const [pageSize, setPageSize] = useState(() => getListPageSizeForRole(Role.ADMIN));
   const [pageInfo, setPageInfo] = useState({
     totalPages: 0,
     totalElements: 0,
@@ -130,6 +132,18 @@ const BranchManagementPage = () => {
   useEffect(() => {
     fetchStore(currentPage);
   }, [fetchStore, currentPage]);
+
+  useEffect(() => {
+    const onPaginationChange = (ev: Event) => {
+      const detail = (ev as CustomEvent<AdminPaginationPrefs>).detail;
+      const next =
+        detail?.pageSizeByRole?.[Role.ADMIN] ?? getListPageSizeForRole(Role.ADMIN);
+      setPageSize(next);
+      setCurrentPage(0);
+    };
+    window.addEventListener(ADMIN_PAGINATION_CHANGED_EVENT, onPaginationChange as EventListener);
+    return () => window.removeEventListener(ADMIN_PAGINATION_CHANGED_EVENT, onPaginationChange as EventListener);
+  }, []);
 
   /** Admin: mở sửa cửa hàng khi vào từ Quản lý người dùng (tài khoản franchise). */
   const editStoreIdParam = searchParams.get('editStoreId');
