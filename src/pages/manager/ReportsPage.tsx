@@ -306,7 +306,7 @@ function ReportsPage() {
           <thead>
             <tr className="border-b border-amber-100 bg-amber-50/70 text-left text-[11px] font-semibold uppercase tracking-wide text-amber-800">
               <th className="px-4 py-2.5">Mã GD</th>
-              <th className="px-4 py-2.5">Loại giao dịch</th>
+              <th className="px-4 py-2.5">Loại</th>
               <th className="px-4 py-2.5">Sản phẩm</th>
               <th className="px-4 py-2.5 text-right">Số lượng</th>
               <th className="px-4 py-2.5">Thời gian</th>
