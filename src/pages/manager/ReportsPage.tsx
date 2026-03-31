@@ -80,9 +80,23 @@ function ReportsPage() {
       const stockItems =
         getItems<InventoryReportResponse>({ data: stockPayload as never }) ??
         (stockPayload as { data?: { items?: InventoryReportResponse[] } })?.data?.items ?? [];
+      // Để đồng nhất với `ManagerDashboard` (cộng `currentQuantity` từ lô), ưu tiên cộng trực tiếp từ `productBatch`.
+      // Fallback sang `totalStock` nếu BE không trả `productBatch`.
       setTotalStockUnits(
         Array.isArray(stockItems)
-          ? stockItems.reduce((sum, i) => sum + (Number(i?.totalStock) || 0), 0)
+          ? stockItems.reduce((sum, i) => {
+              const productBatches = (i as unknown as { productBatch?: { currentQuantity?: number }[] }).productBatch;
+              if (Array.isArray(productBatches) && productBatches.length > 0) {
+                return (
+                  sum +
+                  productBatches.reduce(
+                    (s, pb) => s + (Number(pb?.currentQuantity) || 0),
+                    0
+                  )
+                );
+              }
+              return sum + (Number(i?.totalStock) || 0);
+            }, 0)
           : 0
       );
 
@@ -292,7 +306,7 @@ function ReportsPage() {
           <thead>
             <tr className="border-b border-amber-100 bg-amber-50/70 text-left text-[11px] font-semibold uppercase tracking-wide text-amber-800">
               <th className="px-4 py-2.5">Mã GD</th>
-              <th className="px-4 py-2.5">Loại</th>
+              <th className="px-4 py-2.5">Loại giao dịch</th>
               <th className="px-4 py-2.5">Sản phẩm</th>
               <th className="px-4 py-2.5 text-right">Số lượng</th>
               <th className="px-4 py-2.5">Thời gian</th>
