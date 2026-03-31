@@ -210,7 +210,7 @@ function Receipts() {
       <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
 
         {/* ── Header ── */}
-        <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-amber-50 px-6 py-5">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50/80 to-orange-50/60 px-6 py-5">
           <div className="flex flex-col gap-1">
             <CardTitle className="flex items-center gap-2 text-xl font-bold text-amber-900">
               <FileText className="size-6 text-amber-500" />
@@ -251,8 +251,8 @@ function Receipts() {
         <CardContent className="space-y-5 p-6">
 
           {/* ── Toolbar ── */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative max-w-sm flex-1">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative w-full sm:max-w-sm sm:flex-1">
               <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-amber-500" />
               <Input
                 placeholder="Tìm theo mã biên lai, ngày..."
@@ -261,7 +261,7 @@ function Receipts() {
                 className="border-amber-200 bg-amber-50/40 pl-9 text-xs placeholder:text-xs placeholder:text-gray-400 focus:border-amber-400 focus:ring-amber-200"
               />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-xs shadow-sm">
                 {FILTER_OPTIONS.map((opt) => (
                   <button
@@ -278,21 +278,13 @@ function Receipts() {
                   </button>
                 ))}
               </div>
-              <Button
-                type="button"
-                size="sm"
-                className="rounded-full bg-amber-600 px-4 text-[11px] font-semibold text-white hover:bg-amber-700"
-                onClick={handleOpenStockIn}
-              >
-                + Tạo phiếu nhập kho
-              </Button>
             </div>
 
-            {/* Nút phải */}
+            <div className="flex-1" />
             <Button
               type="button"
               size="sm"
-              className="h-full shrink-0 rounded-full bg-amber-600 px-5 text-[11px] font-semibold text-white hover:bg-amber-700"
+              className="shrink-0 rounded-full bg-amber-600 px-5 text-[11px] font-semibold text-white hover:bg-amber-700"
               onClick={handleOpenStockIn}
             >
               + Tạo phiếu nhập kho
