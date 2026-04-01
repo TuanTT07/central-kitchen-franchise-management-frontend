@@ -11,7 +11,20 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LayoutGrid, MapPin, Search, Loader2, Package, ChevronLeft, ChevronRight, RefreshCw, SlidersHorizontal, Filter, Plus } from 'lucide-react';
+import {
+  LayoutGrid,
+  MapPin,
+  Search,
+  Loader2,
+  Package,
+  ChevronLeft,
+  ChevronRight,
+  RefreshCw,
+  SlidersHorizontal,
+  Filter,
+  Plus,
+  PackagePlus,
+} from 'lucide-react';
 import {
   supplyServices,
   type ExportNotesResponse,
@@ -19,10 +32,13 @@ import {
   type PreviewOrderResponse,
 } from '@/services/supplyServices';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { kitchenServices, type ProductBatchesResponse } from '@/services/kitchenServices';
 import type { OrderResponse, OrderDetailResponse } from '@/services/franchiseServices';
 import { translateStatus } from '@/utils/labelMapping';
 import { toast } from 'sonner';
 import { useGlobalListPageSize } from '@/hooks/useGlobalListPageSize';
+import { cn } from '@/lib/utils';
 
 // ================= STATUS BADGE =================
 
@@ -66,6 +82,16 @@ const DistributionPlanPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [readyOrders, setReadyOrders] = useState<OrderResponse<OrderDetailResponse[]>[]>([]);
   const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
+
+  /** Modal tạo phiếu xuất thừa (POST /export-notes/createSurplusNote) — chọn lô từ GET /api/v1/product-batches */
+  const [isSurplusDialogOpen, setIsSurplusDialogOpen] = useState(false);
+  const [surplusBatches, setSurplusBatches] = useState<ProductBatchesResponse[]>([]);
+  const [surplusBatchesLoading, setSurplusBatchesLoading] = useState(false);
+  const [surplusBatchId, setSurplusBatchId] = useState<number | null>(null);
+  const [surplusQuantity, setSurplusQuantity] = useState('');
+  const [surplusSubmitting, setSurplusSubmitting] = useState(false);
+  /** Lọc danh sách lô trong dialog (thay cho select dài). */
+  const [surplusBatchSearch, setSurplusBatchSearch] = useState('');
 
   // UI Preview: dữ liệu thực tế từ API preview
   const [previewData, setPreviewData] = useState<PreviewOrderResponse[]>([]);
@@ -197,6 +223,102 @@ const DistributionPlanPage = () => {
     setIsCreateModalOpen(true);
     fetchReadyOrders();
     setPreviewData([]);
+  };
+
+  /** Tải danh sách lô từ `/api/v1/product-batches` khi mở dialog surplus. */
+  const loadSurplusBatches = async () => {
+    setSurplusBatchesLoading(true);
+    try {
+      const res = await kitchenServices.getAllProductBatches();
+      const raw = res?.data;
+      const list = Array.isArray(raw) ? raw : [];
+      setSurplusBatches(list);
+      setSurplusBatchId(null);
+    } catch {
+      toast.error('Không tải được danh sách lô hàng');
+      setSurplusBatches([]);
+      setSurplusBatchId(null);
+    } finally {
+      setSurplusBatchesLoading(false);
+    }
+  };
+
+  const handleOpenSurplusDialog = () => {
+    setSurplusQuantity('');
+    setSurplusBatchSearch('');
+    setIsSurplusDialogOpen(true);
+    void loadSurplusBatches();
+  };
+
+  const filteredSurplusBatches = useMemo(() => {
+    const q = surplusBatchSearch.trim().toLowerCase();
+    const base = [...surplusBatches].sort((a, b) => {
+      const availableA = a.currentQuantity > 0 ? 1 : 0;
+      const availableB = b.currentQuantity > 0 ? 1 : 0;
+      if (availableA !== availableB) return availableB - availableA;
+      return b.currentQuantity - a.currentQuantity;
+    });
+    if (!q) return base;
+    return base.filter(
+      (b) =>
+        b.batchCode.toLowerCase().includes(q) ||
+        b.productName.toLowerCase().includes(q) ||
+        String(b.batchId).includes(q),
+    );
+  }, [surplusBatches, surplusBatchSearch]);
+
+  const selectedSurplusBatch = useMemo(
+    () => surplusBatches.find((b) => b.batchId === surplusBatchId) ?? null,
+    [surplusBatches, surplusBatchId],
+  );
+
+  const parsedSurplusQuantity = useMemo(
+    () => Number(String(surplusQuantity).trim().replace(',', '.')),
+    [surplusQuantity],
+  );
+
+  const canSubmitSurplus = useMemo(() => {
+    if (surplusSubmitting || surplusBatchesLoading || surplusBatchId == null) return false;
+    if (!Number.isFinite(parsedSurplusQuantity) || parsedSurplusQuantity <= 0) return false;
+    if (selectedSurplusBatch && parsedSurplusQuantity > selectedSurplusBatch.currentQuantity) return false;
+    return true;
+  }, [parsedSurplusQuantity, selectedSurplusBatch, surplusBatchId, surplusBatchesLoading, surplusSubmitting]);
+
+  const handleSubmitSurplusNote = async () => {
+    if (surplusBatchId == null) {
+      toast.warning('Vui lòng chọn lô hàng');
+      return;
+    }
+    const qty = Number(String(surplusQuantity).trim().replace(',', '.'));
+    if (!Number.isFinite(qty) || qty <= 0) {
+      toast.warning('Nhập số lượng hợp lệ');
+      return;
+    }
+    const batch = surplusBatches.find((b) => b.batchId === surplusBatchId);
+    if (batch != null && qty > batch.currentQuantity) {
+      toast.warning(`Số lượng không được vượt tồn lô (${batch.currentQuantity})`);
+      return;
+    }
+
+    try {
+      setSurplusSubmitting(true);
+      const response = await supplyServices.createSurplusNote({
+        productBatchId: surplusBatchId,
+        quantity: Math.floor(qty),
+      });
+      if (response.success) {
+        toast.success(response.message || 'Tạo phiếu xuất thừa thành công');
+        setIsSurplusDialogOpen(false);
+        setPage(0);
+        await getExportNotes();
+      } else {
+        toast.error(response.message || response.error || 'Không tạo được phiếu xuất thừa');
+      }
+    } catch {
+      toast.error('Tạo phiếu xuất thừa thất bại');
+    } finally {
+      setSurplusSubmitting(false);
+    }
   };
 
   const handleToggleOrder = (orderId: number) => {
@@ -366,15 +488,27 @@ const DistributionPlanPage = () => {
         {/* Divider */}
         <div className="h-6 w-px shrink-0 bg-amber-200" />
 
-        {/* Action */}
-        <Button
-          size="sm"
-          onClick={handleOpenCreateModal}
-          className="h-9 flex-none gap-1.5 rounded-lg bg-amber-500 px-4 text-xs text-white shadow-sm transition-all hover:bg-amber-600 active:scale-95"
-        >
-          <Plus className="size-3.5" />
-          Tạo đợt phân phối
-        </Button>
+        {/* Actions */}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleOpenSurplusDialog}
+            className="h-9 gap-1.5 border-amber-200 bg-white px-3 text-xs font-semibold text-amber-800 hover:bg-amber-50"
+          >
+            <PackagePlus className="size-3.5" />
+            Phiếu xuất thừa
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleOpenCreateModal}
+            className="h-9 gap-1.5 rounded-lg bg-amber-500 px-4 text-xs text-white shadow-sm transition-all hover:bg-amber-600 active:scale-95"
+          >
+            <Plus className="size-3.5" />
+            Tạo đợt phân phối
+          </Button>
+        </div>
       </div>
 
       {/* ── Content ── */}
@@ -537,10 +671,10 @@ const DistributionPlanPage = () => {
         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-6">
           <DialogHeader className="border-b border-amber-100 pb-4">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
                 <Package className="size-6" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <DialogTitle className="text-xl font-bold text-amber-900">Tạo đợt phân phối mới</DialogTitle>
                 <p className="text-xs text-amber-700/70">
                   Chọn các đơn hàng chi nhánh đã sẵn sàng để lập đợt phân phối hàng.
@@ -756,6 +890,189 @@ const DistributionPlanPage = () => {
                 </Button>
               </div>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: tạo phiếu xuất thừa — POST /export-notes/createSurplusNote */}
+      <Dialog
+        open={isSurplusDialogOpen}
+        onOpenChange={(open) => {
+          setIsSurplusDialogOpen(open);
+          if (!open) setSurplusBatchSearch('');
+        }}
+      >
+        <DialogContent className="max-w-3xl max-h-[90vh] border-amber-200/60 p-6 sm:p-7">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-amber-900">
+              <PackagePlus className="size-5 text-amber-600" />
+              Tạo phiếu xuất thừa
+            </DialogTitle>
+          
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 max-h-[84vh] overflow-y-auto pr-1">
+            {surplusBatchesLoading ? (
+              <div className="flex flex-col items-center gap-2 py-8">
+                <Loader2 className="size-8 animate-spin text-amber-500" />
+                <span className="text-xs text-stone-500">Đang tải danh sách lô...</span>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-4 md:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
+                  <div className="space-y-1.5">
+                    <label htmlFor="surplus-batch-search" className="text-xs font-semibold text-amber-900">
+                      1) Tìm và chọn lô
+                    </label>
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-400" />
+                      <Input
+                        id="surplus-batch-search"
+                        type="text"
+                        placeholder="Mã lô, tên sản phẩm, ID…"
+                        value={surplusBatchSearch}
+                        onChange={(e) => setSurplusBatchSearch(e.target.value)}
+                        className="h-10 border-amber-200 bg-amber-50/40 pl-9 text-sm"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <p className="text-[11px] text-stone-500">
+                      Hiển thị <span className="font-semibold text-stone-700">{filteredSurplusBatches.length}/{surplusBatches.length}</span> lô
+                    </p>
+
+                    <div
+                      className="max-h-80 overflow-y-auto rounded-lg border border-amber-200 bg-stone-50/50 shadow-inner"
+                      role="listbox"
+                      aria-label="Danh sách lô hàng"
+                    >
+                      {surplusBatches.length === 0 ? (
+                        <p className="px-3 py-8 text-center text-xs text-stone-500">Không có lô khả dụng.</p>
+                      ) : filteredSurplusBatches.length === 0 ? (
+                        <p className="px-3 py-8 text-center text-xs text-stone-500">
+                          Không có lô khớp &quot;{surplusBatchSearch.trim()}&quot;.
+                        </p>
+                      ) : (
+                        <ul className="divide-y divide-amber-100">
+                          {filteredSurplusBatches.map((b) => {
+                            const selected = surplusBatchId === b.batchId;
+                            const disabled = b.currentQuantity <= 0;
+                            return (
+                              <li key={b.batchId}>
+                                <button
+                                  type="button"
+                                  role="option"
+                                  aria-selected={selected}
+                                  onClick={() => !disabled && setSurplusBatchId(b.batchId)}
+                                  className={cn(
+                                    'flex w-full flex-col gap-0.5 px-3 py-2.5 text-left text-sm transition-colors',
+                                    disabled
+                                      ? 'cursor-not-allowed bg-stone-100/80 text-stone-400'
+                                      : selected
+                                        ? 'bg-amber-100 text-amber-950'
+                                        : 'bg-white/80 text-stone-800 hover:bg-amber-50/80',
+                                  )}
+                                >
+                                  <span className="font-mono text-xs font-bold">{b.batchCode}</span>
+                                  <span className="line-clamp-1 text-xs">{b.productName}</span>
+                                  <span className="text-[11px]">
+                                    Tồn: <span className="font-semibold">{b.currentQuantity} {b.unitName}</span>
+                                  </span>
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/40 p-3">
+                    <p className="text-xs font-semibold text-amber-900">2) Nhập số lượng xuất</p>
+                    {!selectedSurplusBatch ? (
+                      <p className="rounded-lg border border-dashed border-amber-200 bg-white/70 px-3 py-4 text-xs text-stone-500">
+                        Chưa chọn lô. Chọn 1 lô ở cột trái để tiếp tục.
+                      </p>
+                    ) : (
+                      <div className="rounded-lg border border-amber-200 bg-white px-3 py-2.5 text-xs text-stone-700">
+                        <p className="font-mono font-bold text-amber-900">{selectedSurplusBatch.batchCode}</p>
+                        <p className="line-clamp-1">{selectedSurplusBatch.productName}</p>
+                        <p className="mt-1">
+                          Tồn khả dụng:{' '}
+                          <span className="font-semibold text-stone-900">
+                            {selectedSurplusBatch.currentQuantity} {selectedSurplusBatch.unitName}
+                          </span>
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                      <Input
+                        id="surplus-qty"
+                        inputMode="decimal"
+                        type="text"
+                        placeholder="Ví dụ: 10"
+                        value={surplusQuantity}
+                        onChange={(e) => setSurplusQuantity(e.target.value.replace(/[^\d.,]/g, ''))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && canSubmitSurplus) {
+                            e.preventDefault();
+                            void handleSubmitSurplusNote();
+                          }
+                        }}
+                        className="h-10 border-amber-200 bg-white text-sm"
+                      />
+                      <div className="flex flex-wrap gap-1.5">
+                        {[0.25, 0.5, 1].map((ratio) => (
+                          <Button
+                            key={ratio}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={!selectedSurplusBatch}
+                            onClick={() => {
+                              if (!selectedSurplusBatch) return;
+                              const suggested = Math.max(1, Math.floor(selectedSurplusBatch.currentQuantity * ratio));
+                              setSurplusQuantity(String(suggested));
+                            }}
+                            className="h-7 border-amber-200 bg-white px-2 text-[11px] text-amber-800 hover:bg-amber-50"
+                          >
+                            {ratio === 1 ? 'Tối đa' : `${Math.round(ratio * 100)}%`}
+                          </Button>
+                        ))}
+                      </div>
+                      {selectedSurplusBatch && Number.isFinite(parsedSurplusQuantity) && parsedSurplusQuantity > selectedSurplusBatch.currentQuantity ? (
+                        <p className="text-[11px] font-medium text-red-500">
+                          Số lượng vượt tồn lô ({selectedSurplusBatch.currentQuantity}).
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-stone-500">Mẹo: nhấn Enter để tạo nhanh sau khi nhập số lượng.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 border-t border-amber-100 pt-4 sm:justify-end">
+            <Button type="button" variant="outline" className="border-amber-200" onClick={() => setIsSurplusDialogOpen(false)}>
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              disabled={!canSubmitSurplus}
+              onClick={() => void handleSubmitSurplusNote()}
+              className="bg-amber-600 text-white hover:bg-amber-700"
+            >
+              {surplusSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Đang gửi...
+                </>
+              ) : (
+                'Tạo phiếu xuất thừa'
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
