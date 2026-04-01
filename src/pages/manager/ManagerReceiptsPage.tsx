@@ -1,7 +1,11 @@
 /**
  * File: ManagerReceiptsPage.tsx
- * Description: Quản lý biên lai nhập và xuất kho của bếp trung tâm
+ * Description: Trang Biên lai kho (Manager) — phiếu nhập kho (inventory receipts) và phiếu xuất kho (export notes).
+ * Author: Tuan Tran
+ * Created: 2026
  */
+
+// ================= IMPORTS =================
 
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,6 +64,7 @@ type PaginationBarProps = {
   onPage: (p: number) => void;
 };
 
+/** Thanh phân trang (số trang dạng nút 1…N) dùng chung cho tab Nhập / Xuất. */
 const PaginationBar = ({
   page,
   pageSize,
@@ -112,20 +117,29 @@ const PaginationBar = ({
   </div>
 );
 
+/**
+ * ManagerReceiptsPage Component
+ * - Hai tab: Nhập kho (GET inventory receipts) và Xuất kho (GET export notes)
+ * - Tìm kiếm + lọc trạng thái, phân trang client-side theo `useGlobalListPageSize`
+ * - Modal chi tiết phiếu nhập (GET by id) / phiếu xuất (dữ liệu đã tải + chi tiết UI)
+ * - Xuất kho: nếu backend trả nhiều trang, gọi lần lượt page rồi gộp item về một mảng
+ */
 const ManagerReceiptsPage = () => {
+  // ================= STATE =================
+
   const pageSize = useGlobalListPageSize();
 
-  // ── State ──────────────────────────────────────────────────────────────────
+  /** Tab đang xem: phiếu nhập vs phiếu xuất. */
   const [activeTab, setActiveTab] = useState<'IMPORT' | 'EXPORT'>('IMPORT');
 
-  // Import tab
+  /** --- Tab Nhập kho: tìm kiếm, filter DRAFT/COMPLETED, danh sách và phân trang --- */
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ReceiptStatus | 'ALL'>('ALL');
   const [receipts, setReceipts] = useState<InventoryReceiptApi[]>([]);
   const [isLoadingImport, setIsLoadingImport] = useState(false);
   const [importPage, setImportPage] = useState(1);
 
-  // Export tab
+  /** --- Tab Xuất kho: tìm kiếm, filter theo status động, fetch đa trang --- */
   const [exportSearch, setExportSearch] = useState('');
   const [exportStatusFilter, setExportStatusFilter] = useState<string>('ALL');
   const [exportNotes, setExportNotes] = useState<ExportNotesResponse[]>([]);
@@ -134,7 +148,7 @@ const ManagerReceiptsPage = () => {
   const [exportPage, setExportPage] = useState(1);
   const [exportTotalElements, setExportTotalElements] = useState(0);
 
-  // Modals
+  /** --- Modal chi tiết --- */
   const [selectedExport, setSelectedExport] = useState<ExportNotesResponse | null>(null);
   const [isExportDetailOpen, setIsExportDetailOpen] = useState(false);
   const [isLoadingExportDetail, setIsLoadingExportDetail] = useState(false);
@@ -143,21 +157,27 @@ const ManagerReceiptsPage = () => {
   const [isReceiptDetailOpen, setIsReceiptDetailOpen] = useState(false);
   const [isLoadingReceiptDetail, setIsLoadingReceiptDetail] = useState(false);
 
-  // ── Effects ────────────────────────────────────────────────────────────────
+  // ================= EFFECT =================
+
+  /** Mount: tải danh sách biên lai nhập kho một lần. */
   useEffect(() => {
     fetchReceipts();
   }, []);
 
+  /** Chuyển sang tab Xuất hoặc đổi `pageSize`: refetch full list export (do merge nhiều page). */
   useEffect(() => {
     if (activeTab === 'EXPORT') fetchExportNotes();
   }, [activeTab, pageSize]);
 
+  /** Đổi kích thước trang cấu hình: reset về trang 1 cho cả hai tab. */
   useLayoutEffect(() => {
     setImportPage(1);
     setExportPage(1);
   }, [pageSize]);
 
-  // ── API ────────────────────────────────────────────────────────────────────
+  // ================= API =================
+
+  /** GET `/api/v1/inventory-receipts` — toàn bộ phiếu nhập (filter/sort FE). */
   const fetchReceipts = async () => {
     setIsLoadingImport(true);
     try {
@@ -170,6 +190,10 @@ const ManagerReceiptsPage = () => {
     }
   };
 
+  /**
+   * GET export notes có phân trang server-side.
+   * Nếu `totalPages` > 1: gọi thêm các page còn lại và gộp `items` (tránh chỉ hiển thị trang đầu).
+   */
   const fetchExportNotes = async () => {
     setIsLoadingExport(true);
     setExportError(null);
@@ -208,7 +232,9 @@ const ManagerReceiptsPage = () => {
     }
   };
 
-  // Lấy chi tiết phiếu xuất
+  // ================= HANDLERS =================
+
+  /** Mở modal phiếu xuất (không gọi API chi tiết riêng — dùng object list). */
   const handleOpenExportDetail = async (note: ExportNotesResponse) => {
     setIsLoadingExportDetail(true);
     try {
@@ -219,7 +245,7 @@ const ManagerReceiptsPage = () => {
     }
   };
 
-  // Lấy chi tiết phiếu nhập
+  /** Mở modal phiếu nhập + GET `/api/v1/inventory-receipts/:id` để có đủ `items` nếu list không trả. */
   const handleOpenReceiptDetail = async (receipt: InventoryReceiptApi) => {
     setSelectedReceipt(receipt);
     setIsReceiptDetailOpen(true);
@@ -234,15 +260,19 @@ const ManagerReceiptsPage = () => {
     }
   };
 
+  /** Nút refresh header: reload đúng tab đang mở. */
   const handleRefresh = () => {
     if (activeTab === 'IMPORT') fetchReceipts();
     else fetchExportNotes();
   };
 
-  // ── Computed ───────────────────────────────────────────────────────────────
+  // ================= COMPUTED =================
+
+  /** Số phiếu nhập theo trạng thái (thống kê header tab Nhập). */
   const draftCount = useMemo(() => receipts.filter((r) => r.status === 'DRAFT').length, [receipts]);
   const completedCount = useMemo(() => receipts.filter((r) => r.status === 'COMPLETED').length, [receipts]);
 
+  /** Lọc + sort mới nhất trước (receiptDate, fallback receiptId). */
   const filteredImportReceipts = useMemo(() => {
     let data = receipts;
     if (statusFilter !== 'ALL') data = data.filter((r) => r.status === statusFilter);
@@ -264,11 +294,14 @@ const ManagerReceiptsPage = () => {
   }, [receipts, search, statusFilter]);
 
   const importTotalPages = Math.max(1, Math.ceil(filteredImportReceipts.length / pageSize));
+
+  /** Slice theo `importPage` và `pageSize`. */
   const paginatedReceipts = useMemo(
     () => filteredImportReceipts.slice((importPage - 1) * pageSize, importPage * pageSize),
     [filteredImportReceipts, importPage, pageSize]
   );
 
+  /** Các status phiếu xuất có trong dữ liệu, sắp theo thứ tự ưu tiên hiển thị filter. */
   const exportStatusOptions = useMemo(() => {
     const set = new Set<string>();
     exportNotes.forEach((n) => {
@@ -290,6 +323,7 @@ const ManagerReceiptsPage = () => {
     return ['ALL', ...values];
   }, [exportNotes]);
 
+  /** Lọc export + sort mới nhất (exportDate, fallback exportId). */
   const filteredExportNotes = useMemo(() => {
     let data = exportNotes;
 
@@ -310,11 +344,13 @@ const ManagerReceiptsPage = () => {
   }, [exportNotes, exportSearch, exportStatusFilter]);
 
   const exportTotalPages = Math.max(1, Math.ceil(filteredExportNotes.length / pageSize));
+
   const paginatedExportNotes = useMemo(
     () => filteredExportNotes.slice((exportPage - 1) * pageSize, exportPage * pageSize),
     [filteredExportNotes, exportPage, pageSize]
   );
 
+  /** Giữ `exportPage` không vượt quá tổng số trang sau khi filter thay đổi. */
   useEffect(() => {
     if (activeTab !== 'EXPORT') return;
     if (exportPage > exportTotalPages) setExportPage(exportTotalPages);
@@ -322,7 +358,8 @@ const ManagerReceiptsPage = () => {
 
   const isRefreshing = isLoadingImport || isLoadingExport;
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ================= RENDER =================
+
   return (
     <div className="h-full w-full space-y-5">
 

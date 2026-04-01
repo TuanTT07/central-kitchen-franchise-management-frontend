@@ -1,7 +1,7 @@
 /**
  * File: ReportsPage.tsx
  * Description: Trang báo cáo quản lý kho trung tâm, hiển thị tồn kho, lô sắp hết hạn và giao dịch.
- * Author: Tuan Tran
+ * Author:
  * Created: 2026
  */
 

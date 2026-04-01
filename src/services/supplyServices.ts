@@ -422,6 +422,17 @@ export const supplyServices = {
   },
 
   /**
+   * Tạo phiếu xuất kho thừa (surplus) theo một lô và số lượng.
+   * POST /export-notes/createSurplusNote
+   *
+   * Body mặc định: `{ productBatchId, quantity }` — nếu BE dùng tên field khác, chỉnh tại một chỗ ở đây.
+   */
+  createSurplusNote: async (body: { productBatchId: number; quantity: number }) => {
+    const response = await http.post<Response<ExportNotesResponse>>('/export-notes/createSurplusNote', body);
+    return response.data;
+  },
+
+  /**
    * Xem trước kế hoạch xuất kho theo danh sách storeOrderId
    *
    * @param orderIds Danh sách ID các storeOrder cần xem trước
