@@ -46,6 +46,7 @@ function DistributionStatusBadge({ status }: { status: string }) {
   const label = translateStatus(status) || status;
 
   const colorMap: Record<string, string> = {
+    PLANNED:   'bg-stone-100 text-stone-700',
     READY:     'bg-amber-100 text-amber-800',
     SHIPPING:  'bg-sky-100 text-sky-800',
     SHIPPED:   'bg-emerald-100 text-emerald-800',
@@ -58,7 +59,7 @@ function DistributionStatusBadge({ status }: { status: string }) {
   const cls = colorMap[status] ?? 'bg-gray-100 text-gray-700';
 
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${cls}`}>
+    <span className={`inline-flex whitespace-nowrap items-center rounded-full px-3 py-1 text-sm font-semibold ${cls}`}>
       {label}
     </span>
   );
@@ -358,7 +359,7 @@ const DistributionPlanPage = () => {
     }
 
     // Ưu tiên: READY lên trên cùng, sau đó sắp xếp theo exportId giảm dần (mới nhất trước)
-    const STATUS_PRIORITY: Record<string, number> = { READY: 0, SHIPPING: 1, SHIPPED: 2, CANCEL: 3 };
+    const STATUS_PRIORITY: Record<string, number> = { PLANNED: 0, READY: 1, SHIPPING: 2, SHIPPED: 3, CANCEL: 4 };
     return filtered.sort((a, b) => {
       const pa = STATUS_PRIORITY[a.status] ?? 99;
       const pb = STATUS_PRIORITY[b.status] ?? 99;
@@ -409,7 +410,7 @@ const DistributionPlanPage = () => {
   // ================= RENDER =================
 
   return (
-    <div className="h-full w-full space-y-5">
+    <div className="h-full w-full space-y-6">
       {/* ── Header Card ── */}
       <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">
         <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5">
@@ -439,94 +440,96 @@ const DistributionPlanPage = () => {
         </CardHeader>
       </Card>
 
-      {/* ── Toolbar ── */}
-      <div className="flex items-center gap-3 rounded-xl border border-amber-100 bg-white px-4 py-3 shadow-sm">
-        {/* Search */}
-        <div className="relative w-72 flex-none">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-400" />
-          <input
-            type="text"
-            placeholder="Tìm theo mã đợt, chi nhánh hoặc sản phẩm..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-9 w-full rounded-md border border-amber-200 bg-amber-50/40 pl-9 pr-3 text-xs text-stone-800 placeholder:text-stone-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60"
-          />
-        </div>
+      <div className="space-y-3">
+        {/* ── Toolbar ── */}
+        <div className="flex items-center gap-3 rounded-xl border border-amber-100 bg-white px-5 py-4 shadow-sm">
+          {/* Search */}
+          <div className="relative w-80 flex-none">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-amber-400" />
+            <input
+              type="text"
+              placeholder="Tìm theo mã đợt, chi nhánh hoặc sản phẩm..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-10 w-full rounded-md border border-amber-200 bg-amber-50/40 pl-9 pr-3 text-sm text-stone-800 placeholder:text-stone-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60"
+            />
+          </div>
 
-        {/* Status Filter */}
-        <div className="relative flex h-9 flex-none items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50/50 px-3">
-          <SlidersHorizontal className="size-3.5 shrink-0 text-amber-500" />
-          <span className="whitespace-nowrap text-[11px] font-medium text-amber-700">Bộ lọc:</span>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="cursor-pointer appearance-none bg-transparent pr-4 text-xs font-semibold text-amber-900 outline-none"
-          >
-            <option value="">Tất cả</option>
-            <option value="READY">Sẵn sàng</option>
-            <option value="SHIPPING">Đang giao</option>
-            <option value="SHIPPED">Đã giao</option>
-            <option value="CANCEL">Đã hủy</option>
-          </select>
-          <Filter className="pointer-events-none absolute right-2 top-1/2 size-3 -translate-y-1/2 text-amber-400" />
-        </div>
+          {/* Status Filter */}
+          <div className="relative flex h-10 flex-none items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50/50 px-3.5">
+            <SlidersHorizontal className="size-3.5 shrink-0 text-amber-500" />
+            <span className="whitespace-nowrap text-xs font-medium text-amber-700">Bộ lọc:</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="cursor-pointer appearance-none bg-transparent pr-4 text-sm font-semibold text-amber-900 outline-none"
+            >
+              <option value="">Tất cả</option>
+              <option value="PLANNED">{translateStatus('PLANNED')}</option>
+              <option value="READY">Sẵn sàng</option>
+              <option value="SHIPPING">Đang giao</option>
+              <option value="SHIPPED">Đã giao</option>
+              <option value="CANCEL">Đã hủy</option>
+            </select>
+            <Filter className="pointer-events-none absolute right-2 top-1/2 size-3 -translate-y-1/2 text-amber-400" />
+          </div>
 
-        {/* Refresh */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={getExportNotes}
-          className="h-9 flex-none gap-1.5 border-amber-200 text-xs text-amber-700 hover:bg-amber-50"
-        >
-          <RefreshCw className="size-3.5" />
-          Làm mới
-        </Button>
-
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Divider */}
-        <div className="h-6 w-px shrink-0 bg-amber-200" />
-
-        {/* Actions */}
-        <div className="flex flex-wrap items-center justify-end gap-2">
+          {/* Refresh */}
           <Button
-            type="button"
             variant="outline"
             size="sm"
-            onClick={handleOpenSurplusDialog}
-            className="h-9 gap-1.5 border-amber-200 bg-white px-3 text-xs font-semibold text-amber-800 hover:bg-amber-50"
+            onClick={getExportNotes}
+            className="h-10 flex-none gap-1.5 border-amber-200 px-3 text-sm text-amber-700 hover:bg-amber-50"
           >
-            <PackagePlus className="size-3.5" />
-            Phiếu xuất thừa
+            <RefreshCw className="size-3.5" />
+            Làm mới
           </Button>
-          <Button
-            size="sm"
-            onClick={handleOpenCreateModal}
-            className="h-9 gap-1.5 rounded-lg bg-amber-500 px-4 text-xs text-white shadow-sm transition-all hover:bg-amber-600 active:scale-95"
-          >
-            <Plus className="size-3.5" />
-            Tạo đợt phân phối
-          </Button>
-        </div>
-      </div>
 
-      {/* ── Content ── */}
-      <Card className="border-amber-200/60 bg-white shadow-md">
-        <CardContent className="p-6">
-          <div className="grid gap-5 lg:grid-cols-3">
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Divider */}
+          <div className="h-6 w-px shrink-0 bg-amber-200" />
+
+          {/* Actions */}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleOpenSurplusDialog}
+              className="h-10 gap-1.5 border-amber-200 bg-white px-3.5 text-sm font-semibold text-amber-800 hover:bg-amber-50"
+            >
+              <PackagePlus className="size-3.5" />
+              Phiếu xuất thừa
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleOpenCreateModal}
+              className="h-10 gap-1.5 rounded-lg bg-amber-500 px-4.5 text-sm text-white shadow-sm transition-all hover:bg-amber-600 active:scale-95"
+            >
+              <Plus className="size-3.5" />
+              Tạo đợt phân phối
+            </Button>
+          </div>
+        </div>
+
+        {/* ── Content ── */}
+        <Card className="border-amber-200/60 bg-white shadow-md">
+          <CardContent className="p-7">
+            <div className="grid gap-5 lg:grid-cols-3">
             <Card className="border-amber-100 bg-white shadow-sm lg:col-span-2">
-              <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
+              <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 px-5 py-3">
                 <CardTitle className="text-sm font-bold text-amber-900">Danh sách phiếu xuất kho</CardTitle>
-                <CardDescription className="text-[11px] text-amber-700/80">
+                <CardDescription className="text-[11px] leading-snug text-amber-700/80">
                   Thông tin chi tiết các đợt hàng chuẩn bị xuất kho
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
+                  <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-[11px] text-amber-900">
+                      <tr className="border-b border-amber-50 bg-amber-50/60 text-left text-xs text-amber-900">
                         <th className="px-4 py-2 font-semibold">Mã phiếu</th>
                         <th className="px-4 py-2 font-semibold">Chi nhánh</th>
                         <th className="px-4 py-2 font-semibold">Sản phẩm</th>
@@ -550,16 +553,16 @@ const DistributionPlanPage = () => {
                             onClick={() => openExportDetail(p)}
                             title="Xem chi tiết đợt phân phối"
                           >
-                            <td className="px-4 py-3 font-semibold text-stone-900">{p.exportCode}</td>
-                            <td className="px-4 py-3 text-stone-800">{p.storeName}</td>
-                            <td className="px-4 py-3 text-stone-600 italic">
+                            <td className="px-4 py-3.5 font-semibold text-stone-900">{p.exportCode}</td>
+                            <td className="px-4 py-3.5 text-stone-800">{p.storeName}</td>
+                            <td className="px-4 py-3.5 text-stone-600 italic">
                               {p.items.map((i: ExportNoteItem) => i.productName).join(', ')}
                             </td>
-                            <td className="px-2 py-3 text-center text-stone-800 font-medium">{p.items.length}</td>
-                            <td className="px-2 py-3 text-right text-stone-800 font-bold">
+                            <td className="px-2 py-3.5 text-center font-medium text-stone-800">{p.items.length}</td>
+                            <td className="px-2 py-3.5 text-right font-bold text-stone-800">
                               {p.items.reduce((sum: number, i: ExportNoteItem) => sum + i.quantity, 0)}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-3.5">
                               <DistributionStatusBadge status={p.status} />
                             </td>
                           </tr>
@@ -630,9 +633,9 @@ const DistributionPlanPage = () => {
             </Card>
 
             <Card className="border-amber-100 bg-white shadow-sm">
-              <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 pb-3">
+              <CardHeader className="border-b border-amber-50 bg-gradient-to-r from-amber-50/80 to-orange-50/80 px-5 py-3">
                 <CardTitle className="text-sm font-bold text-amber-900">Theo chi nhánh</CardTitle>
-                <CardDescription className="text-[11px] text-amber-700/80">
+                <CardDescription className="text-[11px] leading-snug text-amber-700/80">
                   Phân bổ hàng hóa theo điểm đến
                 </CardDescription>
               </CardHeader>
@@ -661,9 +664,10 @@ const DistributionPlanPage = () => {
                 )}
               </CardContent>
             </Card>
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* ── Modals ── */}
       {/* ================= MODAL: TẠO ĐỢT PHÂN PHỐI ================= */}
@@ -1090,7 +1094,7 @@ const DistributionPlanPage = () => {
             <h3 className="text-base font-bold text-amber-900">Chi tiết đợt phân phối</h3>
             <p className="mt-1 text-xs text-amber-700/80">Xem chi tiết phiếu xuất kho và mặt hàng.</p>
           </div>
-          <div className="space-y-4 px-6 py-5">
+          <div className="space-y-5 px-7 py-6">
             {!selectedExportNote ? (
               <p className="text-sm text-stone-500">Đang tải...</p>
             ) : (

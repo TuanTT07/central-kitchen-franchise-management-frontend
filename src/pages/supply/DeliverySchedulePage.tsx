@@ -341,7 +341,7 @@ const DeliverySchedulePage = () => {
     await getDeliveryDetail(plan.deliveryId);
   };
 
-  // Xử lý khi nhấn nút Cập nhật
+  // Xử lý khi nhấn nút Cập nhật(VALIDATION)
   const handleUpdate = (plan: DeliveryPlanResponse) => {
     if (plan.status === 'COMPLETED' || plan.status === 'CANCELLED') {
       toast.error('Chuyến hàng đã hoàn tất hoặc đã hủy, không thể cập nhật thêm.');
