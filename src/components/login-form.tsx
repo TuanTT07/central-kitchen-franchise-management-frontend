@@ -15,7 +15,7 @@ import { useState } from 'react';
 import { authService } from '@/services/authService';
 import { useNavigate } from 'react-router';
 import { useForm } from 'react-hook-form';
-import { CookingPot, Eye, EyeOff, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, Lock, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractPrimaryRoleFromLoginUser, normalizeToAppRole } from '@/lib/authRole';
 
@@ -88,14 +88,10 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
     >
       {/* Header */}
       <div className="flex flex-col items-center text-center">
-        <div className="flex items-center justify-center gap-2">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100">
-            <CookingPot className="h-5 w-5 text-orange-500" />
-          </div>
-          <span className="text-lg font-semibold text-gray-900">Kitchen Hub</span>
+        <div className="flex items-center justify-center">
+          <img src="/logo.png" alt="Kitchen Hub logo" className="h-32 w-32 shrink-0 rounded-md object-contain" />
         </div>
-        <h1 className="mt-3 text-xl font-bold tracking-tight text-gray-900">Đăng nhập</h1>
-        <p className="mt-1.5 text-sm text-gray-500">Hệ thống quản lý bếp trung tâm</p>
+        <p className="mt-2 text-lg font-semibold text-gray-600">Hệ thống quản lý bếp trung tâm</p>
       </div>
 
       {/* Form */}

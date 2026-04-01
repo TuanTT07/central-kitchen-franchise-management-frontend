@@ -1,6 +1,5 @@
 import type React from 'react';
 import { Link } from 'react-router';
-import { UtensilsCrossed } from 'lucide-react';
 import { cn } from '@/lib/utils';
 interface item {
   label: string;
@@ -19,10 +18,8 @@ interface SideBarLayoutProps {
 export default function SideBarLayout({ items, activeItem, footerContent }: SideBarLayoutProps) {
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-svh w-64 flex-col border-r border-border bg-white shadow-sm">
-      <div className="flex h-16 items-center gap-2 border-b border-border px-5">
-        <div className="flex size-9 items-center justify-center rounded-full bg-amber-500">
-          <UtensilsCrossed className="size-5 text-white" />
-        </div>
+      <div className="flex h-20 items-center gap-3 border-b border-border px-5">
+        <img src="/logo.png" alt="Kitchen Hub logo" className="h-12 w-12 rounded-md object-contain" />
         <span className="text-lg font-bold text-foreground">Kitchen Hub</span>
       </div>
       <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">

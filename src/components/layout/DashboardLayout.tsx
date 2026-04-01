@@ -72,6 +72,9 @@ const buildSidebarFooter = (params: {
 export default function DashboardLayout({ children, navItems, roleLabel }: DashboardLayoutProps) {
   const location = useLocation();
   const { userName, user, roleName: contextRoleName, logout } = useAuth();
+  const effectiveRole = contextRoleName ?? roleLabel;
+  const roleVi = translateRole(effectiveRole);
+  const welcomeHighlight = roleVi?.trim() ? roleVi : userName?.trim() || 'bạn';
   const sidebarFooter = buildSidebarFooter({ roleLabel, userName, user, logout, contextRoleName });
 
   return (
@@ -81,7 +84,7 @@ export default function DashboardLayout({ children, navItems, roleLabel }: Dashb
       {/* Main content */}
       <div className="ml-64 flex flex-1 flex-col">
         {/* Header */}
-        <HeaderLayout userName={userName} />
+        <HeaderLayout welcomeHighlight={welcomeHighlight} />
         {/* Page content */}
         <main className="flex-1 overflow-auto p-6">{children}</main>
       </div>
