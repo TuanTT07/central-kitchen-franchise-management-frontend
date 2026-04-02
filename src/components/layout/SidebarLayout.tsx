@@ -19,8 +19,8 @@ export default function SideBarLayout({ items, activeItem, footerContent }: Side
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-svh w-64 flex-col border-r border-border bg-white shadow-sm">
       <div className="flex h-20 items-center gap-3 border-b border-border px-5">
-        <img src="/logo.png" alt="Kitchen Hub logo" className="h-12 w-12 rounded-md object-contain" />
-        <span className="text-lg font-bold text-foreground">Kitchen Hub</span>
+        <img src="/logo.png" alt="PIZZA FIVE GUYS logo" className="h-12 w-12 rounded-md object-contain" />
+        <span className="text-lg font-bold text-foreground">PIZZA FIVE GUYS</span>
       </div>
       <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
         {items.map((item) => {

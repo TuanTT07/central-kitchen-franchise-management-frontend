@@ -109,10 +109,10 @@ function BatchDetailPanel({ batch, productDetail, productDetailLoading }: BatchD
 
   return (
     <>
-      <section className="border-b border-amber-100 bg-white px-5 py-5 sm:px-6">
+      <section className="border-b border-stone-100 bg-white px-5 py-5 sm:px-6">
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-amber-800">Sản phẩm</h3>
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
-          <div className="relative mx-auto aspect-square w-full max-w-[180px] shrink-0 overflow-hidden rounded-lg border border-amber-200 bg-amber-50 sm:mx-0 sm:w-40">
+          <div className="relative mx-auto aspect-square w-full max-w-[180px] shrink-0 overflow-hidden rounded-lg border border-stone-200 bg-stone-50 sm:mx-0 sm:w-40">
             {productDetailLoading ? (
               <div className="absolute inset-0 animate-pulse bg-amber-100" />
             ) : productDetail?.imageUrl ? (
@@ -156,9 +156,9 @@ function BatchDetailPanel({ batch, productDetail, productDetailLoading }: BatchD
         </div>
       </section>
 
-      <section className="border-b border-amber-100 bg-white px-5 py-5 sm:px-6">
+      <section className="border-b border-stone-100 bg-white px-5 py-5 sm:px-6">
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-amber-800">Thông tin lô</h3>
-        <div className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-lg border border-stone-200 bg-stone-50/80 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="font-mono text-sm font-semibold text-amber-950">{batch.batchCode}</p>
             <p className="text-[12px] text-stone-600">ID lô #{batch.batchId}</p>
@@ -170,14 +170,14 @@ function BatchDetailPanel({ batch, productDetail, productDetailLoading }: BatchD
       <section className="bg-white px-5 py-5 sm:px-6">
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-amber-800">Tồn kho & hạn</h3>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+          <div className="rounded-lg border border-stone-200 bg-stone-50/70 p-3">
             <p className="text-[10px] font-medium uppercase text-amber-800/80">SL ban đầu</p>
             <p className="mt-1 text-xl font-bold tabular-nums text-stone-900">
               {batch.initialQuantity.toLocaleString('vi-VN')}
               {batch.unitName ? <span className="ml-1 text-sm font-normal text-stone-600">{batch.unitName}</span> : null}
             </p>
           </div>
-          <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+          <div className="rounded-lg border border-stone-200 bg-stone-50/70 p-3">
             <p className="text-[10px] font-medium uppercase text-amber-800/80">SL hiện tại</p>
             <p
               className={cn(
@@ -191,7 +191,7 @@ function BatchDetailPanel({ batch, productDetail, productDetailLoading }: BatchD
           </div>
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+          <div className="rounded-lg border border-stone-200 bg-stone-50/70 p-3">
             <div className="mb-1 flex items-center gap-1.5 text-[10px] font-medium uppercase text-amber-800/80">
               <CalendarClock className="size-3.5 text-amber-600" />
               NSX
@@ -203,7 +203,7 @@ function BatchDetailPanel({ batch, productDetail, productDetailLoading }: BatchD
               </p>
             ) : null}
           </div>
-          <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+          <div className="rounded-lg border border-stone-200 bg-stone-50/70 p-3">
             <div className="mb-1 flex items-center gap-1.5 text-[10px] font-medium uppercase text-amber-800/80">
               <CalendarClock className="size-3.5 text-amber-600" />
               HSD
@@ -620,7 +620,7 @@ function ProductBatches() {
           }
         }}
       >
-        <DialogContent className="flex max-h-[85vh] w-[calc(100vw-2rem)] max-w-xl flex-col gap-0 overflow-hidden rounded-xl border border-amber-200 bg-white p-0 shadow-lg sm:w-full">
+        <DialogContent className="flex max-h-[85vh] w-[calc(100vw-2rem)] max-w-xl flex-col gap-0 overflow-hidden rounded-xl border border-stone-200 bg-white p-0 shadow-lg sm:w-full">
           <div className="shrink-0 bg-amber-500 px-5 pb-5 pt-5 text-white sm:px-6">
             <DialogHeader className="space-y-0 text-left">
               <DialogTitle className="flex items-center gap-3 text-xl font-bold text-white">

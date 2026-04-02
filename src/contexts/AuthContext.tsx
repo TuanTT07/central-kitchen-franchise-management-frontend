@@ -85,7 +85,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }, [location.pathname]);
 
-  const userName = user?.userFullName ?? 'Người dùng';
+  const userName =
+    user?.user_name?.trim() ||
+    user?.username?.trim() ||
+    user?.userName?.trim() ||
+    'Người dùng';
 
   const logout = useCallback(() => {
     try {

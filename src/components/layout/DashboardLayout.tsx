@@ -20,7 +20,6 @@ interface DashboardLayoutProps {
   roleLabel: string;
 }
 
-/** Tên cửa hàng mock cho Store (sau có thể lấy từ user/store API) */
 const getStoreDisplayName = (userName: string, user: any) => {
   if (user?.storeName) return user.storeName;
   return userName ? `Cửa hàng ${userName}` : 'Cửa hàng';
