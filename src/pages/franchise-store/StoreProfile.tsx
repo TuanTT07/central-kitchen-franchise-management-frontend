@@ -1,3 +1,13 @@
+/**
+ * File: StoreProfile.tsx
+ * Description: Trang hồ sơ cửa hàng (chi nhánh) dành cho nhân viên.
+ *              Lấy thông tin store dựa trên storeId suy ra từ danh sách đơn.
+ * Author: Dat Tran (ước tính)
+ * Created: 2026
+ */
+
+// ================= IMPORTS =================
+
 import { useEffect, useState } from 'react';
 import { Store, MapPin, Phone, CheckCircle2, User2, IdCard, Mail, ShieldCheck, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,6 +16,8 @@ import { adminService } from '@/services/adminServices';
 import { cn } from '@/lib/utils';
 import { DEFAULT_API_PAGE_SIZE, fetchAllPages, getPaginatedItems } from '@/utils/pagination';
 
+// ================= TYPES =================
+
 interface StoreBasicInfo {
   storeId: number;
   storeName: string;
@@ -13,13 +25,20 @@ interface StoreBasicInfo {
   phone?: string;
 }
 
+// ================= COMPONENT =================
+
 function StoreProfile() {
+  // ================= STATE =================
   const { user, userName } = useAuth();
 
+  // storeInfo: thông tin tóm tắt cửa hàng hiển thị trên UI
   const [storeInfo, setStoreInfo] = useState<StoreBasicInfo | null>(null);
+  // setOrders: chỉ dùng để lấy storeId/storeName từ API (không render trực tiếp)
   const [, setOrders] = useState<OrderResponse<OrderDetailResponse[]>[]>([]);
+  // loading: đang tải dữ liệu profile (hiển thị spinner khi true)
   const [loading, setLoading] = useState(true);
 
+  // resolveUserAndStore: ưu tiên user từ context, fallback localStorage nếu context chưa có
   const resolveUserAndStore = () => {
     let u: any = user;
     if (!u) {
@@ -33,6 +52,7 @@ function StoreProfile() {
     return u;
   };
 
+  // ================= EFFECT =================
   useEffect(() => {
     const loadStoreProfile = async () => {
       try {
@@ -78,6 +98,7 @@ function StoreProfile() {
     loadStoreProfile();
   }, []);
 
+  // ================= RENDER =================
   const currentUser = resolveUserAndStore();
   const userId = Number(currentUser?.id);
   const userUsername = currentUser?.username ?? currentUser?.userName ?? '—';

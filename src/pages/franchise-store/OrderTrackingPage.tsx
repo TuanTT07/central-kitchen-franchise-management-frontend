@@ -43,15 +43,21 @@ import { toast } from 'sonner';
 import { useGlobalListPageSize } from '@/hooks/useGlobalListPageSize';
 
 /**
- * Component Description
- * - Hiển thị danh sách đơn hàng đã đặt
- * - Theo dõi trạng thái duyệt đơn và trạng thái xuất kho
- * - Trạng thái hiển thị qua translateStatus() – không hardcode text.
+ * OrderTrackingPage Component
+ * - Hiển thị danh sách đơn hàng của chi nhánh
+ * - Tìm kiếm và lọc theo trạng thái (PENDING/APPROVED/IN_TRANSIT/...)
+ * - Xem chi tiết đơn (getOrderById), hủy đơn, xác nhận nhận hàng
+ * - Báo cáo sự cố (kèm ảnh) cho các mặt hàng trong đơn
  */
 
+// ================= FILTERS =================
 const FILTER_OPTIONS = ['ALL', 'PENDING', 'APPROVED', 'IN_TRANSIT', 'DONE', 'CONSOLIDATED', 'CANCELLED'] as const;
 type FilterStatus = (typeof FILTER_OPTIONS)[number];
 
+/**
+ * normalizeOrderStatus
+ * Chuẩn hóa key status từ API về dạng UPPER_SNAKE_CASE để lọc/so sánh ổn định.
+ */
 const normalizeOrderStatus = (status: unknown): string => {
   if (typeof status !== 'string' || !status.trim()) return '';
   return status.toUpperCase().replace(/[\s-]+/g, '_');
@@ -61,32 +67,57 @@ const OrderTrackingPage = () => {
 
   // ================= STATE =================
 
+  // orders: danh sách đơn hàng (nguồn dữ liệu cho danh sách + thống kê)
   const [orders, setOrders] = useState<OrderResponse<OrderDetailResponse[]>[]>([]);
+  // loading: đang tải / đang submit (để disable UI)
   const [loading, setLoading] = useState(true);
+  // openCancelDialog: mở/đóng modal hủy đơn
   const [openCancelDialog, setOpenCancelDialog] = useState(false);
+  // search: từ khóa tìm kiếm theo orderCode / deliveryDate
   const [search, setSearch] = useState('');
+  // statusFilter: trạng thái đang lọc (ALL/PENDING/...)
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('ALL');
+  // selectedOrderId: orderId được chọn để hủy
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  // selectedReceiveOrderId: orderId được chọn để xác nhận đã nhận hàng
   const [selectedReceiveOrderId, setSelectedReceiveOrderId] = useState<number | null>(null);
+  // openReceiveDialog: mở/đóng modal xác nhận nhận hàng
   const [openReceiveDialog, setOpenReceiveDialog] = useState(false);
+  // isReceiving: đang gửi request xác nhận nhận hàng
   const [isReceiving, setIsReceiving] = useState(false);
+  // cancelReason: lý do hủy đơn (input trong modal hủy)
   const [cancelReason, setCancelReason] = useState('');
+  // page: số trang hiện tại (phân trang phía UI)
   const [page, setPage] = useState(1);
+  // pageSize: số item mỗi trang (lấy từ setting chung)
   const pageSize = useGlobalListPageSize();
+  // openDetailDialog: mở/đóng modal chi tiết đơn
   const [openDetailDialog, setOpenDetailDialog] = useState(false);
+  // isLoadingDetail: đang tải chi tiết đơn để hiển thị spinner trong modal
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  // orderDetail: dữ liệu chi tiết đơn đang hiển thị
   const [orderDetail, setOrderDetail] = useState<OrderResponse<OrderDetailResponse[]> | null>(null);
 
-  // Report issue state
+  // ================= STATE: Report issue modal =================
+  // openReportDialog: mở/đóng modal báo sự cố
   const [openReportDialog, setOpenReportDialog] = useState(false);
+  // selectedReportOrderId: orderId đang được chọn để báo sự cố
   const [selectedReportOrderId, setSelectedReportOrderId] = useState<number | null>(null);
+  // reportReason: lý do báo sự cố
   const [reportReason, setReportReason] = useState<string>('DAMAGED');
+  // reportNote: ghi chú bổ sung
   const [reportNote, setReportNote] = useState('');
+  // isReporting: đang submit báo cáo sự cố (disable nút submit)
   const [isReporting, setIsReporting] = useState(false);
+  // selectedImages: danh sách file ảnh minh chứng
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  // imagePreviews: URL object để preview ảnh
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  // reportItems: sản phẩm trong đơn để user chỉnh actualQuantity khi báo sự cố
   const [reportItems, setReportItems] = useState<{ productId: number; productName: string; orderedQuantity: number; actualQuantity: number; unitName: string }[]>([]);
+  // selectedWrongProductIds: id sản phẩm được đánh dấu là “bị sai”
   const [selectedWrongProductIds, setSelectedWrongProductIds] = useState<number[]>([]);
+  // isFetchingReportData: đang tải chi tiết đơn để dựng form báo sự cố
   const [isFetchingReportData, setIsFetchingReportData] = useState(false);
 
   useLayoutEffect(() => {
@@ -101,6 +132,10 @@ const OrderTrackingPage = () => {
 
   // ================= API =================
 
+  /**
+   * fetchData — tải danh sách đơn hàng từ backend.
+   * Đầu vào không truyền filter ở client; lọc/tìm kiếm làm ở bước computed phía dưới.
+   */
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -115,21 +150,38 @@ const OrderTrackingPage = () => {
 
   // ================= HANDLER =================
 
+  /**
+   * handleSearch
+   * - Cập nhật từ khóa tìm kiếm
+   * - Reset về trang 1 để tránh “rơi” sang trang không có kết quả
+   */
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
     setPage(1);
   };
 
+  /**
+   * handleFilterChange
+   * Cập nhật trạng thái lọc và reset trang về 1.
+   */
   const handleFilterChange = (status: FilterStatus) => {
     setStatusFilter(status);
     setPage(1);
   };
 
+  /**
+   * handleCancelOrder
+   * Mở dialog hủy đơn cho `orderId` và lưu `selectedOrderId`.
+   */
   const handleCancelOrder = (orderId: number) => {
     setSelectedOrderId(orderId);
     setOpenCancelDialog(true);
   };
 
+  /**
+   * handleOpenOrderDetail
+   * Mở dialog chi tiết đơn và tải chi tiết theo `orderId`.
+   */
   const handleOpenOrderDetail = async (orderId: number) => {
     setOpenDetailDialog(true);
     setIsLoadingDetail(true);
@@ -148,6 +200,10 @@ const OrderTrackingPage = () => {
     }
   };
 
+  /**
+   * handleConfirmCancel
+   * Submit hủy đơn + lý do hủy lên backend.
+   */
   const handleConfirmCancel = async () => {
     if (!selectedOrderId) return;
     if (!cancelReason.trim()) {
@@ -173,6 +229,10 @@ const OrderTrackingPage = () => {
     }
   };
 
+  /**
+   * handleConfirmReceive
+   * Xác nhận đã nhận đủ hàng cho đơn.
+   */
   const handleConfirmReceive = async () => {
     if (!selectedReceiveOrderId) return;
     try {
@@ -193,6 +253,10 @@ const OrderTrackingPage = () => {
     }
   };
 
+  /**
+   * handleReportOrder
+   * Mở dialog báo sự cố và tải chi tiết đơn để dựng danh sách sản phẩm cần báo cáo.
+   */
   const handleReportOrder = async (orderId: number) => {
     setSelectedReportOrderId(orderId);
     setOpenReportDialog(true);
@@ -219,6 +283,10 @@ const OrderTrackingPage = () => {
     }
   };
 
+  /**
+   * handleReportItemChange
+   * Cập nhật `actualQuantity` cho đúng `productId` trong reportItems.
+   */
   const handleReportItemChange = (productId: number, actualQty: number) => {
     setReportItems((prev) =>
       prev.map((item) =>
@@ -227,12 +295,21 @@ const OrderTrackingPage = () => {
     );
   };
 
+  /**
+   * toggleWrongProduct
+   * Toggle trạng thái chọn "sản phẩm bị sai" trong báo cáo.
+   * (Ảnh hưởng đến UI validate/submit ở phần render).
+   */
   const toggleWrongProduct = (productId: number) => {
     setSelectedWrongProductIds((prev) =>
       prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
     );
   };
 
+  /**
+   * handleImageChange
+   * Cho phép chọn nhiều ảnh minh chứng, đồng thời tạo preview ngay lập tức.
+   */
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
@@ -243,12 +320,22 @@ const OrderTrackingPage = () => {
     }
   };
 
+  /**
+   * removeImage
+   * Xóa ảnh tại vị trí `index` và thu hồi URL object.
+   */
   const removeImage = (index: number) => {
     setSelectedImages((prev) => prev.filter((_, i) => i !== index));
     URL.revokeObjectURL(imagePreviews[index]);
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
+  /**
+   * handleConfirmReport
+   * Submit báo cáo sự cố lên backend bằng `FormData`:
+   * - part `payload` (JSON) chứa reason/note/items
+   * - part `images` chứa file ảnh
+   */
   const handleConfirmReport = async () => {
     if (!selectedReportOrderId) return;
     if (!reportReason) {

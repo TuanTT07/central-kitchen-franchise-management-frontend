@@ -33,20 +33,33 @@ const formatDateTime = (value: string | null) => {
 };
 
 function Receipts() {
+  // ================= STATE =================
+  // receipts: danh sách phiếu nhập kho lấy từ API
   const [receipts, setReceipts] = useState<InventoryReceiptApi[]>([]);
+  // search: từ khóa tìm kiếm theo mã biên lai hoặc ngày
   const [search, setSearch] = useState('');
+  // statusFilter: bộ lọc trạng thái (ALL / DRAFT / COMPLETED)
   const [statusFilter, setStatusFilter] = useState<ReceiptStatus | 'ALL'>('ALL');
+  // isDetailOpen: mở/đóng modal chi tiết phiếu nhập kho
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  // selectedReceipt: phiếu đang được chọn để render chi tiết
   const [selectedReceipt, setSelectedReceipt] = useState<InventoryReceiptApi | null>(null);
+  // isLoadingList: đang load danh sách phiếu (để disable refresh)
   const [isLoadingList, setIsLoadingList] = useState(false);
+  // isLoadingDetail: đang load dữ liệu chi tiết trong modal
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  // page: trang hiện tại cho phân trang UI
   const [page, setPage] = useState(1);
   const pageSize = useGlobalListPageSize();
 
   // Modal tạo phiếu nhập kho (nhập kho hàng loạt) – di chuyển từ trang Lô sản phẩm
+  // isStockInModalOpen: mở/đóng modal nhập kho hàng loạt
   const [isStockInModalOpen, setIsStockInModalOpen] = useState(false);
+  // productBatches: danh sách lô lấy từ API (lô đang chờ nhập kho)
   const [productBatches, setProductBatches] = useState<ProductBatchesResponse[]>([]);
+  // selectedBatchIds: danh sách batchId user đang chọn để nhập kho
   const [selectedBatchIds, setSelectedBatchIds] = useState<number[]>([]);
+  // isLoadingBatches: đang tải danh sách lô (khi mở modal hoặc khi chưa có dữ liệu)
   const [isLoadingBatches, setIsLoadingBatches] = useState(false);
 
   const {
@@ -66,6 +79,7 @@ function Receipts() {
     [receipts]
   );
 
+  // filteredReceipts: lọc danh sách theo statusFilter + search (lọc phía client)
   const filteredReceipts = useMemo(() => {
     let data = receipts;
 
@@ -85,28 +99,37 @@ function Receipts() {
     return data;
   }, [search, statusFilter, receipts]);
 
+  // ================= EFFECT =================
+  // reset về trang 1 khi đổi search hoặc đổi statusFilter
   useEffect(() => {
     setPage(1);
   }, [search, statusFilter]);
 
+  // reset về trang 1 khi đổi pageSize (kích thước trang)
   useLayoutEffect(() => {
     setPage(1);
   }, [pageSize]);
 
+  // totalPages: số trang sau khi lọc
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(filteredReceipts.length / pageSize)),
     [filteredReceipts.length, pageSize]
   );
+
+  // paginatedReceipts: slice dữ liệu cho trang hiện tại
   const paginatedReceipts = useMemo(() => {
     const start = (page - 1) * pageSize;
     return filteredReceipts.slice(start, start + pageSize);
   }, [filteredReceipts, page, pageSize]);
 
+  // ================= HANDLER =================
+  // handleCloseDetail: đóng modal chi tiết và reset selectedReceipt
   const handleCloseDetail = () => {
     setIsDetailOpen(false);
     setSelectedReceipt(null);
   };
 
+  // handleOpenDetail: mở modal chi tiết và gọi API lấy chi tiết theo receiptId
   const handleOpenDetail = async (receipt: InventoryReceiptApi) => {
     setSelectedReceipt(receipt);
     setIsDetailOpen(true);
@@ -123,6 +146,8 @@ function Receipts() {
     }
   };
 
+  // ================= API =================
+  // fetchProductBatches: tải danh sách lô sản phẩm từ API để phục vụ nhập kho
   const fetchProductBatches = async () => {
     setIsLoadingBatches(true);
     try {
@@ -136,6 +161,7 @@ function Receipts() {
     }
   };
 
+  // handleOpenStockIn: mở modal nhập kho và tự động chọn các lô WAITING_FOR_STOCK
   const handleOpenStockIn = async () => {
     if (productBatches.length === 0) {
       await fetchProductBatches();
@@ -153,12 +179,14 @@ function Receipts() {
     setIsStockInModalOpen(true);
   };
 
+  // handleToggleSelectBatch: chọn/tắt 1 lô để chuẩn bị nhập kho
   const handleToggleSelectBatch = (batchId: number) => {
     const isSelecting = !selectedBatchIds.includes(batchId);
     setSelectedBatchIds((prev) => (isSelecting ? [...prev, batchId] : prev.filter((id) => id !== batchId)));
     if (!isSelecting) clearErrors(`quantities.${batchId}`);
   };
 
+  // handleToggleSelectAll: chọn tất cả lô WAITING_FOR_STOCK hoặc bỏ chọn hết
   const handleToggleSelectAll = () => {
     const waitingBatchIds = productBatches.filter((b) => b.status === 'WAITING_FOR_STOCK').map((b) => b.batchId);
     if (selectedBatchIds.length === waitingBatchIds.length) {
@@ -169,6 +197,7 @@ function Receipts() {
     }
   };
 
+  // handleConfirmStockIn: submit nhập kho hàng loạt (manualStockIn) theo selectedBatchIds
   const handleConfirmStockIn = async (data: { quantities: Record<string, number> }) => {
     const finalData = selectedBatchIds.map((id) => ({
       productBatchId: id,
@@ -187,6 +216,8 @@ function Receipts() {
     }
   };
 
+  // ================= API =================
+  // fetchReceipts: tải lại danh sách phiếu nhập kho
   const fetchReceipts = async () => {
     setIsLoadingList(true);
     try {
@@ -201,10 +232,13 @@ function Receipts() {
     }
   };
 
+  // ================= EFFECT (Initial Load) =================
+  // initial load: mở trang sẽ gọi fetchReceipts() để có dữ liệu hiển thị
   useEffect(() => {
     fetchReceipts();
   }, []);
 
+  // ================= RENDER =================
   return (
     <div className="h-full w-full">
       <Card className="overflow-hidden border-amber-200/60 bg-white shadow-md">

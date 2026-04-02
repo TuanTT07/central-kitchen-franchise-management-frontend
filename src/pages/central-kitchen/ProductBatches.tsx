@@ -217,6 +217,7 @@ function BatchDetailPanel({ batch, productDetail, productDetailLoading }: BatchD
 }
 
 function ProductBatches() {
+  // ================= STATE =================
   const [productBatches, setProductBatches] = useState<ProductBatchesResponse[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProductBatchStatus | 'ALL'>('ALL');
@@ -229,6 +230,7 @@ function ProductBatches() {
   const [productDetail, setProductDetail] = useState<ProductsResponse | null>(null);
   const [productDetailLoading, setProductDetailLoading] = useState(false);
 
+  // ================= COMPUTED =================
   const availableCount = useMemo(() => productBatches.filter((b) => b.status === 'AVAILABLE').length, [productBatches]);
 
   const batchesAlert = useMemo(
@@ -242,6 +244,7 @@ function ProductBatches() {
     [productBatches]
   );
 
+  // ================= API =================
   const getAllProductBatches = async () => {
     try {
       setIsLoading(true);
@@ -261,11 +264,13 @@ function ProductBatches() {
     }
   };
 
+  // ================= EFFECT (Initial Load) =================
   useEffect(() => {
     getAllProductBatches();
   }, []);
 
   /** Khi mở chi tiết lô: tải chi tiết sản phẩm (ảnh, danh mục, …) theo productId */
+  // ================= EFFECT (Load product detail) =================
   useEffect(() => {
     if (!isDetailOpen || !selectedBatch) {
       setProductDetail(null);
@@ -318,6 +323,7 @@ function ProductBatches() {
     };
   }, [isDetailOpen, selectedBatch]);
 
+  // ================= COMPUTED =================
   const filteredBatches = useMemo(() => {
     let data = productBatches;
 
@@ -333,6 +339,7 @@ function ProductBatches() {
     return data;
   }, [search, statusFilter, productBatches]);
 
+  // ================= EFFECT =================
   useEffect(() => {
     setPage(1);
   }, [search, statusFilter]);
@@ -341,6 +348,7 @@ function ProductBatches() {
     setPage(1);
   }, [pageSize]);
 
+  // ================= COMPUTED =================
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(filteredBatches.length / pageSize)),
     [filteredBatches.length, pageSize]
@@ -350,6 +358,7 @@ function ProductBatches() {
     return filteredBatches.slice(start, start + pageSize);
   }, [filteredBatches, page, pageSize]);
 
+  // ================= RENDER =================
   return (
     <div className="h-full w-full space-y-5">
       {/* ── Header (giống Supply / InventoryPage) ── */}
