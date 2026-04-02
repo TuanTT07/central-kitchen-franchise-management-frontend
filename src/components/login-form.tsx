@@ -169,11 +169,6 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
             {errors.password && (
               <FieldDescription className="mt-1 text-[11px] text-rose-600">{errors.password.message}</FieldDescription>
             )}
-            <div className="mt-1 text-right">
-              <button type="button" className="text-sm font-medium text-orange-500 hover:text-orange-600">
-                Quên mật khẩu?
-              </button>
-            </div>
           </Field>
 
           {/* Nút submit */}
