@@ -89,7 +89,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
       {/* Header */}
       <div className="flex flex-col items-center text-center">
         <div className="flex items-center justify-center">
-          <img src="/logo.png" alt="Kitchen Hub logo" className="h-32 w-32 shrink-0 rounded-md object-contain" />
+          <img src="/logo.png" alt="PIZZA FIVE GUYS logo" className="h-32 w-32 shrink-0 rounded-md object-contain" />
         </div>
         <p className="mt-2 text-lg font-semibold text-gray-600">Hệ thống quản lý bếp trung tâm</p>
       </div>
