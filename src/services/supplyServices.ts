@@ -422,12 +422,15 @@ export const supplyServices = {
   },
 
   /**
-   * Tạo phiếu xuất kho thừa (surplus) theo một lô và số lượng.
+   * Tạo phiếu xuất kho thừa (surplus).
    * POST /export-notes/createSurplusNote
    *
-   * Body mặc định: `{ productBatchId, quantity, reason }` — nếu BE dùng tên field khác, chỉnh tại một chỗ ở đây.
+   * Contract OpenAPI: `SurplusExportRequest` — `reason` + `items[]` (`batchId`, `quantity`).
    */
-  createSurplusNote: async (body: { productBatchId: number; quantity: number; reason: string }) => {
+  createSurplusNote: async (body: {
+    reason: string;
+    items: { batchId: number; quantity: number }[];
+  }) => {
     const response = await http.post<Response<ExportNotesResponse>>('/export-notes/createSurplusNote', body);
     return response.data;
   },

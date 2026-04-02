@@ -311,9 +311,8 @@ const DistributionPlanPage = () => {
     try {
       setSurplusSubmitting(true);
       const response = await supplyServices.createSurplusNote({
-        productBatchId: surplusBatchId,
-        quantity: Math.floor(qty),
         reason,
+        items: [{ batchId: surplusBatchId, quantity: Math.floor(qty) }],
       });
       if (response.success) {
         toast.success(response.message || 'Tạo phiếu xuất thừa thành công');
