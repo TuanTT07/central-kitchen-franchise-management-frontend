@@ -89,6 +89,7 @@ const DistributionPlanPage = () => {
   const [surplusBatchesLoading, setSurplusBatchesLoading] = useState(false);
   const [surplusBatchId, setSurplusBatchId] = useState<number | null>(null);
   const [surplusQuantity, setSurplusQuantity] = useState('');
+  const [surplusReason, setSurplusReason] = useState('');
   const [surplusSubmitting, setSurplusSubmitting] = useState(false);
   /** Lọc danh sách lô trong dialog (thay cho select dài). */
   const [surplusBatchSearch, setSurplusBatchSearch] = useState('');
@@ -245,6 +246,7 @@ const DistributionPlanPage = () => {
 
   const handleOpenSurplusDialog = () => {
     setSurplusQuantity('');
+    setSurplusReason('');
     setSurplusBatchSearch('');
     setIsSurplusDialogOpen(true);
     void loadSurplusBatches();
@@ -280,9 +282,10 @@ const DistributionPlanPage = () => {
   const canSubmitSurplus = useMemo(() => {
     if (surplusSubmitting || surplusBatchesLoading || surplusBatchId == null) return false;
     if (!Number.isFinite(parsedSurplusQuantity) || parsedSurplusQuantity <= 0) return false;
+    if (!surplusReason.trim()) return false;
     if (selectedSurplusBatch && parsedSurplusQuantity > selectedSurplusBatch.currentQuantity) return false;
     return true;
-  }, [parsedSurplusQuantity, selectedSurplusBatch, surplusBatchId, surplusBatchesLoading, surplusSubmitting]);
+  }, [parsedSurplusQuantity, selectedSurplusBatch, surplusBatchId, surplusBatchesLoading, surplusReason, surplusSubmitting]);
 
   const handleSubmitSurplusNote = async () => {
     if (surplusBatchId == null) {
@@ -292,6 +295,11 @@ const DistributionPlanPage = () => {
     const qty = Number(String(surplusQuantity).trim().replace(',', '.'));
     if (!Number.isFinite(qty) || qty <= 0) {
       toast.warning('Nhập số lượng hợp lệ');
+      return;
+    }
+    const reason = surplusReason.trim();
+    if (!reason) {
+      toast.warning('Vui lòng nhập lý do xuất thừa');
       return;
     }
     const batch = surplusBatches.find((b) => b.batchId === surplusBatchId);
@@ -305,6 +313,7 @@ const DistributionPlanPage = () => {
       const response = await supplyServices.createSurplusNote({
         productBatchId: surplusBatchId,
         quantity: Math.floor(qty),
+        reason,
       });
       if (response.success) {
         toast.success(response.message || 'Tạo phiếu xuất thừa thành công');
@@ -1007,6 +1016,20 @@ const DistributionPlanPage = () => {
                         </p>
                       </div>
                     )}
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="surplus-reason" className="text-xs font-semibold text-amber-900">
+                        Lý do xuất thừa
+                      </label>
+                      <Input
+                        id="surplus-reason"
+                        type="text"
+                        placeholder="Ví dụ: xuất điều chỉnh tồn kho"
+                        value={surplusReason}
+                        onChange={(e) => setSurplusReason(e.target.value)}
+                        className="h-10 border-amber-200 bg-white text-sm"
+                      />
+                    </div>
 
                     <div className="space-y-1.5">
                       <Input
