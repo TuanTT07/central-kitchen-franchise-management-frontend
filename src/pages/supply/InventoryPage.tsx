@@ -3,7 +3,7 @@
  * Description: Trang xem tồn kho dành cho Supply Coordinator.
  *              Hiển thị tổng quan tồn kho theo sản phẩm, số lô và hạn sử dụng gần nhất.
  *              Dữ liệu lấy từ cùng API với trang Tổng quan kho của Manager.
- * Author: Tuan Tran
+ * Author: Dat Tran Phuc
  * Created: 2026
  */
 

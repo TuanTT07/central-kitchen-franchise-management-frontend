@@ -3,7 +3,7 @@
  * Component: ManufacturingOrders
  * Description: Trang quản lý danh sách lệnh sản xuất của bếp trung tâm.
  *             Cho phép xem, tìm kiếm và lọc các lệnh sản xuất theo trạng thái.
- * Author: Tuan Tran
+ * Author: Tuan Tran ,DatPhucTran
  * Created: 2026-03-08
  *
  * Features:
@@ -54,14 +54,22 @@ const formatDateTime = (value: string | null) => {
 // ================= COMPONENT =================
 function ManufacturingOrders() {
   // ================= STATE =================
+  // manufacturingOrder: danh sách lệnh sản xuất lấy từ API
   const [manufacturingOrder, setManufacturingOrder] = useState<ManufacturingOrderResponse[]>([]);
+  // search: từ khóa tìm kiếm (mã lệnh / tên sản phẩm)
   const [search, setSearch] = useState('');
+  // statusFilter: trạng thái đang lọc (ALL / PLANNED / COOKING / COMPLETED)
   const [statusFilter, setStatusFilter] = useState<ManuOrderStatus | 'ALL'>('ALL');
+  // page: trang hiện tại để phân trang ở UI
   const [page, setPage] = useState(1);
+  // isLoading: trạng thái loading khi fetch/sync dữ liệu
   const [isLoading, setIsLoading] = useState(false);
   const pageSize = useGlobalListPageSize();
+  // selectedOrder: lệnh sản xuất đang được chọn để cập nhật trạng thái
   const [selectedOrder, setSelectedOrder] = useState<ManufacturingOrderResponse | null>(null);
+  // isDialogOpen: mở/đóng modal xác nhận cập nhật trạng thái
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  // isUpdating: đang gửi request cập nhật trạng thái (disable nút submit)
   const [isUpdating, setIsUpdating] = useState(false);
 
   // ================= API =================

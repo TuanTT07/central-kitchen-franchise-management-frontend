@@ -2,7 +2,6 @@
  * File: DistributionPlanPage.tsx
  * Description: Trang quản lý kế hoạch phân phối hàng hóa. 
  *              Hiển thị danh sách phiếu xuất kho và hỗ trợ tạo đợt phân phối mới.
- * Author: Tuan Tran
  * Created: 2026-03-12
  */
 
